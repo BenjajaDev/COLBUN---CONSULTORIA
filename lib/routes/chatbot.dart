@@ -99,6 +99,7 @@ class ChatbotBody extends StatelessWidget {
 // COMPONENTE FOOTER - Input del usuario y botón de envío
 // ============================================================================
 
+
 class ChatbotFooter extends StatelessWidget {
   const ChatbotFooter({super.key});
 
@@ -113,15 +114,33 @@ class ChatbotFooter extends StatelessWidget {
       height: 70,
       color: Colors.blue.shade50,
       padding: const EdgeInsets.all(16.0),
-      child: const Center(
-        child: Text(
-          'CHATBOT FOOTER\n(Input del usuario)',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 14,
-          ),
-        ),
+      child: Row(
+        children: [
+          // aqui esta el box que contiene el campo de texto
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24.0),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              //agregue padding para que el texto no este pegado al borde acordarse las medidas solo multiplo de 8
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              // este es el campo de texto TextField
+              child: const TextField(
+                decoration: InputDecoration(
+                  hintText: 'Escribe un mensaje',
+                  border: InputBorder.none,
+                  hintStyle: TextStyle(color: Colors.grey),
+                )
+              ),
+
+
+            ),
+          )
+        ],
       ),
     );
   }
 }
+
