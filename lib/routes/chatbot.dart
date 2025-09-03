@@ -126,7 +126,7 @@ class ChatbotFooter extends StatelessWidget {
               ),
               //agregue padding para que el texto no este pegado al borde acordarse las medidas solo multiplo de 8
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              // este es el campo de texto TextField
+              //este es el campo de texto TextField
               child: const TextField(
                 decoration: InputDecoration(
                   hintText: 'Escribe un mensaje',
@@ -134,10 +134,24 @@ class ChatbotFooter extends StatelessWidget {
                   hintStyle: TextStyle(color: Colors.grey),
                 )
               ),
-
-
             ),
-          )
+            
+          ),
+          const SizedBox(width: 12.0),
+          //boton de enviar el mensaje
+          Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24.0),
+              ),
+              //boton de enviar tipo iconbutton
+              child: IconButton(
+                icon: const Icon(Icons.send, color: Colors.black),
+                onPressed: () {
+                  // aqui iria la logica para enviar el mensaje del usuario
+                },
+              ),
+            ),
         ],
       ),
     );
