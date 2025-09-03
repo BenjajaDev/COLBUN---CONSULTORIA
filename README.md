@@ -1,4 +1,3 @@
-
 # consultoria_chat_bot
 
 A new Flutter project.
@@ -15,4 +14,10 @@ A few resources to get you started if this is your first Flutter project:
 For help getting started with Flutter development, view the
 [online documentation](https://docs.flutter.dev/), which offers tutorials,
 samples, guidance on mobile development, and a full API reference.
+<<<<<<< HEAD
 >>>>>>> main
+=======
+
+# COLBUN---CONSULTORIA
+En este repositorio están albergados los equipos PCIS1 (Chatbot), PCIS2 Y PCIS3 (Rutas).
+>>>>>>> a1e5ef9c7910876421df87eae1962758e0bb50fe
