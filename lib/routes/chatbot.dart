@@ -1,37 +1,23 @@
 import 'package:flutter/material.dart';
 
-void main() => runApp(const MyApp());
-
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Chatbot App',
-      home: const ChatbotScreen(),
-    );
-  }
-}
-
 class ChatbotScreen extends StatelessWidget {
   const ChatbotScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Column(
+      body: const Column(
         children: [
           // Header del chatbot
-          const ChatbotHeader(),
+          ChatbotHeader(),
 
           // Body - conversación
-          const Expanded(
+          Expanded(
             child: ChatbotBody(),
           ),
 
           // Footer - input del usuario
-          const ChatbotFooter(),
+          ChatbotFooter(),
         ],
       ),
     );
@@ -48,21 +34,21 @@ class ChatbotHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      // TODO: Implementar diseño del header
-      // - Logo/título del chatbot
-      // - Botón de configuraciones
-      // - Estado de conexión
       height: 80,
       color: Colors.blue.shade100,
-      child: const Center(
-        child: Text(
-          'CHATBOT HEADER',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
+      width: double.infinity,
+      child: Column(
+          children: [
+            const Text(
+              'CHATBOT HEADER',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        
+      )
     );
   }
 }
@@ -70,6 +56,14 @@ class ChatbotHeader extends StatelessWidget {
 // ============================================================================
 // COMPONENTE BODY - Área de conversación entre usuario y chatbot
 // ============================================================================
+
+//Arreglo de mensajes para prueba
+final List<Map<String, String>> messages = [
+  {"sender": "user", "text": "Hola, ¿cómo estás?"},
+  {"sender": "bot", "text": "¡Hola! Estoy aquí para ayudarte."},
+  {"sender": "user", "text": "¿Cuál es tu nombre?"},
+  {"sender": "bot", "text": "Soy un chatbot creado por OpenAI."},
+];
 
 class ChatbotBody extends StatelessWidget {
   const ChatbotBody({super.key});
@@ -84,14 +78,18 @@ class ChatbotBody extends StatelessWidget {
       // - Indicador de "escribiendo..."
       width: double.infinity,
       color: Colors.grey.shade50,
-      child: const Center(
-        child: Text(
-          'CHATBOT BODY\n(Área de conversación)',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 16,
-          ),
-        ),
+      padding: const EdgeInsets.all(16.0),
+      child: ListView.builder(
+        //Item count sirve para definir cuántos elementos se van a mostrar en la lista
+        itemCount: messages.length,
+        itemBuilder: (context, index) {
+          final message = messages[index];
+          return ListTile(
+            //Alineará el texto con su respectivo remitente
+            title: Text(message['text'] ?? ''),
+            subtitle: Text(message['sender'] ?? ''),
+          );
+        },
       ),
     );
   }
