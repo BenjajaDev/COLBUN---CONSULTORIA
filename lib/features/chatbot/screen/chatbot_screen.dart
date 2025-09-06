@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
 
+class AppColors{
+  static const Color primary = Color(0xFF4D67AE);
+  static const Color white = Colors.white;
+}
+
 class ChatbotScreen extends StatelessWidget {
   const ChatbotScreen({super.key});
 
@@ -41,7 +46,8 @@ class ChatbotHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return AppBar(
       elevation: 0,//sin sombra el apartado
-      backgroundColor: Color(0xFF4D67AE),
+      backgroundColor: AppColors.primary,
+      iconTheme: IconThemeData(color: AppColors.white),
       title: Text(
         'CHATBOT HEADER',
         style: TextStyle(
@@ -178,7 +184,7 @@ class ChatbotFooter extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      // TODO: Implementar área de input
+      // TODO:Implementar área de input
       // - Campo de texto para escribir mensaje
       // - Botón de envío
       // - Botón de adjuntar archivos
@@ -186,20 +192,29 @@ class ChatbotFooter extends StatelessWidget {
       height: 70,
       color: Color(0XFFFFFFFF),
       padding: const EdgeInsets.all(16.0),
+
       child: Row(
         children: [
           // aqui esta el box que contiene el campo de texto
           Expanded(
             child: Container(
+              //===============================================================
+              //decoracion del contenedor que contiene al campo de textfield
+              //===============================================================
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(12.0),
                 // color de bordes E0E0E0 mockup de field del texto
                 border: Border.all(color: Color(0xFFE0E0E0)),
               ),
+
+
               //agregue padding para que el texto no este pegado al borde acordarse las medidas solo multiplo de 8
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
+
+              //===============================================================
               //este es el campo de texto TextField
+              //===============================================================
               child: const TextField(
                 decoration: InputDecoration(
                   hintText: 'Escribe un mensaje',
@@ -213,13 +228,16 @@ class ChatbotFooter extends StatelessWidget {
           //boton de enviar el mensaje
           Container(
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16.0),
-              border: Border.all(color: Color(0xFFE0E0E0)),// color de bordes E0E0E0 mockup
+              color: Color(0XFFFFFFFF),
+
             ),
-            //boton de enviar tipo iconbutton
+
+            //===============================================================
+            //boton de enviar tipo  ICONBUTTON
+            //===============================================================
             child: IconButton(
               icon: const Icon(Icons.send, color: Color(0XFF1d1b20)),// color del icono de enviar 1d1b20 mockup
+              iconSize: 24,
               onPressed: () {
                 // aqui iria la logica para enviar el mensaje del usuario
               },
