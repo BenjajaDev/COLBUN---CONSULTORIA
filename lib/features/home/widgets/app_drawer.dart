@@ -2,7 +2,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:consultoria_chat_bot/features/chatbot/screen/chatbot_screen.dart';
+
+import '../../chatbot/screen/chatbot_screen.dart';
 
 class AppDrawer extends StatelessWidget {
   const AppDrawer({super.key});
@@ -54,9 +55,8 @@ class AppDrawer extends StatelessWidget {
                 onTap: () {
                   // Cierra el diálogo
                   Navigator.of(dialogContext).pop();
-                  // Navega a la pantalla del chatbot
-                  Navigator.push(
-                    context,
+                  // Navega a la pantalla del chatbot usando el contexto del diálogo
+                  Navigator.of(dialogContext).push(
                     MaterialPageRoute(
                       builder: (context) => const ChatbotScreen(),
                     ),
