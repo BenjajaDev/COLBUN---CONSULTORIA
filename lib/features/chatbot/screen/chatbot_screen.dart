@@ -184,7 +184,7 @@ class ChatbotFooter extends StatelessWidget {
       // - Botón de adjuntar archivos
       // - Indicadores de estado
       height: 70,
-      color: Colors.blue.shade50,
+      color: Color(0XFFFFFFFF),
       padding: const EdgeInsets.all(16.0),
       child: Row(
         children: [
@@ -193,8 +193,9 @@ class ChatbotFooter extends StatelessWidget {
             child: Container(
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(24.0),
-                border: Border.all(color: Colors.grey.shade300),
+                borderRadius: BorderRadius.circular(12.0),
+                // color de bordes E0E0E0 mockup de field del texto
+                border: Border.all(color: Color(0xFFE0E0E0)),
               ),
               //agregue padding para que el texto no este pegado al borde acordarse las medidas solo multiplo de 8
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -203,7 +204,7 @@ class ChatbotFooter extends StatelessWidget {
                 decoration: InputDecoration(
                   hintText: 'Escribe un mensaje',
                   border: InputBorder.none,
-                  hintStyle: TextStyle(color: Color(0xFF828282)),
+                  hintStyle: TextStyle(color: Color(0xFF828282)),// color de texto escribe un mensaje 828282 mockup
                 ),
               ),
             ),
@@ -213,11 +214,12 @@ class ChatbotFooter extends StatelessWidget {
           Container(
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(24.0),
+              borderRadius: BorderRadius.circular(16.0),
+              border: Border.all(color: Color(0xFFE0E0E0)),// color de bordes E0E0E0 mockup
             ),
             //boton de enviar tipo iconbutton
             child: IconButton(
-              icon: const Icon(Icons.send, color: Colors.black),
+              icon: const Icon(Icons.send, color: Color(0XFF1d1b20)),// color del icono de enviar 1d1b20 mockup
               onPressed: () {
                 // aqui iria la logica para enviar el mensaje del usuario
               },
