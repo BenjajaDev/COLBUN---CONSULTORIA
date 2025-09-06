@@ -5,20 +5,26 @@ class ChatbotScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: const Column(
-        children: [
-          // Header del chatbot
-          ChatbotHeader(),
+    return GestureDetector(
+      onTap: () {
+        // Esto quita el foco del teclado cuando se toca fuera del campo de texto
+        FocusScope.of(context).unfocus();
+      },
+      child: Scaffold(
+        body: const Column(
+          children: [
+            // Header del chatbot
+            ChatbotHeader(),
 
-          // Body - conversación
-          Expanded(
-            child: ChatbotBody(),
-          ),
+            // Body - conversación
+            Expanded(
+              child: ChatbotBody(),
+            ),
 
-          // Footer - input del usuario
-          ChatbotFooter(),
-        ],
+            // Footer - input del usuario
+            ChatbotFooter(),
+          ],
+        ),
       ),
     );
   }
@@ -33,56 +39,90 @@ class ChatbotHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 80,
-      color: Colors.blue.shade100,
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        crossAxisAlignment: CrossAxisAlignment.end, //alinea el todo lo contenido en el header al fondo
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8.0), //aqui sr ajusta el espacio inferior del texto
-            child: Text(
-              'CHATBOT HEADER',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.black,
-              ),
-            ),
-          ),
-
-          // Botón de tres puntos tipo popup
-          PopupMenuButton(
-            
-            //aqui deberia ir la logica para cada opcion del menu
-
-            itemBuilder: (BuildContext context) {
-              return [
-                PopupMenuItem(
-                  value: 'Whatsapp',
-                  child: ListTile(
-                    leading: Icon(Icons.chat, color: Colors.green),
-                    title: Text('Contactar por WhatsApp'),
-                  ),
-                ),
-                PopupMenuItem(
-                  value: 'Borrar Historial',
-                  child: ListTile(
-                    leading: Icon(Icons.delete, color: Colors.red),
-                    title: Text('Borrar Historial de conversación'),
-                  ),
-                ),
-              ];
-            },
-          ),
-        ],
+    return AppBar(
+      elevation: 0,//sin sombra el apartado
+      backgroundColor: Color(0xFF4D67AE),
+      title: Text(
+        'CHATBOT HEADER',
+        style: TextStyle(
+          fontSize: 24,
+          fontWeight: FontWeight.bold,
+          color: Color(0xFFFFFFFF),
+        ),
       ),
+      actions: [
+        //=============================================================================
+        // Botón de tres puntos tipo popup
+        //=============================================================================
+        PopupMenuButton(
+          icon: const Icon(Icons.more_vert, color: Color(0xFFFFFFFF)),
+          color: const Color(0xFF4D67AE),
+          iconSize: 34,
+          position: PopupMenuPosition.under,
+          elevation: 8, //sombra del popup
+          offset: Offset(0, 13),
+          
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8.0),
+          ),
+          
+
+          onSelected: (value) {
+            // Aquí puedes manejar las opciones
+            if (value == 'Whatsapp') {
+              print('Contactar por WhatsApp');
+            } else if (value == 'Borrar Historial') {
+              print('Borrar Historial');
+            }
+          },
+          itemBuilder: (BuildContext context) {
+            // Cierra el teclado antes de mostrar el menú
+            FocusScope.of(context).unfocus();
+
+            //=============================================================================
+            // Opciones del menú
+            //=============================================================================
+            return [
+              PopupMenuItem(
+                value: 'Whatsapp',
+                child: ListTile(
+                  leading: Icon(Icons.chat, color: Colors.green),
+                  title: Text(
+                    'Contactar por WhatsApp',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+                
+              ),
+              //=============================================================================
+              //Esta opcion solo es para poner la linea blanca divisora entre las opciones
+              //=============================================================================
+              PopupMenuItem(
+                enabled: false, // No se pueda seleccionar
+                height: 0, // Eliminar padding superior/inferior
+                child: Divider(
+                  color: Colors.white, // Línea blanca
+                  height: 1,
+                ),
+              ),
+              
+              PopupMenuItem(
+                value: 'Borrar Historial',
+                child: ListTile(
+                  leading: Icon(Icons.delete, color: Colors.red),
+                  title: Text(
+                    'Borrar Historial de conversación',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+              ),
+            ];
+          },
+        ),
+      ],
     );
   }
-  }
+}
 
 
 // ============================================================================
@@ -163,30 +203,28 @@ class ChatbotFooter extends StatelessWidget {
                 decoration: InputDecoration(
                   hintText: 'Escribe un mensaje',
                   border: InputBorder.none,
-                  hintStyle: TextStyle(color: Colors.grey),
-                )
+                  hintStyle: TextStyle(color: Color(0xFF828282)),
+                ),
               ),
             ),
-            
           ),
           const SizedBox(width: 12.0),
           //boton de enviar el mensaje
           Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(24.0),
-              ),
-              //boton de enviar tipo iconbutton
-              child: IconButton(
-                icon: const Icon(Icons.send, color: Colors.black),
-                onPressed: () {
-                  // aqui iria la logica para enviar el mensaje del usuario
-                },
-              ),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24.0),
             ),
+            //boton de enviar tipo iconbutton
+            child: IconButton(
+              icon: const Icon(Icons.send, color: Colors.black),
+              onPressed: () {
+                // aqui iria la logica para enviar el mensaje del usuario
+              },
+            ),
+          ),
         ],
       ),
     );
   }
 }
-
