@@ -37,21 +37,53 @@ class ChatbotHeader extends StatelessWidget {
       height: 80,
       color: Colors.blue.shade100,
       width: double.infinity,
-      child: Column(
-          children: [
-            const Text(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.end, //alinea el todo lo contenido en el header al fondo
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8.0), //aqui sr ajusta el espacio inferior del texto
+            child: Text(
               'CHATBOT HEADER',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
+                color: Colors.black,
               ),
             ),
-          ],
-        
-      )
+          ),
+
+          // Botón de tres puntos tipo popup
+          PopupMenuButton(
+            
+            //aqui deberia ir la logica para cada opcion del menu
+
+            itemBuilder: (BuildContext context) {
+              return [
+                PopupMenuItem(
+                  value: 'Whatsapp',
+                  child: ListTile(
+                    leading: Icon(Icons.chat, color: Colors.green),
+                    title: Text('Contactar por WhatsApp'),
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'Borrar Historial',
+                  child: ListTile(
+                    leading: Icon(Icons.delete, color: Colors.red),
+                    title: Text('Borrar Historial de conversación'),
+                  ),
+                ),
+              ];
+            },
+          ),
+        ],
+      ),
     );
   }
-}
+  }
+
 
 // ============================================================================
 // COMPONENTE BODY - Área de conversación entre usuario y chatbot
@@ -126,7 +158,7 @@ class ChatbotFooter extends StatelessWidget {
               ),
               //agregue padding para que el texto no este pegado al borde acordarse las medidas solo multiplo de 8
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              // este es el campo de texto TextField
+              //este es el campo de texto TextField
               child: const TextField(
                 decoration: InputDecoration(
                   hintText: 'Escribe un mensaje',
@@ -134,10 +166,24 @@ class ChatbotFooter extends StatelessWidget {
                   hintStyle: TextStyle(color: Colors.grey),
                 )
               ),
-
-
             ),
-          )
+            
+          ),
+          const SizedBox(width: 12.0),
+          //boton de enviar el mensaje
+          Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24.0),
+              ),
+              //boton de enviar tipo iconbutton
+              child: IconButton(
+                icon: const Icon(Icons.send, color: Colors.black),
+                onPressed: () {
+                  // aqui iria la logica para enviar el mensaje del usuario
+                },
+              ),
+            ),
         ],
       ),
     );
