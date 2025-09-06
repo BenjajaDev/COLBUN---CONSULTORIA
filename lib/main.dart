@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
-import 'routes/chatbot.dart';
+// Asegúrate de que el nombre del proyecto sea el correcto
+import 'package:consultoria_chat_bot/features/home/screen/home_screen.dart';
 
-void main() => runApp(const MyApp());
+// ESTA FUNCIÓN ES LA QUE FALTA
+void main() {
+  runApp(const MyApp());
+}
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -9,37 +13,12 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Consultoria Chat Bot',
-      home: const HomeScreen(),
-    );
-  }
-}
-
-class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text('Consultoria Chat Bot'),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const ChatbotScreen(),
-                  ),
-                );
-              },
-              child: const Text('Ir al Chatbot'),
-            ),
-          ],
-        ),
+      title: 'Mi Aplicación',
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        useMaterial3: true,
       ),
+      home: const HomeScreen(),
     );
   }
 }
