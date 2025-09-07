@@ -1,0 +1,7 @@
+{
+  "@@locale": "es",
+  "helloWorld": "hola mundo!",
+  "@helloWorld": {
+    "description": "prueba"
+  }
+}
