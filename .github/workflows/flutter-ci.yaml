@@ -1,0 +1,34 @@
+name: Flutter CI
+
+on:
+  push:
+    branches: [ PCIS2/develop, PCIS3/develop ,PCIS2/master, PCIS3/master ]
+  pull_request:
+    branches: [ PCIS2/develop, PCIS3/develop ,PCIS2/master, PCIS3/master ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    # 1. Descargar código
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    # 2. Configurar Flutter
+    - name: Set up Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.35.3'
+
+    # 3. Instalar dependencias
+    - name: Install dependencies
+      run: flutter pub get
+      
+    # 4. Análisis estático
+    - name: Run Flutter Analyze
+      run: flutter analyze
+      
+    # 5. Ejecutar pruebas unitarias
+    - name: Run Unit Tests
+      run: flutter test
