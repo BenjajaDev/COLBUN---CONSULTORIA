@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../bloc/theme_bloc.dart';
 
 class AppColors{
-  static const Color primary = Color(0xFF4D67AE);
-  static const Color white = Colors.white;
+  static const Color lightprimary = Color(0xFF4D67AE);
+  static const Color lightbackground = Colors.white;
+  static const Color lightTextFieldBorder = Color(0xFFE0E0E0);
+  static const Color darkprimary = Color(0xFF494C6B);
+  static const Color darkBackground = Color(0xFF252525);
 }
 
 class ChatbotScreen extends StatelessWidget {
@@ -10,27 +15,34 @@ class ChatbotScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        // Esto quita el foco del teclado cuando se toca fuera del campo de texto
-        FocusScope.of(context).unfocus();
-      },
-      child: Scaffold(
-        body: const Column(
-          children: [
-            // Header del chatbot
-            ChatbotHeader(),
+    return BlocBuilder<ThemeBloc, ThemeState>(
+      builder: (context, state) {
+        return GestureDetector(
+          onTap: () {
+            // Esto quita el foco del teclado cuando se toca fuera del campo de texto
+            FocusScope.of(context).unfocus();
+          },
+          child: Scaffold(
+            backgroundColor: state.isDarkMode
+                ? AppColors.darkBackground
+                : Colors.grey[50],
+            body: Column(
+              children: [
+                // Header del chatbot
+                ChatbotHeader(),
 
-            // Body - conversación
-            Expanded(
-              child: ChatbotBody(),
+                // Body - conversación
+                Expanded(
+                  child: ChatbotBody(isDarkMode: state.isDarkMode),
+                ),
+
+                // Footer - input del usuario
+                ChatbotFooter(isDarkMode: state.isDarkMode),
+              ],
             ),
-
-            // Footer - input del usuario
-            ChatbotFooter(),
-          ],
-        ),
-      ),
+          ),
+        );
+      }
     );
   }
 }
@@ -44,89 +56,119 @@ class ChatbotHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AppBar(
-      elevation: 0,//sin sombra el apartado
-      backgroundColor: AppColors.primary,
-      iconTheme: IconThemeData(color: AppColors.white),
-      title: Text(
-        'CHATBOT HEADER',
-        style: TextStyle(
-          fontSize: 24,
-          fontWeight: FontWeight.bold,
-          color: Color(0xFFFFFFFF),
-        ),
-      ),
-      actions: [
-        //=============================================================================
-        // Botón de tres puntos tipo popup
-        //=============================================================================
-        PopupMenuButton(
-          icon: const Icon(Icons.more_vert, color: Color(0xFFFFFFFF)),
-          color: const Color(0xFF4D67AE),
-          iconSize: 34,
-          position: PopupMenuPosition.under,
-          elevation: 8, //sombra del popup
-          offset: Offset(0, 13),
-          
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8.0),
+    return BlocBuilder<ThemeBloc, ThemeState>(
+      builder: (context, state) {
+        return AppBar(
+          elevation: 0,//sin sombra el apartado
+          backgroundColor: state.isDarkMode
+            ? AppColors.darkprimary
+            : AppColors.lightprimary,
+          iconTheme: IconThemeData(color: AppColors.lightbackground),
+          title: Text(
+            'CHATBOT HEADER',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFFFFFFFF),
+            ),
           ),
-          
-
-          onSelected: (value) {
-            // Aquí puedes manejar las opciones
-            if (value == 'Whatsapp') {
-              print('Contactar por WhatsApp');
-            } else if (value == 'Borrar Historial') {
-              print('Borrar Historial');
-            }
-          },
-          itemBuilder: (BuildContext context) {
-            // Cierra el teclado antes de mostrar el menú
-            FocusScope.of(context).unfocus();
-
+          actions: [
             //=============================================================================
-            // Opciones del menú
+            // Switch modo oscuro/claro
             //=============================================================================
-            return [
-              PopupMenuItem(
-                value: 'Whatsapp',
-                child: ListTile(
-                  leading: Icon(Icons.chat, color: Colors.green),
-                  title: Text(
-                    'Contactar por WhatsApp',
-                    style: TextStyle(color: Colors.white),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+              child: Row(
+                children: [
+                  Icon(
+                    state.isDarkMode ? Icons.nightlight_round : Icons.wb_sunny,
+                    color: Colors.white,
                   ),
-                ),
-                
+                  const SizedBox(width: 4,),
+                  Switch(
+                    value: state.isDarkMode, 
+                    onChanged: (value){
+                      context.read<ThemeBloc>().add(ToggleThemeEvent());
+                    },
+                    activeThumbColor: Colors.white,
+                    activeTrackColor: Colors.white.withValues(alpha: 0.5),
+                  )
+                ],
               ),
-              //=============================================================================
-              //Esta opcion solo es para poner la linea blanca divisora entre las opciones
-              //=============================================================================
-              PopupMenuItem(
-                enabled: false, // No se pueda seleccionar
-                height: 0, // Eliminar padding superior/inferior
-                child: Divider(
-                  color: Colors.white, // Línea blanca
-                  height: 1,
-                ),
+            ),
+
+            //=============================================================================
+            // Botón de tres puntos tipo popup
+            //=============================================================================
+            PopupMenuButton(
+              icon: const Icon(Icons.more_vert, color: Color(0xFFFFFFFF)),
+              color: state.isDarkMode ? AppColors.darkprimary : AppColors.lightprimary,
+              iconSize: 34,
+              position: PopupMenuPosition.under,
+              elevation: 8, //sombra del popup
+              offset: Offset(0, 13),
+              
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8.0),
               ),
               
-              PopupMenuItem(
-                value: 'Borrar Historial',
-                child: ListTile(
-                  leading: Icon(Icons.delete, color: Colors.red),
-                  title: Text(
-                    'Borrar Historial de conversación',
-                    style: TextStyle(color: Colors.white),
+
+              onSelected: (value) {
+                // Aquí puedes manejar las opciones
+                if (value == 'Whatsapp') {
+                  print('Contactar por WhatsApp');
+                } else if (value == 'Borrar Historial') {
+                  print('Borrar Historial');
+                }
+              },
+              itemBuilder: (BuildContext context) {
+                // Cierra el teclado antes de mostrar el menú
+                FocusScope.of(context).unfocus();
+
+                //=============================================================================
+                // Opciones del menú
+                //=============================================================================
+                return [
+                  PopupMenuItem(
+                    value: 'Whatsapp',
+                    child: ListTile(
+                      leading: Icon(Icons.chat, color: Colors.green),
+                      title: Text(
+                        'Contactar por WhatsApp',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                    
                   ),
-                ),
-              ),
-            ];
-          },
-        ),
-      ],
-    );
+                  //=============================================================================
+                  //Esta opcion solo es para poner la linea blanca divisora entre las opciones
+                  //=============================================================================
+                  PopupMenuItem(
+                    enabled: false, // No se pueda seleccionar
+                    height: 0, // Eliminar padding superior/inferior
+                    child: Divider(
+                      color: Colors.white, // Línea blanca
+                      height: 1,
+                    ),
+                  ),
+                  
+                  PopupMenuItem(
+                    value: 'Borrar Historial',
+                    child: ListTile(
+                      leading: Icon(Icons.delete, color: Colors.red),
+                      title: Text(
+                        'Borrar Historial de conversación',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  ),
+                ];
+              },
+            ),
+          ],
+        );
+      }
+    );  
   }
 }
 
@@ -144,7 +186,8 @@ final List<Map<String, String>> messages = [
 ];
 
 class ChatbotBody extends StatelessWidget {
-  const ChatbotBody({super.key});
+  final bool isDarkMode;
+  const ChatbotBody({super.key, required this.isDarkMode});
 
   @override
   Widget build(BuildContext context) {
@@ -155,7 +198,7 @@ class ChatbotBody extends StatelessWidget {
       // - Burbujas de chat diferenciadas
       // - Indicador de "escribiendo..."
       width: double.infinity,
-      color: Colors.grey.shade50,
+      color: isDarkMode ? AppColors.darkBackground : Colors.grey[50],
       padding: const EdgeInsets.all(16.0),
       child: ListView.builder(
         //Item count sirve para definir cuántos elementos se van a mostrar en la lista
@@ -164,8 +207,18 @@ class ChatbotBody extends StatelessWidget {
           final message = messages[index];
           return ListTile(
             //Alineará el texto con su respectivo remitente
-            title: Text(message['text'] ?? ''),
-            subtitle: Text(message['sender'] ?? ''),
+            title: Text(
+              message['text'] ?? '',
+              style: TextStyle(
+                color: isDarkMode ? Colors.white : Colors.black
+              ) 
+            ),
+            subtitle: Text(
+              message['sender'] ?? '',
+              style: TextStyle(
+                color: isDarkMode ? Colors.grey[400] : Colors.grey[600]
+              ),  
+            ),
           );
         },
       ),
@@ -179,7 +232,8 @@ class ChatbotBody extends StatelessWidget {
 
 
 class ChatbotFooter extends StatelessWidget {
-  const ChatbotFooter({super.key});
+  final bool isDarkMode;
+  const ChatbotFooter({super.key, required this.isDarkMode});
 
   @override
   Widget build(BuildContext context) {
@@ -190,7 +244,7 @@ class ChatbotFooter extends StatelessWidget {
       // - Botón de adjuntar archivos
       // - Indicadores de estado
       height: 70,
-      color: Color(0XFFFFFFFF),
+      color: isDarkMode ? AppColors.darkBackground : AppColors.lightbackground,
       padding: const EdgeInsets.all(16.0),
 
       child: Row(
@@ -202,10 +256,10 @@ class ChatbotFooter extends StatelessWidget {
               //decoracion del contenedor que contiene al campo de textfield
               //===============================================================
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: isDarkMode ? AppColors.darkBackground : AppColors.lightbackground, //Color relleno textField
                 borderRadius: BorderRadius.circular(12.0),
                 // color de bordes E0E0E0 mockup de field del texto
-                border: Border.all(color: Color(0xFFE0E0E0)),
+                border: Border.all(color: isDarkMode ? Colors.grey[600]! : AppColors.lightTextFieldBorder)
               ),
 
 
@@ -215,11 +269,14 @@ class ChatbotFooter extends StatelessWidget {
               //===============================================================
               //este es el campo de texto TextField
               //===============================================================
-              child: const TextField(
+              child: TextField(
+                style: TextStyle(
+                  color: isDarkMode ? Colors.white : Colors.black
+                ),
                 decoration: InputDecoration(
                   hintText: 'Escribe un mensaje',
                   border: InputBorder.none,
-                  hintStyle: TextStyle(color: Color(0xFF828282)),// color de texto escribe un mensaje 828282 mockup
+                  hintStyle: TextStyle(color: isDarkMode ? Colors.grey[400] : Color(0xFF828282)),// color de texto escribe un mensaje 828282 mockup
                 ),
               ),
             ),
@@ -228,7 +285,7 @@ class ChatbotFooter extends StatelessWidget {
           //boton de enviar el mensaje
           Container(
             decoration: BoxDecoration(
-              color: Color(0XFFFFFFFF),
+              color: isDarkMode ? AppColors.darkBackground : AppColors.lightbackground,
 
             ),
 
@@ -236,7 +293,7 @@ class ChatbotFooter extends StatelessWidget {
             //boton de enviar tipo  ICONBUTTON
             //===============================================================
             child: IconButton(
-              icon: const Icon(Icons.send, color: Color(0XFF1d1b20)),// color del icono de enviar 1d1b20 mockup
+              icon: Icon(Icons.send, color: isDarkMode ? Colors.white :Color(0XFF1d1b20)),// color del icono de enviar 1d1b20 mockup
               iconSize: 24,
               onPressed: () {
                 // aqui iria la logica para enviar el mensaje del usuario
