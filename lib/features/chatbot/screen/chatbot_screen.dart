@@ -1,7 +1,9 @@
 import 'dart:convert';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../bloc/theme_bloc.dart';
 
 // Estructura de colores (sin cambios)
@@ -13,6 +15,13 @@ class AppColors {
   static const Color darkBackground = Color(0xFF252525);
 }
 
+class BotResponse {
+  final String answer;
+  final String? action; // El action es opcional
+
+  BotResponse({required this.answer, this.action});
+}
+
 // Pantalla principal (Widget Stateful, sin cambios en su declaración)
 class ChatbotScreen extends StatefulWidget {
   const ChatbotScreen({super.key});
@@ -22,22 +31,46 @@ class ChatbotScreen extends StatefulWidget {
 }
 
 // Estado de la pantalla (aquí se agrega la lógica del JSON)
-class _ChatbotScreenState extends State<ChatbotScreen> {
+class _ChatbotScreenState extends State<ChatbotScreen> with TickerProviderStateMixin {
   // El arreglo de mensajes ahora empieza vacío
   final List<Map<String, String>> messages = [];
 
-  // ============================================================================
-  // === INICIO: CÓDIGO NUEVO PARA MANEJAR LÓGICA DEL CHATBOT ===
-  // ============================================================================
+  // Variables para la animación de typing
+  bool _isTyping = false;
+  late AnimationController _typingController;
+  Animation<double>? _typingAnimation;
 
   // Variable para guardar los datos del JSON
   Map<String, dynamic>? _faqs;
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
+    
+    // Inicializar el controlador de animación
+    _typingController = AnimationController(
+      duration: const Duration(milliseconds: 1500),
+      vsync: this,
+    );
+    
+    _typingAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _typingController,
+      curve: Curves.easeInOut,
+    ));
+    
     // Cargar el JSON al iniciar la pantalla
     _loadFaqs();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    _typingController.dispose();
+    super.dispose();
   }
 
   // Función para cargar y decodificar el archivo faqs.json
@@ -53,9 +86,9 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   }
 
   // Función que busca una respuesta en el JSON cargado
-  String _getBotResponse(String userMessage) {
+  BotResponse _getBotResponse(String userMessage) {
     if (_faqs == null) {
-      return "Cargando respuestas...";
+      return BotResponse(answer: "Cargando respuestas...");
     }
 
     String message = userMessage.toLowerCase().trim();
@@ -70,38 +103,112 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     for (var entry in allEntries) {
       List<dynamic> tags = entry['tags'];
       if (tags.any((tag) => message.contains(tag.toLowerCase()))) {
-        return entry['answer'];
+        return BotResponse(
+          answer: entry['answer'],
+          action: entry['action'],
+        );
       }
     }
 
     // Si no encuentra respuesta, simula el paso a la IA
-    return "No encontré una respuesta. Consultando a la IA...";
+    return BotResponse(
+      answer: "No encontré una respuesta. Consultando a la IA...",
+      action: "query_openai",
+    );
   }
 
-  // Función para agregar mensajes (modificada para manejar la lógica de respuesta)
+  // Función para manejar el envío de mensajes del usuario
   void handleSendMessage(String text) {
     // 1. Agrega el mensaje del usuario a la lista
     addMessage("user", text);
 
-    // 2. Obtiene la respuesta del bot desde el JSON
-    final botText = _getBotResponse(text);
+    // 2. Activar la animación de typing
+    setState(() {
+      _isTyping = true;
+    });
+    _typingController.repeat();
 
-    // 3. Simula un retraso y agrega la respuesta del bot
-    Future.delayed(const Duration(milliseconds: 500), () {
-      addMessage("bot", botText);
+    // 3. Obtiene la respuesta del bot desde el JSON
+    final botResponse = _getBotResponse(text);
+
+    // 4. Calcular TTR realista con máximo de 3 segundos
+    final random = math.Random();
+    int baseTime = 800; // Tiempo base mínimo
+    
+    // Agregar tiempo basado en complejidad
+    int complexityTime = (text.length * 10).clamp(0, 1000);
+    int responseComplexity = (botResponse.answer.length * 8).clamp(0, 800);
+    int randomVariation = random.nextInt(600);
+    
+    // TTR total con máximo de 3 segundos
+    int totalTTR = (baseTime + complexityTime + responseComplexity + randomVariation)
+        .clamp(800, 3000);
+
+    // 5. Simula el retraso de respuesta
+    Future.delayed(Duration(milliseconds: totalTTR), () {
+      if (mounted) {
+        // Detener la animación de typing
+        setState(() {
+          _isTyping = false;
+        });
+        _typingController.stop();
+        
+        // Agregar la respuesta del bot
+        addMessage("bot", botResponse.answer);
+
+        // Ejecutar acciones si existen
+        if (botResponse.action == "open_whatsapp") {
+          _launchWhatsApp();
+        } else if (botResponse.action == "query_openai") {
+          // Simulación de respuesta de IA
+          Future.delayed(const Duration(seconds: 2), () {
+            if (mounted) {
+              addMessage("bot", "Respuesta simulada de la IA para: \"$text\".");
+            }
+          });
+        }
+      }
     });
   }
 
-  // Función base para agregar mensajes a la lista y actualizar la UI
+  // Función para agregar mensajes a la lista y actualizar la UI
   void addMessage(String sender, String text) {
     setState(() {
       messages.add({"sender": sender, "text": text});
     });
+    // Auto-scroll al último mensaje con animación suave (scroll invertido)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          0.0, // Ir al inicio (que es el final por reverse: true)
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
   }
 
-  // ============================================================================
-  // === FIN: CÓDIGO NUEVO PARA MANEJAR LÓGICA DEL CHATBOT ===
-  // ============================================================================
+  // Función para borrar el historial de chat
+  void _clearChatHistory() {
+    setState(() {
+      messages.clear();
+      addMessage("bot", "Historial borrado. ¿Necesitas algo más?");
+    });
+  }
+
+  // Función para abrir WhatsApp
+  void _launchWhatsApp() async {
+    const phoneNumber = "+56912345678"; // Reemplazar con número real
+    const message = "Hola, necesito ayuda de un asesor.";
+    final Uri whatsappUri = Uri.parse(
+        "https://wa.me/$phoneNumber?text=${Uri.encodeComponent(message)}");
+
+    if (!await launchUrl(whatsappUri, mode: LaunchMode.externalApplication)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("No se pudo abrir WhatsApp.")),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -115,21 +222,28 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
               state.isDarkMode ? AppColors.darkBackground : Colors.grey[50],
           body: Column(
             children: [
+              // Header (con callbacks para las funciones)
+              ChatbotHeader(
+                onClearHistory: _clearChatHistory,
+                onContactWhatsApp: _launchWhatsApp,
+              ),
 
-              const ChatbotHeader(),
-
-              // Body - conversación
+              // Body - conversación (ahora con el ScrollController y animación)
               Expanded(
-                child: ChatbotBody(
-                  isDarkMode: state.isDarkMode,
-                  messages: messages,
-                ),
+                child: _typingAnimation != null
+                    ? ChatbotBody(
+                        isDarkMode: state.isDarkMode,
+                        messages: messages,
+                        scrollController: _scrollController,
+                        isTyping: _isTyping,
+                        typingAnimation: _typingAnimation!,
+                      )
+                    : Container(),
               ),
 
               // Footer - input del usuario
               ChatbotFooter(
                 isDarkMode: state.isDarkMode,
-                // Se pasa la nueva función que contiene la lógica
                 onSendMessage: handleSendMessage,
               ),
             ],
@@ -143,8 +257,15 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
 // ============================================================================
 // COMPONENTE HEADER
 // ============================================================================
-class ChatbotHeader extends StatelessWidget {
-  const ChatbotHeader({super.key});
+class ChatbotHeader extends StatelessWidget implements PreferredSizeWidget {
+  final VoidCallback onClearHistory;
+  final VoidCallback onContactWhatsApp;
+
+  const ChatbotHeader({
+    super.key,
+    required this.onClearHistory,
+    required this.onContactWhatsApp,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -157,7 +278,7 @@ class ChatbotHeader extends StatelessWidget {
               : AppColors.lightprimary,
           iconTheme: const IconThemeData(color: AppColors.lightbackground),
           title: const Text(
-            'CHATBOT HEADER',
+            'Asistente Colbún',
             style: TextStyle(
               fontFamily: 'Poppins',
               fontSize: 28, // 28-32 puntos para títulos
@@ -211,11 +332,11 @@ class ChatbotHeader extends StatelessWidget {
                 ),
 
                 onSelected: (value) {
-                  // Aquí puedes manejar las opciones
+                  // Manejar las opciones usando los callbacks
                   if (value == 'Whatsapp') {
-                    print('Contactar por WhatsApp');
+                    onContactWhatsApp();
                   } else if (value == 'Borrar Historial') {
-                    print('Borrar Historial');
+                    onClearHistory();
                   }
                 },
                 itemBuilder: (BuildContext context) {
@@ -272,6 +393,9 @@ class ChatbotHeader extends StatelessWidget {
       },
     );
   }
+
+  @override
+  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
 }
 
 // ============================================================================
@@ -280,47 +404,77 @@ class ChatbotHeader extends StatelessWidget {
 class ChatbotBody extends StatelessWidget {
   final bool isDarkMode;
   final List<Map<String, String>> messages;
-  const ChatbotBody(
-      {super.key, required this.isDarkMode, required this.messages});
+  final ScrollController scrollController;
+  final bool isTyping;
+  final Animation<double> typingAnimation;
+
+  const ChatbotBody({
+    super.key,
+    required this.isDarkMode,
+    required this.messages,
+    required this.scrollController,
+    required this.isTyping,
+    required this.typingAnimation,
+  });
 
   @override
   Widget build(BuildContext context) {
-    // Tu código del Body se mantiene exactamente igual...
     return Container(
       width: double.infinity,
       color: isDarkMode ? AppColors.darkBackground : Colors.grey[50],
       padding: const EdgeInsets.all(16.0),
       child: ListView.builder(
-        itemCount: messages.length,
+        controller: scrollController,
+        reverse: true, // ¡CLAVE! Scroll invertido para que último mensaje esté abajo
+        itemCount: messages.length + (isTyping ? 1 : 0), // +1 si está typing
         itemBuilder: (context, index) {
-          final message = messages[index];
+          // Si está typing y es el primer item (último mensaje)
+          if (isTyping && index == 0) {
+            return _buildTypingIndicator();
+          }
+          
+          // Ajustar el índice por el reverse y el typing indicator
+          final messageIndex = isTyping ? index - 1 : index;
+          final reversedIndex = messages.length - 1 - messageIndex;
+          final message = messages[reversedIndex];
           final isUser = message['sender'] == 'user';
 
           return Padding(
             padding: const EdgeInsets.symmetric(vertical: 8.0),
             child: Row(
+              // Alineación para toda la fila
               mainAxisAlignment:
                   isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
-              crossAxisAlignment: CrossAxisAlignment.end,
+              // Estira los elementos para que el avatar y la burbuja estén alineados por abajo
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Avatar del bot (izquierda)
                 if (!isUser) ...[
-                  CircleAvatar(
+                  const CircleAvatar(
                     radius: 16,
-                    backgroundColor: isDarkMode
-                        ? AppColors.darkprimary
-                        : AppColors.lightprimary,
-                    child: const Icon(Icons.smart_toy,
-                        color: Colors.white, size: 18),
+                    backgroundColor:
+                        AppColors.lightprimary, // Color fijo para el bot
+                    child: Icon(
+                      Icons.smart_toy,
+                      color: Colors.white,
+                      size: 18,
+                    ),
                   ),
                   const SizedBox(width: 8),
                 ],
+
+                // Burbuja del mensaje
                 Flexible(
+                  // Flexible asegura que la burbuja no exceda el ancho disponible
                   child: Container(
                     constraints: BoxConstraints(
-                      maxWidth: MediaQuery.of(context).size.width * 0.7,
+                      maxWidth: MediaQuery.of(context).size.width *
+                          0.7, // Limita el ancho al 70%
                     ),
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 16.0, vertical: 12.0),
+                      horizontal: 16.0,
+                      vertical: 12.0,
+                    ),
                     decoration: BoxDecoration(
                       color: isUser
                           ? (isDarkMode
@@ -328,11 +482,10 @@ class ChatbotBody extends StatelessWidget {
                               : AppColors.lightprimary)
                           : (isDarkMode ? Colors.grey[800] : Colors.white),
                       borderRadius: BorderRadius.only(
-                        topLeft: const Radius.circular(16.0),
-                        topRight: const Radius.circular(16.0),
-                        bottomLeft: Radius.circular(isUser ? 16.0 : 4.0),
-                        bottomRight: Radius.circular(isUser ? 4.0 : 16.0),
-                      ),
+                          topLeft: const Radius.circular(12.0),
+                          topRight: const Radius.circular(12.0),
+                          bottomLeft: Radius.circular(isUser ? 12.0 : 0.0),
+                          bottomRight: Radius.circular(isUser ? 0.0 : 12.0)),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.grey.withOpacity(0.2),
@@ -353,19 +506,96 @@ class ChatbotBody extends StatelessWidget {
                     ),
                   ),
                 ),
+
+                // Avatar del usuario (derecha)
                 if (isUser) ...[
                   const SizedBox(width: 8),
-                  CircleAvatar(
+                  const CircleAvatar(
                     radius: 16,
-                    backgroundColor: Colors.grey.shade400,
-                    child:
-                        const Icon(Icons.person, color: Colors.white, size: 18),
+                    backgroundColor: Colors.grey, // Color fijo para el usuario
+                    child: Icon(
+                      Icons.person,
+                      color: Colors.white,
+                      size: 18,
+                    ),
                   ),
                 ],
               ],
             ),
           );
         },
+      ),
+    );
+  }
+
+  // Widget para el indicador de typing
+  Widget _buildTypingIndicator() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const CircleAvatar(
+            radius: 16,
+            backgroundColor: AppColors.lightprimary,
+            child: Icon(Icons.smart_toy, color: Colors.white, size: 18),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+            decoration: BoxDecoration(
+              color: isDarkMode ? Colors.grey[800] : Colors.white,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(12.0),
+                topRight: Radius.circular(12.0),
+                bottomLeft: Radius.circular(0.0),
+                bottomRight: Radius.circular(12.0),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.2),
+                  spreadRadius: 1,
+                  blurRadius: 3,
+                  offset: const Offset(0, 1),
+                ),
+              ],
+            ),
+            child: AnimatedBuilder(
+              animation: typingAnimation,
+              builder: (context, child) {
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildTypingDot(0),
+                    const SizedBox(width: 4),
+                    _buildTypingDot(1),
+                    const SizedBox(width: 4),
+                    _buildTypingDot(2),
+                  ],
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTypingDot(int index) {
+    double delay = index * 0.2;
+    double animationValue = (typingAnimation.value - delay).clamp(0.0, 1.0);
+    double scale = 0.5 + (0.5 * (1 + math.cos(animationValue * 2 * math.pi)) / 2);
+    
+    return Transform.scale(
+      scale: scale,
+      child: Container(
+        width: 8,
+        height: 8,
+        decoration: BoxDecoration(
+          color: isDarkMode ? Colors.white70 : Colors.grey[600],
+          shape: BoxShape.circle,
+        ),
       ),
     );
   }
@@ -391,9 +621,9 @@ class _ChatbotFooterState extends State<ChatbotFooter> {
   void _sendMessage() {
     final messageText = _textController.text.trim();
     if (messageText.isNotEmpty) {
-      // Llama a la función del widget padre para que él maneje la lógica
       widget.onSendMessage(messageText);
       _textController.clear();
+      FocusScope.of(context).unfocus(); // Cierra el teclado después de enviar
     }
   }
 
