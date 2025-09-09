@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "451753610369",
+    "project_id": "rutas360-622fd",
+    "storage_bucket": "rutas360-622fd.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:451753610369:android:eccba216d4c81f5737d180",
+        "android_client_info": {
+          "package_name": "com.example.consultoria_chat_bot"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyClqJpLEJP9gyI8cNVzI7bZ8w6Q_tvR_2s"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

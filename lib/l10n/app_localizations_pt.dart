@@ -10,4 +10,7 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get helloWorld => 'hola mundo en brazuca';
+
+  @override
+  String get mapTitle => 'Mapa com MapTiler';
 }

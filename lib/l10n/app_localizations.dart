@@ -105,6 +105,12 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'hola mundo!'**
   String get helloWorld;
+
+  /// Título del mapa
+  ///
+  /// In es, this message translates to:
+  /// **'Mapa con MapTiler'**
+  String get mapTitle;
 }
 
 class _AppLocalizationsDelegate

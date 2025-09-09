@@ -10,4 +10,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get helloWorld => 'hola mundo!';
+
+  @override
+  String get mapTitle => 'Mapa con MapTiler';
 }

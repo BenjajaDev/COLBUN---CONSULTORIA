@@ -9,5 +9,8 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
-  String get helloWorld => 'hola mundo!';
+  String get helloWorld => 'Hello World';
+
+  @override
+  String get mapTitle => 'Map with MapTiler';
 }
