@@ -100,11 +100,11 @@ abstract class AppLocalizations {
     Locale('pt'),
   ];
 
-  /// prueba
+  /// Texto de búsqueda
   ///
   /// In es, this message translates to:
-  /// **'hola mundo!'**
-  String get helloWorld;
+  /// **'Buscar'**
+  String get search;
 }
 
 class _AppLocalizationsDelegate

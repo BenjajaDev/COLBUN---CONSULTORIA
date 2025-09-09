@@ -9,5 +9,5 @@ class AppLocalizationsPt extends AppLocalizations {
   AppLocalizationsPt([String locale = 'pt']) : super(locale);
 
   @override
-  String get helloWorld => 'hola mundo en brazuca';
+  String get search => 'Pesquisar';
 }

@@ -9,5 +9,5 @@ class AppLocalizationsEs extends AppLocalizations {
   AppLocalizationsEs([String locale = 'es']) : super(locale);
 
   @override
-  String get helloWorld => 'hola mundo!';
+  String get search => 'Buscar';
 }

@@ -1,7 +1,7 @@
 {
   "@@locale": "es",
-  "helloWorld": "hola mundo!",
-  "@helloWorld": {
-    "description": "prueba"
+  "search": "Buscar",
+  "@search": {
+    "description": "Texto de búsqueda"
   }
 }
