@@ -7,6 +7,14 @@
       "answer": "¡Hola! Soy el asistente virtual de la Ilustre Municipalidad de Colbún. Estoy aquí para ayudarte con tus consultas sobre turismo y servicios municipales. ¿En qué puedo ayudarte hoy?"
     }
   ],
+  "faq_emergencias": [
+    {
+      "id": "EMERG_01",
+      "tags": ["emergencia", "ayuda", "número de emergencia", "urgente", "accidente"],
+      "question": "¿Cuál es el número de emergencia?",
+      "answer": "🚨 *Números de Emergencia en Chile:*\n• **Carabineros**: 133\n• **Bomberos**: 132\n• **Ambulancia (SAMU)**: 131\n• **PDI**: 134\n• **Emergencia municipal Colbún**: +56 9 8765 4321"
+    }
+  ],
   "farewells": [
     {
       "id": "FAREWELL_01",
