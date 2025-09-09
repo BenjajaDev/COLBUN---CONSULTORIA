@@ -1,0 +1,68 @@
+{
+  "greetings": [
+    {
+      "id": "GREET_01",
+      "tags": ["hola", "buenos días", "buenas tardes", "empezar", "hey"],
+      "question": "Hola",
+      "answer": "¡Hola! Soy el asistente virtual de la Ilustre Municipalidad de Colbún. Estoy aquí para ayudarte con tus consultas sobre turismo y servicios municipales. ¿En qué puedo ayudarte hoy?"
+    }
+  ],
+  "farewells": [
+    {
+      "id": "FAREWELL_01",
+      "tags": ["chao", "adiós", "hasta luego", "gracias"],
+      "question": "Muchas gracias, adiós",
+      "answer": "De nada. ¡Espero haberte ayudado! Si tienes otra consulta, no dudes en escribirme. ¡Que tengas un buen día!"
+    }
+  ],
+  "faq_turismo": [
+    {
+      "id": "TUR_01",
+      "tags": ["termas", "panimavida", "termas de quinamavida"],
+      "question": "¿Qué termas hay en Colbún?",
+      "answer": "Colbún es famoso por sus aguas termales. Puedes visitar las 'Termas de Panimávida' o las 'Termas de Quinamávida', ambas ofrecen excelentes servicios de spa y relajación."
+    },
+    {
+      "id": "TUR_02",
+      "tags": ["lago colbun", "actividades", "que hacer", "lago"],
+      "question": "¿Qué actividades se pueden hacer en el Lago Colbún?",
+      "answer": "En el Lago Colbún puedes realizar diversas actividades acuáticas como kayak, natación y pesca deportiva. Además, sus alrededores son perfectos para picnics y disfrutar del paisaje."
+    },
+    {
+      "id": "TUR_03",
+      "tags": ["rari", "artesania", "crin"],
+      "question": "¿Dónde puedo encontrar artesanía local?",
+      "answer": "Te recomiendo visitar la localidad de Rari, famosa por su artesanía en crin. Es una tradición única en el mundo y podrás encontrar hermosas figuras tejidas por artesanas locales."
+    }
+  ],
+  "faq_servicios": [
+    {
+      "id": "SERV_01",
+      "tags": ["municipalidad", "horario", "atencion"],
+      "question": "¿Cuál es el horario de atención de la municipalidad?",
+      "answer": "El horario de atención de la Ilustre Municipalidad de Colbún es de lunes a viernes, de 8:30 a 14:00 horas."
+    },
+    {
+      "id": "SERV_02",
+      "tags": ["licencia de conducir", "sacar licencia", "renovar"],
+      "question": "¿Cómo puedo obtener o renovar mi licencia de conducir?",
+      "answer": "Para trámites de licencia de conducir, debes dirigirte al Departamento de Tránsito ubicado en la municipalidad. Te recomiendo llamar para agendar una hora y consultar los documentos necesarios."
+    }
+  ],
+  "fallback": [
+    {
+      "id": "FALLBACK_01",
+      "tags": ["no entiendo", "ayuda", "humano", "hablar con alguien", "asesor"],
+      "question": "No entiendo la respuesta, quiero hablar con alguien.",
+      "answer": "Entiendo. Si lo deseas, puedo derivarte con un funcionario municipal a través de WhatsApp para que te ayude directamente.",
+      "action": "offer_whatsapp"
+    },
+    {
+      "id": "FALLBACK_WHATSAPP",
+      "tags": ["sí", "si", "derivar", "whatsapp", "acepto"],
+      "question": "Sí, por favor, derívame a WhatsApp.",
+      "answer": "Perfecto. Haz clic en el siguiente enlace para iniciar una conversación con un asesor municipal.",
+      "action": "open_whatsapp"
+    }
+  ]
+}
