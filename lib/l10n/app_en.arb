@@ -1,6 +1,5 @@
 {
     "@@locale": "en",
-    "helloWorld":"Hello World",
-    "mapTitle": "Map with MapTiler"
+    "search": "Search"
     
 }

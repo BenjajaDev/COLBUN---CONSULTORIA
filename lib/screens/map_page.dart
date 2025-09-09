@@ -94,9 +94,9 @@ class MapPage extends StatelessWidget {
                             Expanded(
                               child: TextField(
                                 controller: searchController,
-                                decoration: const InputDecoration(
-                                  hintText: 'Buscar ubicación',
-                                  border: OutlineInputBorder(
+                                decoration: InputDecoration(
+                                  hintText: Localizations.of<MaterialLocalizations>(context, MaterialLocalizations)!.searchFieldLabel,
+                                  border: const OutlineInputBorder(
                                     borderRadius: BorderRadius.all(
                                       Radius.circular(32.0),
                                     ),
@@ -104,7 +104,7 @@ class MapPage extends StatelessWidget {
                                   ),
                                   filled: true,
                                   fillColor: Colors.white,
-                                  contentPadding: EdgeInsets.symmetric(
+                                  contentPadding: const EdgeInsets.symmetric(
                                     horizontal: 8.0,
                                   ),
                                 ),

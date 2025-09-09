@@ -100,17 +100,11 @@ abstract class AppLocalizations {
     Locale('pt'),
   ];
 
-  /// prueba
+  /// Texto de búsqueda
   ///
   /// In es, this message translates to:
-  /// **'hola mundo!'**
-  String get helloWorld;
-
-  /// Título del mapa
-  ///
-  /// In es, this message translates to:
-  /// **'Mapa con MapTiler'**
-  String get mapTitle;
+  /// **'Buscar'**
+  String get search;
 }
 
 class _AppLocalizationsDelegate

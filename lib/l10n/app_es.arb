@@ -1,11 +1,7 @@
 {
   "@@locale": "es",
-  "helloWorld": "hola mundo!",
-  "@helloWorld": {
-    "description": "prueba"
-  },    
-  "mapTitle": "Mapa con MapTiler",
-  "@mapTitle": {
-    "description": "Título del mapa"
+  "search": "Buscar",
+  "@search": {
+    "description": "Texto de búsqueda"
   }
 }

@@ -9,8 +9,5 @@ class AppLocalizationsEs extends AppLocalizations {
   AppLocalizationsEs([String locale = 'es']) : super(locale);
 
   @override
-  String get helloWorld => 'hola mundo!';
-
-  @override
-  String get mapTitle => 'Mapa con MapTiler';
+  String get search => 'Buscar';
 }

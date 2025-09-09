@@ -1,5 +1,4 @@
 {
     "@@locale": "pt",
-    "helloWorld":"hola mundo en brazuca",
-    "mapTitle": "Mapa com MapTiler"
+    "search": "Pesquisar"
 }
