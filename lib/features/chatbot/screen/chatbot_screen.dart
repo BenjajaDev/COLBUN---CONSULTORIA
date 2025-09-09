@@ -2,13 +2,9 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:url_launcher/url_launcher.dart';
-import '../bloc/theme_bloc.dart'; // Asegúrate que la ruta a tu BLoC sea correcta
+import '../bloc/theme_bloc.dart';
 
-// ============================================================================
-// SCREEN - Pantalla principal del Chatbot
-// ============================================================================
-
+// Estructura de colores (sin cambios)
 class AppColors {
   static const Color lightprimary = Color(0xFF4D67AE);
   static const Color lightbackground = Colors.white;
@@ -17,6 +13,7 @@ class AppColors {
   static const Color darkBackground = Color(0xFF252525);
 }
 
+// Pantalla principal (Widget Stateful, sin cambios en su declaración)
 class ChatbotScreen extends StatefulWidget {
   const ChatbotScreen({super.key});
 
@@ -24,33 +21,23 @@ class ChatbotScreen extends StatefulWidget {
   State<ChatbotScreen> createState() => _ChatbotScreenState();
 }
 
-class BotResponse {
-  final String answer;
-  final String? action; // El action es opcional
-
-  BotResponse({required this.answer, this.action});
-}
-
+// Estado de la pantalla (aquí se agrega la lógica del JSON)
 class _ChatbotScreenState extends State<ChatbotScreen> {
   // El arreglo de mensajes ahora empieza vacío
   final List<Map<String, String>> messages = [];
 
+  // ============================================================================
+  // === INICIO: CÓDIGO NUEVO PARA MANEJAR LÓGICA DEL CHATBOT ===
+  // ============================================================================
+
   // Variable para guardar los datos del JSON
   Map<String, dynamic>? _faqs;
-  final ScrollController _scrollController =
-      ScrollController(); // Agregado ScrollController
 
   @override
   void initState() {
     super.initState();
     // Cargar el JSON al iniciar la pantalla
     _loadFaqs();
-  }
-
-  @override
-  void dispose() {
-    _scrollController.dispose(); // Es importante liberar el controlador
-    super.dispose();
   }
 
   // Función para cargar y decodificar el archivo faqs.json
@@ -66,11 +53,9 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   }
 
   // Función que busca una respuesta en el JSON cargado
-  BotResponse _getBotResponse(String userMessage) {
-    // <--- CAMBIO AQUÍ: Ahora retorna BotResponse
+  String _getBotResponse(String userMessage) {
     if (_faqs == null) {
-      return BotResponse(
-          answer: "Cargando respuestas..."); // Retorna BotResponse
+      return "Cargando respuestas...";
     }
 
     String message = userMessage.toLowerCase().trim();
@@ -85,87 +70,38 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     for (var entry in allEntries) {
       List<dynamic> tags = entry['tags'];
       if (tags.any((tag) => message.contains(tag.toLowerCase()))) {
-        // <--- CAMBIO AQUÍ: Retorna BotResponse con la respuesta y la acción (si existe)
-        return BotResponse(
-          answer: entry['answer'],
-          action:
-              entry['action'], // El action puede ser null si no está en el JSON
-        );
+        return entry['answer'];
       }
     }
 
     // Si no encuentra respuesta, simula el paso a la IA
-    return BotResponse(
-        answer: "No encontré una respuesta. Consultando a la IA...",
-        action:
-            "query_openai"); // Acción para indicar que se debe consultar a la IA
+    return "No encontré una respuesta. Consultando a la IA...";
   }
 
-  // Función para agregar mensajes a la lista y actualizar la UI
-  void addMessage(String sender, String text) {
-    setState(() {
-      messages.add({"sender": sender, "text": text});
-    });
-    // Agregamos un pequeño retraso para asegurar que el mensaje se añada antes de scrollear
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
-      }
-    });
-  }
-
-  // Función para manejar el envío de mensajes del usuario
+  // Función para agregar mensajes (modificada para manejar la lógica de respuesta)
   void handleSendMessage(String text) {
     // 1. Agrega el mensaje del usuario a la lista
     addMessage("user", text);
 
     // 2. Obtiene la respuesta del bot desde el JSON
-    final botResponse = _getBotResponse(text);
+    final botText = _getBotResponse(text);
 
     // 3. Simula un retraso y agrega la respuesta del bot
     Future.delayed(const Duration(milliseconds: 500), () {
-      addMessage("bot", botResponse.answer); // <--- Usa botResponse.answer
-
-      // 4. Si hay una acción, la ejecuta
-      if (botResponse.action == "open_whatsapp") {
-        // <--- Verifica la acción
-        _launchWhatsApp();
-      }
-      // Puedes agregar más acciones aquí, por ejemplo para la IA
-      else if (botResponse.action == "query_openai") {
-        // Simulación de respuesta de IA
-        Future.delayed(const Duration(seconds: 2), () {
-          addMessage("bot", "Respuesta simulada de la IA para: \"$text\".");
-        });
-      }
+      addMessage("bot", botText);
     });
   }
 
-  // Función para borrar el historial de chat
-  void _clearChatHistory() {
+  // Función base para agregar mensajes a la lista y actualizar la UI
+  void addMessage(String sender, String text) {
     setState(() {
-      messages.clear();
-      addMessage("bot", "Historial borrado. ¿Necesitas algo más?");
+      messages.add({"sender": sender, "text": text});
     });
   }
 
-  // Función para abrir WhatsApp
-  void _launchWhatsApp() async {
-    const phoneNumber = "+56912345678"; // Reemplazar con número real
-    const message = "Hola, necesito ayuda de un asesor.";
-    final Uri whatsappUri = Uri.parse(
-        "https://wa.me/$phoneNumber?text=${Uri.encodeComponent(message)}");
-
-    if (!await launchUrl(whatsappUri, mode: LaunchMode.externalApplication)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("No se pudo abrir WhatsApp.")),
-      );
-    }
-  }
+  // ============================================================================
+  // === FIN: CÓDIGO NUEVO PARA MANEJAR LÓGICA DEL CHATBOT ===
+  // ============================================================================
 
   @override
   Widget build(BuildContext context) {
@@ -179,25 +115,21 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
               state.isDarkMode ? AppColors.darkBackground : Colors.grey[50],
           body: Column(
             children: [
-              // Header (sin cambios, excepto que le pasamos las funciones de callback)
-              ChatbotHeader(
-                onClearHistory: _clearChatHistory,
-                onContactWhatsApp: _launchWhatsApp,
-              ),
 
-              // Body - conversación (ahora con el ScrollController)
+              const ChatbotHeader(),
+
+              // Body - conversación
               Expanded(
                 child: ChatbotBody(
                   isDarkMode: state.isDarkMode,
                   messages: messages,
-                  scrollController:
-                      _scrollController, // Pasa el controlador aquí
                 ),
               ),
 
-              // Footer - input del usuario (se pasa la función de handleSendMessage)
+              // Footer - input del usuario
               ChatbotFooter(
                 isDarkMode: state.isDarkMode,
+                // Se pasa la nueva función que contiene la lógica
                 onSendMessage: handleSendMessage,
               ),
             ],
@@ -209,130 +141,156 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
 }
 
 // ============================================================================
-// COMPONENTE HEADER - Título y configuraciones del chatbot
-// (Se modificó para recibir callbacks)
+// COMPONENTE HEADER
 // ============================================================================
-class ChatbotHeader extends StatelessWidget implements PreferredSizeWidget {
-  final VoidCallback onClearHistory;
-  final VoidCallback onContactWhatsApp;
-
-  const ChatbotHeader({
-    super.key,
-    required this.onClearHistory,
-    required this.onContactWhatsApp,
-  });
+class ChatbotHeader extends StatelessWidget {
+  const ChatbotHeader({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ThemeBloc, ThemeState>(builder: (context, state) {
-      return AppBar(
-        elevation: 0,
-        backgroundColor:
-            state.isDarkMode ? AppColors.darkprimary : AppColors.lightprimary,
-        iconTheme: const IconThemeData(color: AppColors.lightbackground),
-        title: const Text(
-          'Asistente Colbún',
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFFFFFFFF),
-          ),
-        ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0),
-            child: Row(
-              children: [
-                Icon(
-                  state.isDarkMode ? Icons.nightlight_round : Icons.wb_sunny,
-                  color: Colors.white,
-                ),
-                const SizedBox(
-                  width: 4,
-                ),
-                Switch(
-                  value: state.isDarkMode,
-                  onChanged: (value) {
-                    context.read<ThemeBloc>().add(ToggleThemeEvent());
-                  },
-                  activeThumbColor: Colors.white,
-                  activeTrackColor: Colors.white.withOpacity(0.5),
-                )
-              ],
+    return BlocBuilder<ThemeBloc, ThemeState>(
+      builder: (context, state) {
+        return AppBar(
+          elevation: 0, //sin sombra el apartado
+          backgroundColor: state.isDarkMode
+              ? AppColors.darkprimary
+              : AppColors.lightprimary,
+          iconTheme: const IconThemeData(color: AppColors.lightbackground),
+          title: const Text(
+            'CHATBOT HEADER',
+            style: TextStyle(
+              fontFamily: 'Poppins',
+              fontSize: 28, // 28-32 puntos para títulos
+              fontWeight: FontWeight.w600, //peso 600
+              color: Color(0xFFFFFFFF),
             ),
           ),
-          PopupMenuButton(
-            icon: const Icon(Icons.more_vert, color: Color(0xFFFFFFFF)),
-            color: state.isDarkMode
-                ? AppColors.darkprimary
-                : AppColors.lightprimary,
-            iconSize: 34,
-            onSelected: (value) {
-              if (value == 'Whatsapp') {
-                onContactWhatsApp(); // Llama al callback
-              } else if (value == 'Borrar Historial') {
-                onClearHistory(); // Llama al callback
-              }
-            },
-            itemBuilder: (BuildContext context) {
-              return [
-                const PopupMenuItem(
-                  value: 'Whatsapp',
-                  child: ListTile(
-                    leading: Icon(Icons.chat, color: Colors.green),
-                    title: Text('Contactar por WhatsApp',
-                        style: TextStyle(color: Colors.white)),
+          actions: [
+            //=============================================================================
+            // Switch modo oscuro/claro
+            //=============================================================================
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+              child: Row(
+                children: [
+                  Icon(
+                    state.isDarkMode ? Icons.nightlight_round : Icons.wb_sunny,
+                    color: Colors.white,
                   ),
-                ),
-                const PopupMenuItem(
-                  enabled: false,
-                  height: 0,
-                  child: Divider(color: Colors.white, height: 1),
-                ),
-                const PopupMenuItem(
-                  value: 'Borrar Historial',
-                  child: ListTile(
-                    leading: Icon(Icons.delete, color: Colors.red),
-                    title: Text('Borrar Historial',
-                        style: TextStyle(color: Colors.white)),
+                  const SizedBox(width: 4),
+                  Switch(
+                    value: state.isDarkMode,
+                    onChanged: (value) {
+                      context.read<ThemeBloc>().add(ToggleThemeEvent());
+                    },
+                    activeThumbColor: Colors.white,
+                    activeTrackColor: Colors.white.withValues(alpha: 0.5),
                   ),
-                ),
-              ];
-            },
-          ),
-        ],
-      );
-    });
-  }
+                ],
+              ),
+            ),
 
-  @override
-  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
+            //=============================================================================
+            // Botón de tres puntos tipo popup
+            //=============================================================================
+            Container(
+              width: 44,
+              height: 44,
+              child: PopupMenuButton(
+                icon: const Icon(Icons.more_vert, color: Color(0xFFFFFFFF)),
+                color: state.isDarkMode
+                    ? AppColors.darkprimary
+                    : AppColors.lightprimary,
+                iconSize: 32,
+                position: PopupMenuPosition.under,
+                elevation: 8, //sombra del popup
+                offset: const Offset(0, 15),
+
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8.0),
+                ),
+
+                onSelected: (value) {
+                  // Aquí puedes manejar las opciones
+                  if (value == 'Whatsapp') {
+                    print('Contactar por WhatsApp');
+                  } else if (value == 'Borrar Historial') {
+                    print('Borrar Historial');
+                  }
+                },
+                itemBuilder: (BuildContext context) {
+                  // Cierra el teclado antes de mostrar el menú
+                  FocusScope.of(context).unfocus();
+
+                  //=============================================================================
+                  // Opciones del menú
+                  //=============================================================================
+                  return [
+                    const PopupMenuItem(
+                      value: 'Whatsapp',
+                      child: ListTile(
+                        leading: Icon(Icons.chat, color: Colors.green),
+                        title: Text(
+                          'Contactar por WhatsApp',
+                          style: TextStyle(color: Colors.white,
+                          fontFamily: 'Poppins',
+                          fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                      ),
+                    ),
+                    //=============================================================================
+                    //Esta opcion solo es para poner la linea blanca divisora entre las opciones
+                    //=============================================================================
+                    const PopupMenuItem(
+                      enabled: false, // No se pueda seleccionar
+                      height: 0, // Eliminar padding superior/inferior
+                      child: Divider(
+                        color: Colors.white, // Línea blanca
+                        height: 1,
+                      ),
+                    ),
+
+                    const PopupMenuItem(
+                      value: 'Borrar Historial',
+                      child: ListTile(
+                        leading: Icon(Icons.delete, color: Colors.red),
+                        title: Text(
+                          'Borrar Historial de conversación',
+                          style: TextStyle(color: Colors.white,
+                          fontFamily: 'Poppins',
+                          fontWeight: FontWeight.w400),
+                        ),
+                      ),
+                    ),
+                  ];
+                },
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
 }
 
 // ============================================================================
-// COMPONENTE BODY - Área de conversación entre usuario y chatbot
-// (Aquí se realizan las correcciones de diseño)
+// COMPONENTE BODY
 // ============================================================================
 class ChatbotBody extends StatelessWidget {
   final bool isDarkMode;
   final List<Map<String, String>> messages;
-  final ScrollController scrollController; // Recibe el controlador
-
-  const ChatbotBody({
-    super.key,
-    required this.isDarkMode,
-    required this.messages,
-    required this.scrollController, // Asegúrate de requerirlo
-  });
+  const ChatbotBody(
+      {super.key, required this.isDarkMode, required this.messages});
 
   @override
   Widget build(BuildContext context) {
+    // Tu código del Body se mantiene exactamente igual...
     return Container(
       width: double.infinity,
       color: isDarkMode ? AppColors.darkBackground : Colors.grey[50],
       padding: const EdgeInsets.all(16.0),
       child: ListView.builder(
-        controller: scrollController, // Asigna el controlador aquí
         itemCount: messages.length,
         itemBuilder: (context, index) {
           final message = messages[index];
@@ -341,40 +299,28 @@ class ChatbotBody extends StatelessWidget {
           return Padding(
             padding: const EdgeInsets.symmetric(vertical: 8.0),
             child: Row(
-              // Alineación para toda la fila
               mainAxisAlignment:
                   isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
-              // Estira los elementos para que el avatar y la burbuja estén alineados por abajo
-              crossAxisAlignment: CrossAxisAlignment
-                  .start, // CAMBIO CLAVE AQUÍ: Dejar que el texto se alinee arriba y la burbuja se ajuste
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                // Avatar del bot (izquierda)
                 if (!isUser) ...[
-                  const CircleAvatar(
+                  CircleAvatar(
                     radius: 16,
-                    backgroundColor:
-                        AppColors.lightprimary, // Color fijo para el bot
-                    child: Icon(
-                      Icons.smart_toy,
-                      color: Colors.white,
-                      size: 18,
-                    ),
+                    backgroundColor: isDarkMode
+                        ? AppColors.darkprimary
+                        : AppColors.lightprimary,
+                    child: const Icon(Icons.smart_toy,
+                        color: Colors.white, size: 18),
                   ),
                   const SizedBox(width: 8),
                 ],
-
-                // Burbuja del mensaje
                 Flexible(
-                  // Flexible asegura que la burbuja no exceda el ancho disponible
                   child: Container(
                     constraints: BoxConstraints(
-                      maxWidth: MediaQuery.of(context).size.width *
-                          0.7, // Limita el ancho al 70%
+                      maxWidth: MediaQuery.of(context).size.width * 0.7,
                     ),
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 16.0,
-                      vertical: 12.0,
-                    ),
+                        horizontal: 16.0, vertical: 12.0),
                     decoration: BoxDecoration(
                       color: isUser
                           ? (isDarkMode
@@ -382,10 +328,11 @@ class ChatbotBody extends StatelessWidget {
                               : AppColors.lightprimary)
                           : (isDarkMode ? Colors.grey[800] : Colors.white),
                       borderRadius: BorderRadius.only(
-                          topLeft: const Radius.circular(12.0),
-                          topRight: const Radius.circular(12.0),
-                          bottomLeft: Radius.circular(isUser ? 12.0 : 0.0),
-                          bottomRight: Radius.circular(isUser ? 0.0 : 12.0)),
+                        topLeft: const Radius.circular(16.0),
+                        topRight: const Radius.circular(16.0),
+                        bottomLeft: Radius.circular(isUser ? 16.0 : 4.0),
+                        bottomRight: Radius.circular(isUser ? 4.0 : 16.0),
+                      ),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.grey.withOpacity(0.2),
@@ -406,18 +353,13 @@ class ChatbotBody extends StatelessWidget {
                     ),
                   ),
                 ),
-
-                // Avatar del usuario (derecha)
                 if (isUser) ...[
                   const SizedBox(width: 8),
-                  const CircleAvatar(
+                  CircleAvatar(
                     radius: 16,
-                    backgroundColor: Colors.grey, // Color fijo para el usuario
-                    child: Icon(
-                      Icons.person,
-                      color: Colors.white,
-                      size: 18,
-                    ),
+                    backgroundColor: Colors.grey.shade400,
+                    child:
+                        const Icon(Icons.person, color: Colors.white, size: 18),
                   ),
                 ],
               ],
@@ -430,11 +372,11 @@ class ChatbotBody extends StatelessWidget {
 }
 
 // ============================================================================
-// COMPONENTE FOOTER - Input del usuario y botón de envío
-// (Sin cambios significativos en la UI, solo en la función de envío)
+// COMPONENTE FOOTER (Lógica de simulación de respuesta fue removida)
 // ============================================================================
 class ChatbotFooter extends StatefulWidget {
   final bool isDarkMode;
+  // El callback ahora solo notifica el texto del mensaje
   final Function(String) onSendMessage;
   const ChatbotFooter(
       {super.key, required this.isDarkMode, required this.onSendMessage});
@@ -449,9 +391,9 @@ class _ChatbotFooterState extends State<ChatbotFooter> {
   void _sendMessage() {
     final messageText = _textController.text.trim();
     if (messageText.isNotEmpty) {
+      // Llama a la función del widget padre para que él maneje la lógica
       widget.onSendMessage(messageText);
       _textController.clear();
-      FocusScope.of(context).unfocus(); // Cierra el teclado después de enviar
     }
   }
 
@@ -463,6 +405,7 @@ class _ChatbotFooterState extends State<ChatbotFooter> {
 
   @override
   Widget build(BuildContext context) {
+    // Tu código de la UI del Footer se mantiene exactamente igual...
     return Container(
       height: 70,
       color: widget.isDarkMode
