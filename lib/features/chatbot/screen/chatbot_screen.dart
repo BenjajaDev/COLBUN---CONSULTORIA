@@ -10,8 +10,31 @@ class AppColors{
   static const Color darkBackground = Color(0xFF252525);
 }
 
-class ChatbotScreen extends StatelessWidget {
+class ChatbotScreen extends StatefulWidget {
   const ChatbotScreen({super.key});
+
+  @override
+  State<ChatbotScreen> createState() => _ChatbotScreenState();
+}
+
+class _ChatbotScreenState extends State<ChatbotScreen> {
+  //Arreglo de mensajes para prueba
+  final List<Map<String, String>> messages = [
+    {"sender": "user", "text": "Hola, ¿cómo estás?"},
+    {"sender": "bot", "text": "¡Hola! Estoy aquí para ayudarte."},
+    {"sender": "user", "text": "¿Cuál es tu nombre?"},
+    {"sender": "bot", "text": "Soy un chatbot creado por OpenAI."},
+  ];
+
+  // Función para agregar mensajes
+  void addMessage(String sender, String text) {
+    setState(() {
+      messages.add({
+        "sender": sender,
+        "text": text,
+      });
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -33,11 +56,17 @@ class ChatbotScreen extends StatelessWidget {
 
                 // Body - conversación
                 Expanded(
-                  child: ChatbotBody(isDarkMode: state.isDarkMode),
+                  child: ChatbotBody(
+                    isDarkMode: state.isDarkMode,
+                    messages: messages,
+                  ),
                 ),
 
                 // Footer - input del usuario
-                ChatbotFooter(isDarkMode: state.isDarkMode),
+                ChatbotFooter(
+                  isDarkMode: state.isDarkMode,
+                  onSendMessage: addMessage,
+                ),
               ],
             ),
           ),
@@ -177,47 +206,99 @@ class ChatbotHeader extends StatelessWidget {
 // COMPONENTE BODY - Área de conversación entre usuario y chatbot
 // ============================================================================
 
-//Arreglo de mensajes para prueba
-final List<Map<String, String>> messages = [
-  {"sender": "user", "text": "Hola, ¿cómo estás?"},
-  {"sender": "bot", "text": "¡Hola! Estoy aquí para ayudarte."},
-  {"sender": "user", "text": "¿Cuál es tu nombre?"},
-  {"sender": "bot", "text": "Soy un chatbot creado por OpenAI."},
-];
-
 class ChatbotBody extends StatelessWidget {
   final bool isDarkMode;
-  const ChatbotBody({super.key, required this.isDarkMode});
+  final List<Map<String, String>> messages;
+  const ChatbotBody({super.key, required this.isDarkMode, required this.messages});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      // TODO: Implementar área de conversación
-      // - Lista de mensajes
-      // - Scroll automático
-      // - Burbujas de chat diferenciadas
-      // - Indicador de "escribiendo..."
       width: double.infinity,
       color: isDarkMode ? AppColors.darkBackground : Colors.grey[50],
       padding: const EdgeInsets.all(16.0),
       child: ListView.builder(
-        //Item count sirve para definir cuántos elementos se van a mostrar en la lista
         itemCount: messages.length,
         itemBuilder: (context, index) {
           final message = messages[index];
-          return ListTile(
-            //Alineará el texto con su respectivo remitente
-            title: Text(
-              message['text'] ?? '',
-              style: TextStyle(
-                color: isDarkMode ? Colors.white : Colors.black
-              ) 
-            ),
-            subtitle: Text(
-              message['sender'] ?? '',
-              style: TextStyle(
-                color: isDarkMode ? Colors.grey[400] : Colors.grey[600]
-              ),  
+          final isUser = message['sender'] == 'user';
+          
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: Row(
+              mainAxisAlignment: isUser
+                  ? MainAxisAlignment.end
+                  : MainAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                // Avatar del bot (izquierda)
+                if (!isUser) ...[
+                  CircleAvatar(
+                    radius: 16,
+                    backgroundColor: isDarkMode ? AppColors.darkprimary : AppColors.lightprimary,
+                    child: const Icon(
+                      Icons.smart_toy,
+                      color: Colors.white,
+                      size: 18,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                
+                // Burbuja del mensaje
+                Flexible(
+                  child: Container(
+                    constraints: BoxConstraints(
+                      maxWidth: MediaQuery.of(context).size.width * 0.7,
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16.0,
+                      vertical: 12.0,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isUser 
+                          ? (isDarkMode ? AppColors.darkprimary : AppColors.lightprimary)
+                          : (isDarkMode ? Colors.grey[800] : Colors.white),
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(12.0),
+                        topRight: Radius.circular(12.0),
+                        bottomLeft: Radius.circular(isUser ? 12.0 : 0.0),
+                        bottomRight: Radius.circular(isUser ? 0.0 : 12.0)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.grey.withOpacity(0.2),
+                          spreadRadius: 1,
+                          blurRadius: 3,
+                          offset: const Offset(0, 1),
+                        ),
+                      ],
+                    ),
+                    child: Text(
+                      message['text'] ?? '',
+                      style: TextStyle(
+                        color: isUser 
+                            ? Colors.white
+                            : (isDarkMode ? Colors.white : Colors.black87),
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                ),
+                
+                // Avatar del usuario (derecha)
+                if (isUser) ...[
+                  const SizedBox(width: 8),
+                  CircleAvatar(
+                    radius: 16,
+                    backgroundColor: Colors.grey.shade400,
+                    child: const Icon(
+                      Icons.person,
+                      color: Colors.white,
+                      size: 18,
+                    ),
+                  ),
+                ],
+              ],
             ),
           );
         },
@@ -231,20 +312,46 @@ class ChatbotBody extends StatelessWidget {
 // ============================================================================
 
 
-class ChatbotFooter extends StatelessWidget {
+class ChatbotFooter extends StatefulWidget {
   final bool isDarkMode;
-  const ChatbotFooter({super.key, required this.isDarkMode});
+  final Function(String, String) onSendMessage;
+  const ChatbotFooter({super.key, required this.isDarkMode, required this.onSendMessage});
+
+  @override
+  State<ChatbotFooter> createState() => _ChatbotFooterState();
+}
+
+class _ChatbotFooterState extends State<ChatbotFooter> {
+  final TextEditingController _textController = TextEditingController();
+
+  // Función para enviar mensaje
+  void _sendMessage() {
+    final messageText = _textController.text.trim();
+    if (messageText.isNotEmpty) {
+      // Agregar mensaje del usuario usando el callback
+      widget.onSendMessage("user", messageText);
+      
+      // Simular respuesta del bot (puedes personalizar esto)
+      Future.delayed(const Duration(milliseconds: 500), () {
+        widget.onSendMessage("bot", "Gracias por tu mensaje: \"$messageText\". ¿En qué más puedo ayudarte?");
+      });
+      
+      // Limpiar el campo de texto
+      _textController.clear();
+    }
+  }
+
+  @override
+  void dispose() {
+    _textController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      // TODO:Implementar área de input
-      // - Campo de texto para escribir mensaje
-      // - Botón de envío
-      // - Botón de adjuntar archivos
-      // - Indicadores de estado
       height: 70,
-      color: isDarkMode ? AppColors.darkBackground : AppColors.lightbackground,
+      color: widget.isDarkMode ? AppColors.darkBackground : AppColors.lightbackground,
       padding: const EdgeInsets.all(16.0),
 
       child: Row(
@@ -256,12 +363,11 @@ class ChatbotFooter extends StatelessWidget {
               //decoracion del contenedor que contiene al campo de textfield
               //===============================================================
               decoration: BoxDecoration(
-                color: isDarkMode ? AppColors.darkBackground : AppColors.lightbackground, //Color relleno textField
+                color: widget.isDarkMode ? AppColors.darkBackground : AppColors.lightbackground, //Color relleno textField
                 borderRadius: BorderRadius.circular(12.0),
                 // color de bordes E0E0E0 mockup de field del texto
-                border: Border.all(color: isDarkMode ? Colors.grey[600]! : AppColors.lightTextFieldBorder)
+                border: Border.all(color: widget.isDarkMode ? Colors.grey[600]! : AppColors.lightTextFieldBorder)
               ),
-
 
               //agregue padding para que el texto no este pegado al borde acordarse las medidas solo multiplo de 8
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -270,14 +376,16 @@ class ChatbotFooter extends StatelessWidget {
               //este es el campo de texto TextField
               //===============================================================
               child: TextField(
+                controller: _textController,
                 style: TextStyle(
-                  color: isDarkMode ? Colors.white : Colors.black
+                  color: widget.isDarkMode ? Colors.white : Colors.black
                 ),
                 decoration: InputDecoration(
                   hintText: 'Escribe un mensaje',
                   border: InputBorder.none,
-                  hintStyle: TextStyle(color: isDarkMode ? Colors.grey[400] : Color(0xFF828282)),// color de texto escribe un mensaje 828282 mockup
+                  hintStyle: TextStyle(color: widget.isDarkMode ? Colors.grey[400] : Color(0xFF828282)),// color de texto escribe un mensaje 828282 mockup
                 ),
+                onSubmitted: (_) => _sendMessage(), // Enviar con Enter
               ),
             ),
           ),
@@ -285,19 +393,16 @@ class ChatbotFooter extends StatelessWidget {
           //boton de enviar el mensaje
           Container(
             decoration: BoxDecoration(
-              color: isDarkMode ? AppColors.darkBackground : AppColors.lightbackground,
-
+              color: widget.isDarkMode ? AppColors.darkBackground : AppColors.lightbackground,
             ),
 
             //===============================================================
             //boton de enviar tipo  ICONBUTTON
             //===============================================================
             child: IconButton(
-              icon: Icon(Icons.send, color: isDarkMode ? Colors.white :Color(0XFF1d1b20)),// color del icono de enviar 1d1b20 mockup
+              icon: Icon(Icons.send, color: widget.isDarkMode ? Colors.white :Color(0XFF1d1b20)),// color del icono de enviar 1d1b20 mockup
               iconSize: 24,
-              onPressed: () {
-                // aqui iria la logica para enviar el mensaje del usuario
-              },
+              onPressed: _sendMessage, // Llamar a la función de enviar mensaje
             ),
           ),
         ],
