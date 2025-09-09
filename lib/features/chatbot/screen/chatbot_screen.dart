@@ -52,7 +52,12 @@ class _ChatbotScreenState extends State<ChatbotScreen> with TickerProviderStateM
     _typingController = AnimationController(
       duration: const Duration(milliseconds: 1500),
       vsync: this,
-    );
+    )..addListener(() {
+      // Solo actualizar si está typing
+        if (_isTyping) {
+          setState(() {});
+        }
+      });
     
     _typingAnimation = Tween<double>(
       begin: 0.0,
@@ -98,6 +103,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> with TickerProviderStateM
       ..._faqs!['faq_servicios'],
       ..._faqs!['fallback'],
       ..._faqs!['farewells'],
+      ..._faqs!['faq_emergencias'],
     ];
 
     for (var entry in allEntries) {
@@ -314,7 +320,7 @@ class ChatbotHeader extends StatelessWidget implements PreferredSizeWidget {
             //=============================================================================
             // Botón de tres puntos tipo popup
             //=============================================================================
-            Container(
+            SizedBox(
               width: 44,
               height: 44,
               child: PopupMenuButton(
@@ -350,7 +356,7 @@ class ChatbotHeader extends StatelessWidget implements PreferredSizeWidget {
                     const PopupMenuItem(
                       value: 'Whatsapp',
                       child: ListTile(
-                        leading: Icon(Icons.chat, color: Colors.green),
+                        leading: const Icon(Icons.chat, color: Colors.green),
                         title: Text(
                           'Contactar por WhatsApp',
                           style: TextStyle(color: Colors.white,
@@ -375,7 +381,7 @@ class ChatbotHeader extends StatelessWidget implements PreferredSizeWidget {
                     const PopupMenuItem(
                       value: 'Borrar Historial',
                       child: ListTile(
-                        leading: Icon(Icons.delete, color: Colors.red),
+                        leading: const Icon(Icons.delete, color: Colors.red),
                         title: Text(
                           'Borrar Historial de conversación',
                           style: TextStyle(color: Colors.white,
@@ -482,10 +488,10 @@ class ChatbotBody extends StatelessWidget {
                               : AppColors.lightprimary)
                           : (isDarkMode ? Colors.grey[800] : Colors.white),
                       borderRadius: BorderRadius.only(
-                          topLeft: const Radius.circular(12.0),
-                          topRight: const Radius.circular(12.0),
-                          bottomLeft: Radius.circular(isUser ? 12.0 : 0.0),
-                          bottomRight: Radius.circular(isUser ? 0.0 : 12.0)),
+                          topLeft: const Radius.circular(16.0),
+                          topRight: const Radius.circular(16.0),
+                          bottomLeft: Radius.circular(isUser ? 16.0 : 0.0),
+                          bottomRight: Radius.circular(isUser ? 0.0 : 16.0)),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.grey.withOpacity(0.2),
@@ -501,7 +507,10 @@ class ChatbotBody extends StatelessWidget {
                         color: isUser
                             ? Colors.white
                             : (isDarkMode ? Colors.white : Colors.black87),
+
                         fontSize: 16,
+                        fontFamily: 'Poppins',
+                        fontWeight: FontWeight.w400,
                       ),
                     ),
                   ),
@@ -539,7 +548,7 @@ class ChatbotBody extends StatelessWidget {
           const CircleAvatar(
             radius: 16,
             backgroundColor: AppColors.lightprimary,
-            child: Icon(Icons.smart_toy, color: Colors.white, size: 18),
+            child: const Icon(Icons.smart_toy, color: Colors.white, size: 18),
           ),
           const SizedBox(width: 8),
           Container(
@@ -547,10 +556,10 @@ class ChatbotBody extends StatelessWidget {
             decoration: BoxDecoration(
               color: isDarkMode ? Colors.grey[800] : Colors.white,
               borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(12.0),
-                topRight: Radius.circular(12.0),
+                topLeft: Radius.circular(16.0),
+                topRight: Radius.circular(16.0),
                 bottomLeft: Radius.circular(0.0),
-                bottomRight: Radius.circular(12.0),
+                bottomRight: Radius.circular(16.0),
               ),
               boxShadow: [
                 BoxShadow(
@@ -635,9 +644,8 @@ class _ChatbotFooterState extends State<ChatbotFooter> {
 
   @override
   Widget build(BuildContext context) {
-    // Tu código de la UI del Footer se mantiene exactamente igual...
     return Container(
-      height: 70,
+      height: 80,
       color: widget.isDarkMode
           ? AppColors.darkBackground
           : AppColors.lightbackground,
@@ -650,7 +658,7 @@ class _ChatbotFooterState extends State<ChatbotFooter> {
                   color: widget.isDarkMode
                       ? AppColors.darkBackground
                       : AppColors.lightbackground,
-                  borderRadius: BorderRadius.circular(12.0),
+                  borderRadius: BorderRadius.circular(16.0),
                   border: Border.all(
                       color: widget.isDarkMode
                           ? Colors.grey[600]!
@@ -666,7 +674,12 @@ class _ChatbotFooterState extends State<ChatbotFooter> {
                   hintStyle: TextStyle(
                       color: widget.isDarkMode
                           ? Colors.grey[400]
-                          : const Color(0xFF828282)),
+                          : const Color(0xFF828282),
+                          fontFamily: 'Poppins',
+                          fontWeight: FontWeight.w400,
+                          fontSize: 16,
+                          
+                          ),
                 ),
                 onSubmitted: (_) => _sendMessage(),
               ),
@@ -674,6 +687,8 @@ class _ChatbotFooterState extends State<ChatbotFooter> {
           ),
           const SizedBox(width: 12.0),
           Container(
+            width: 44,
+            height: 44,
             decoration: BoxDecoration(
               color: widget.isDarkMode
                   ? AppColors.darkBackground
