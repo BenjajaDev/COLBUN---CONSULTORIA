@@ -31,7 +31,8 @@ class ChatbotScreen extends StatefulWidget {
 }
 
 // Estado de la pantalla (aquí se agrega la lógica del JSON)
-class _ChatbotScreenState extends State<ChatbotScreen> with TickerProviderStateMixin {
+class _ChatbotScreenState extends State<ChatbotScreen>
+    with TickerProviderStateMixin {
   // El arreglo de mensajes ahora empieza vacío
   final List<Map<String, String>> messages = [];
 
@@ -47,18 +48,18 @@ class _ChatbotScreenState extends State<ChatbotScreen> with TickerProviderStateM
   @override
   void initState() {
     super.initState();
-    
+
     // Inicializar el controlador de animación
     _typingController = AnimationController(
       duration: const Duration(milliseconds: 1500),
       vsync: this,
     )..addListener(() {
-      // Solo actualizar si está typing
+        // Solo actualizar si está typing
         if (_isTyping) {
           setState(() {});
         }
       });
-    
+
     _typingAnimation = Tween<double>(
       begin: 0.0,
       end: 1.0,
@@ -66,7 +67,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> with TickerProviderStateM
       parent: _typingController,
       curve: Curves.easeInOut,
     ));
-    
+
     // Cargar el JSON al iniciar la pantalla
     _loadFaqs();
   }
@@ -139,16 +140,17 @@ class _ChatbotScreenState extends State<ChatbotScreen> with TickerProviderStateM
 
     // 4. Calcular TTR realista con máximo de 3 segundos
     final random = math.Random();
-    int baseTime = 800; // Tiempo base mínimo
-    
+    int baseTime = 300; // Tiempo base mínimo
+
     // Agregar tiempo basado en complejidad
     int complexityTime = (text.length * 10).clamp(0, 1000);
-    int responseComplexity = (botResponse.answer.length * 8).clamp(0, 800);
-    int randomVariation = random.nextInt(600);
-    
+    int responseComplexity = (botResponse.answer.length * 3).clamp(0, 300);
+    int randomVariation = random.nextInt(300);
+
     // TTR total con máximo de 3 segundos
-    int totalTTR = (baseTime + complexityTime + responseComplexity + randomVariation)
-        .clamp(800, 3000);
+    int totalTTR =
+        (baseTime + complexityTime + responseComplexity + randomVariation)
+            .clamp(800, 3000);
 
     // 5. Simula el retraso de respuesta
     Future.delayed(Duration(milliseconds: totalTTR), () {
@@ -158,7 +160,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> with TickerProviderStateM
           _isTyping = false;
         });
         _typingController.stop();
-        
+
         // Agregar la respuesta del bot
         addMessage("bot", botResponse.answer);
 
@@ -279,9 +281,8 @@ class ChatbotHeader extends StatelessWidget implements PreferredSizeWidget {
       builder: (context, state) {
         return AppBar(
           elevation: 0, //sin sombra el apartado
-          backgroundColor: state.isDarkMode
-              ? AppColors.darkprimary
-              : AppColors.lightprimary,
+          backgroundColor:
+              state.isDarkMode ? AppColors.darkprimary : AppColors.lightprimary,
           iconTheme: const IconThemeData(color: AppColors.lightbackground),
           title: const Text(
             'Asistente Colbún',
@@ -359,9 +360,10 @@ class ChatbotHeader extends StatelessWidget implements PreferredSizeWidget {
                         leading: const Icon(Icons.chat, color: Colors.green),
                         title: Text(
                           'Contactar por WhatsApp',
-                          style: TextStyle(color: Colors.white,
-                          fontFamily: 'Poppins',
-                          fontWeight: FontWeight.w400,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontFamily: 'Poppins',
+                            fontWeight: FontWeight.w400,
                           ),
                         ),
                       ),
@@ -384,9 +386,10 @@ class ChatbotHeader extends StatelessWidget implements PreferredSizeWidget {
                         leading: const Icon(Icons.delete, color: Colors.red),
                         title: Text(
                           'Borrar Historial de conversación',
-                          style: TextStyle(color: Colors.white,
-                          fontFamily: 'Poppins',
-                          fontWeight: FontWeight.w400),
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontFamily: 'Poppins',
+                              fontWeight: FontWeight.w400),
                         ),
                       ),
                     ),
@@ -431,14 +434,15 @@ class ChatbotBody extends StatelessWidget {
       padding: const EdgeInsets.all(16.0),
       child: ListView.builder(
         controller: scrollController,
-        reverse: true, // ¡CLAVE! Scroll invertido para que último mensaje esté abajo
+        reverse:
+            true, // ¡CLAVE! Scroll invertido para que último mensaje esté abajo
         itemCount: messages.length + (isTyping ? 1 : 0), // +1 si está typing
         itemBuilder: (context, index) {
           // Si está typing y es el primer item (último mensaje)
           if (isTyping && index == 0) {
             return _buildTypingIndicator();
           }
-          
+
           // Ajustar el índice por el reverse y el typing indicator
           final messageIndex = isTyping ? index - 1 : index;
           final reversedIndex = messages.length - 1 - messageIndex;
@@ -507,7 +511,6 @@ class ChatbotBody extends StatelessWidget {
                         color: isUser
                             ? Colors.white
                             : (isDarkMode ? Colors.white : Colors.black87),
-
                         fontSize: 16,
                         fontFamily: 'Poppins',
                         fontWeight: FontWeight.w400,
@@ -552,7 +555,8 @@ class ChatbotBody extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
             decoration: BoxDecoration(
               color: isDarkMode ? Colors.grey[800] : Colors.white,
               borderRadius: const BorderRadius.only(
@@ -594,8 +598,9 @@ class ChatbotBody extends StatelessWidget {
   Widget _buildTypingDot(int index) {
     double delay = index * 0.2;
     double animationValue = (typingAnimation.value - delay).clamp(0.0, 1.0);
-    double scale = 0.5 + (0.5 * (1 + math.cos(animationValue * 2 * math.pi)) / 2);
-    
+    double scale =
+        0.5 + (0.5 * (1 + math.cos(animationValue * 2 * math.pi)) / 2);
+
     return Transform.scale(
       scale: scale,
       child: Container(
@@ -672,14 +677,13 @@ class _ChatbotFooterState extends State<ChatbotFooter> {
                   hintText: 'Escribe un mensaje',
                   border: InputBorder.none,
                   hintStyle: TextStyle(
-                      color: widget.isDarkMode
-                          ? Colors.grey[400]
-                          : const Color(0xFF828282),
-                          fontFamily: 'Poppins',
-                          fontWeight: FontWeight.w400,
-                          fontSize: 16,
-                          
-                          ),
+                    color: widget.isDarkMode
+                        ? Colors.grey[400]
+                        : const Color(0xFF828282),
+                    fontFamily: 'Poppins',
+                    fontWeight: FontWeight.w400,
+                    fontSize: 16,
+                  ),
                 ),
                 onSubmitted: (_) => _sendMessage(),
               ),
