@@ -60,7 +60,6 @@ class MapPage extends StatelessWidget {
                     buildBackButton(context),
                     if (state.userLocation != null) ...[
                       buildEmergencyButton(() {
-                        print('Botón de emergencia presionado');
                       }),
                       buildLocationButton(() {
                         mapController.move(state.userLocation!, 15);
