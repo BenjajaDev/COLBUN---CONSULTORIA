@@ -19,7 +19,6 @@ dependencies:
   url_launcher: ^6.3.2
   flutter_bloc: ^9.1.1
   path_provider: ^2.1.3
-  collection: ^1.18.0
 
 dev_dependencies:
   flutter_test:
@@ -31,4 +30,3 @@ flutter:
   
   assets:
     - assets/faqs.json
-    - assets/example_feedback.json
