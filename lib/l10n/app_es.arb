@@ -1,0 +1,7 @@
+{
+  "@@locale": "es",
+  "search": "Buscar",
+  "@search": {
+    "description": "Texto de búsqueda"
+  }
+}

@@ -5,13 +5,13 @@ abstract class MapState {}
 class MapInitial extends MapState {
   final LatLng center;
   final List<LatLng> markers;
-  final LatLng? userLocation;
   final double heading;
+  final LatLng? userLocation;
 
   MapInitial({
-    this.center = const LatLng(0, 0),
+    required this.center,
     this.markers = const [],
-    this.userLocation,
     this.heading = 0.0,
+    this.userLocation,
   });
 }
