@@ -105,6 +105,36 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Buscar'**
   String get search;
+
+  /// No description provided for @galeriaArteNatural.
+  ///
+  /// In es, this message translates to:
+  /// **'Galería de Arte Natural'**
+  String get galeriaArteNatural;
+
+  /// No description provided for @armerillo.
+  ///
+  /// In es, this message translates to:
+  /// **'Armerillo'**
+  String get armerillo;
+
+  /// No description provided for @pasoNevado.
+  ///
+  /// In es, this message translates to:
+  /// **'Paso Nevado'**
+  String get pasoNevado;
+
+  /// No description provided for @pagina4.
+  ///
+  /// In es, this message translates to:
+  /// **'Botón Página 4'**
+  String get pagina4;
+
+  /// No description provided for @pagina5.
+  ///
+  /// In es, this message translates to:
+  /// **'Botón Página 5'**
+  String get pagina5;
 }
 
 class _AppLocalizationsDelegate

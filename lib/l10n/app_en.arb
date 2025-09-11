@@ -1,5 +1,11 @@
 {
     "@@locale": "en",
-    "search": "Search"
+    "search": "Search",
+
+    "galeriaArteNatural": "Natural Art Gallery",
+    "armerillo": "Armerillo",
+    "pasoNevado": "Snowy Pass",
+    "pagina4": "Button Page 4",
+    "pagina5": "Button Page 5"
     
 }

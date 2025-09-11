@@ -10,4 +10,19 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get search => 'Pesquisar';
+
+  @override
+  String get galeriaArteNatural => 'Galeria de Arte Natural';
+
+  @override
+  String get armerillo => 'Armerillo';
+
+  @override
+  String get pasoNevado => 'Passo Nevado';
+
+  @override
+  String get pagina4 => 'Botón Página 4';
+
+  @override
+  String get pagina5 => 'Botón Página 5';
 }

@@ -3,5 +3,10 @@
   "search": "Buscar",
   "@search": {
     "description": "Texto de búsqueda"
-  }
+  },
+  "galeriaArteNatural": "Galería de Arte Natural",
+  "armerillo": "Armerillo",
+  "pasoNevado": "Paso Nevado",
+  "pagina4": "Botón Página 4",
+  "pagina5": "Botón Página 5"
 }
