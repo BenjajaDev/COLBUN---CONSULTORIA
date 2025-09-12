@@ -1,4 +1,5 @@
-import 'package:consultoria_chat_bot/blocs/map_bloc';
+
+import 'package:consultoria_chat_bot/blocs/map_bloc.dart';
 import 'package:consultoria_chat_bot/states/map_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';

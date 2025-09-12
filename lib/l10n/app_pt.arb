@@ -1,9 +1,8 @@
 {
     "@@locale": "pt",
     "search": "Pesquisar",
-    "galeriaArteNatural": "Galeria de Arte Natural",
-    "armerillo": "Armerillo",
-    "pasoNevado": "Passo Nevado",
-    "pagina4": "Botón Página 4",
-    "pagina5": "Botón Página 5"
+    "otono": "Outono",
+    "invierno": "Inverno",
+    "primavera": "Primavera",
+    "verano": "Verão"
 }

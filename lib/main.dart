@@ -1,9 +1,9 @@
 import 'package:consultoria_chat_bot/l10n/app_localizations.dart';
-import 'package:consultoria_chat_bot/screens/map_page.dart';
+import 'package:consultoria_chat_bot/screens/poi_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
-import 'package:consultoria_chat_bot/screens/visual_pois.dart';
+
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -24,7 +24,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
-      home: DescripcionPOIs(),
+      home: PoiScreen(),
     );
   }
 }

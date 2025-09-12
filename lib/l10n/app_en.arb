@@ -1,11 +1,8 @@
 {
     "@@locale": "en",
     "search": "Search",
-
-    "galeriaArteNatural": "Natural Art Gallery",
-    "armerillo": "Armerillo",
-    "pasoNevado": "Snowy Pass",
-    "pagina4": "Button Page 4",
-    "pagina5": "Button Page 5"
-    
+    "otono": "Autumn",
+    "invierno": "Winter",
+    "primavera": "Spring",
+    "verano": "Summer"
 }

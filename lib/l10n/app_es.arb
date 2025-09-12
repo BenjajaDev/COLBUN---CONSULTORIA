@@ -4,9 +4,20 @@
   "@search": {
     "description": "Texto de búsqueda"
   },
-  "galeriaArteNatural": "Galería de Arte Natural",
-  "armerillo": "Armerillo",
-  "pasoNevado": "Paso Nevado",
-  "pagina4": "Botón Página 4",
-  "pagina5": "Botón Página 5"
+  "otono": "Otoño",
+  "@otono": {
+    "description": "version de Otoño para vista 360"
+  },
+  "invierno": "Invierno",
+  "@invierno": {
+    "description": "version de Invierno para vista 360"
+  },
+  "primavera": "Primavera",
+  "@primavera": {
+    "description": "version de Primavera para vista 360"
+  },
+  "verano": "Verano",
+  "@verano": {
+    "description": "version de Verano para vista 360"
+  }
 }
