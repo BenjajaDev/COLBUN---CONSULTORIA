@@ -15,3 +15,8 @@ class UpdateHeading extends MapEvent {
   final double heading;
   UpdateHeading(this.heading);
 }
+
+class LoadPois extends MapEvent {
+  final String routeId; // 'los_bellotos' o 'quinamavida'
+  LoadPois(this.routeId);
+}

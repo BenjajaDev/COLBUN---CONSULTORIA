@@ -5,16 +5,26 @@ import 'package:consultoria_chat_bot/states/map_state.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:flutter_compass/flutter_compass.dart';
 
-class MapBloc extends Bloc<MapEvent, MapState> {
+import '../data/map_repository.dart';   
+import '../data/poi.dart';              
 
-  MapBloc() : super(MapInitial(center: LatLng(-35.4269, -71.6656))) {
+class MapBloc extends Bloc<MapEvent, MapState> {
+  final MapRepository repo;
+
+  
+  MapBloc({MapRepository? repo})
+      : repo = repo ?? MapRepository(),
+        super(MapInitial(center: const LatLng(-35.4269, -71.6656))) {
     on<AddMarker>(_onAddMarker);
     on<UpdateUserLocation>(_onUpdateUserLocation);
     on<UpdateHeading>(_onUpdateHeading);
+    on<LoadPois>(_onLoadPois);
 
     _startTrackingLocation();
     _startTrackingHeading();
   }
+
+
 
   void _onAddMarker(AddMarker event, Emitter<MapState> emit) {
     final current = state as MapInitial;
@@ -47,6 +57,26 @@ class MapBloc extends Bloc<MapEvent, MapState> {
     ));
   }
 
+  
+  Future<void> _onLoadPois(LoadPois event, Emitter<MapState> emit) async {
+    final current = state as MapInitial;
+
+   
+    final List<Poi> pois = await repo.fetchPoisByRoute(event.routeId);
+
+   
+    final markers = pois.map((p) => p.location).toList();
+
+    final newCenter = markers.isNotEmpty ? markers.first : current.center;
+
+  
+    emit(MapInitial(
+      center: newCenter,
+      markers: markers,
+      userLocation: current.userLocation,
+      heading: current.heading,
+    ));
+  }
 
   Future<void> _startTrackingLocation() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
