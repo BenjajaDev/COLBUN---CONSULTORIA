@@ -4,6 +4,7 @@ import 'package:consultoria_chat_bot/features/home/screen/home_screen.dart';
 //Importaciones flutter_bloc
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'features/chatbot/bloc/theme_bloc.dart';
+import 'features/chatbot/bloc/faq_bloc.dart';
 
 // ESTA FUNCIÓN ES LA QUE FALTA
 void main() {
@@ -15,8 +16,11 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) => ThemeBloc(),
+    return MultiBlocProvider(               //MultiBloc provider para gestion de estado de tema y mostrado de faqs
+      providers: [
+        BlocProvider(create: (context) => ThemeBloc()),
+        BlocProvider(create: (context) => FaqBloc())
+      ],
       child: BlocBuilder<ThemeBloc, ThemeState>(
         builder: (context, state) {
           return MaterialApp(
