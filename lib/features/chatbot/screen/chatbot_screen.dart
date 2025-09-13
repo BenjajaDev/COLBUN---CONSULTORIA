@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:async';
 import 'dart:math' as math;
+import 'package:consultoria_chat_bot/features/chatbot/bloc/faq_bloc.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -12,8 +13,10 @@ class AppColors {
   static const Color lightprimary = Color(0xFF4D67AE);
   static const Color lightbackground = Colors.white;
   static const Color lightTextFieldBorder = Color(0xFFE0E0E0);
+  static const Color lightFaqsButton = Color(0xFF4861DB);
   static const Color darkprimary = Color(0xFF494C6B);
   static const Color darkBackground = Color(0xFF252525);
+  static const Color darkFaqsButton = Color(0xFF6C8AE5);
 }
 
 class BotResponse {
@@ -88,43 +91,24 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     addMessage(
         sender: "bot",
         text:
-            "¡Hola! Soy el asistente virtual de Colbún. ¿En qué puedo ayudarte?");
+            "¡Hola! Soy el asistente virtual de Colbún. ¿En qué puedo ayudarte?",
+        type: "welcome_message"    
+    );
 
-    // 2. Procesa y muestra las FAQs aleatorias desde el JSON
-    if (_faqs != null) {
-      final List<String> allQuestions = [];
+    /* // 2. Procesa y muestra las FAQs aleatorias desde el JSON usando la funcion helper get
+    final List<String> randomFaqs = _getRandomFaqs(count: 3);
 
-      // Lista de claves de donde extraer las FAQs
-      const faqKeys = ['faq_turismo', 'faq_servicios', 'faq_emergencias'];
-
-      for (var key in faqKeys) {
-        if (_faqs![key] != null && _faqs![key] is List) {
-          for (var entry in _faqs![key]) {
-            // Asume que la pregunta está en la clave "question"
-            if (entry['question'] != null && entry['question'] is String) {
-              allQuestions.add(entry['question']);
-            }
-          }
-        }
-      }
-
-      // Baraja la lista de todas las preguntas
-      allQuestions.shuffle();
-
-      // Toma las primeras 3 preguntas de la lista barajada
-      final List<String> randomFaqs = allQuestions.take(3).toList();
-
-      // Añade las preguntas aleatorias como opciones en el chat
-      if (randomFaqs.isNotEmpty) {
-        addMessage(
-          sender: "bot",
-          text: "", // El texto puede estar vacío
-          type: "faq_options",
-          options: randomFaqs,
-        );
-      }
-    }
+    // Añade las randomFaqs como opciones en el chat
+    if (randomFaqs.isNotEmpty){
+      addMessage(
+        sender: "bot",
+        text: "",
+        type: "faq_options",
+        options: randomFaqs
+      );
+    } */                //Descomentar si se quiere las faqs desde un inicio
   }
+
   // ============== FIN DE LA FUNCIÓN MODIFICADA ==============
 
   BotResponse _getBotResponse(String userMessage) {
@@ -171,6 +155,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       action: "query_openai",
     );
   }
+
 
   void handleSendMessage(String text) {
     addMessage(sender: "user", text: text);
@@ -240,6 +225,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     });
   }
 
+  //Fn controlador feedback
   void _handleFeedback(int messageId, String feedbackType) {
     setState(() {
       final messageIndex = messages.indexWhere((m) => m['id'] == messageId);
@@ -254,6 +240,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     });
   }
 
+  //Fn limpiar historial
   void _clearChatHistory() {
     setState(() {
       messages.clear();
@@ -261,6 +248,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     });
   }
 
+  //Fn Ir a whatsapp 
   void _launchWhatsApp() async {
     const phoneNumber = "+56912345678";
     const message = "Hola, necesito ayuda de un asesor.";
@@ -272,6 +260,59 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       );
     }
   }
+
+  //Nueva función helper que se usará en 2 funciones _showFrequentlyAskedQuestions() y _initializeChat()
+  List<String> _getRandomFaqs({int count = 3}){
+    final List<String> allQuestions = [];
+
+    if (_faqs == null) return allQuestions;
+
+    // Lista de claves de donde extraer las FAQs
+    const faqKeys = ['faq_turismo', 'faq_servicios', 'faq_emergencias'];
+  
+    for (var key in faqKeys) {
+      if (_faqs![key] != null && _faqs![key] is List) {
+        for (var entry in _faqs![key]) {
+          if (entry['question'] != null && entry['question'] is String) {
+            allQuestions.add(entry['question']);
+          }
+        }
+      }
+    }
+     // Baraja y toma las preguntas necesarias
+    allQuestions.shuffle();
+    return allQuestions.take(count).toList();
+  }
+
+  void _showFrequentlyAskedQuestions() {
+    final faqBloc = context.read<FaqBloc>();
+    final currentState = faqBloc.state;
+
+    if (!currentState.showFaqs){ //Mostar faqs
+       // Usa la función helper para obtener FAQs aleatorias
+      final List<String> randomFaqs = _getRandomFaqs(count: 3);
+      
+      // Añade las preguntas como opciones en el chat
+      if (randomFaqs.isNotEmpty) {
+        addMessage(
+          sender: "bot",
+          text: "Aquí tienes algunas preguntas frecuentes:",
+          type: "faq_options",
+          options: randomFaqs,
+        );
+      }
+    } else { //Ocultar faqs
+      setState((){
+        messages.removeWhere((message) => message['type'] == 'faq_options');
+      });
+    }
+
+    faqBloc.add(ToggleFaqsEvent()); 
+  }
+
+  // ============================================================================
+  // Inicio construcción visual chat
+  // ============================================================================
 
   @override
   Widget build(BuildContext context) {
@@ -297,6 +338,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
                         typingAnimation: _typingAnimation!,
                         onFeedback: _handleFeedback,
                         onSendMessage: handleSendMessage,
+                        onShowFrequentlyAskedQuestions: _showFrequentlyAskedQuestions,
                       )
                     : Container(),
               ),
@@ -357,7 +399,7 @@ class ChatbotHeader extends StatelessWidget implements PreferredSizeWidget {
                       context.read<ThemeBloc>().add(ToggleThemeEvent());
                     },
                     activeThumbColor: Colors.white,
-                    activeTrackColor: Colors.white.withOpacity(0.5),
+                    activeTrackColor: Colors.white.withValues(alpha: 0.5),
                   ),
                 ],
               ),
@@ -447,6 +489,7 @@ class ChatbotBody extends StatelessWidget {
   final Animation<double> typingAnimation;
   final Function(int, String) onFeedback;
   final Function(String) onSendMessage;
+  final VoidCallback onShowFrequentlyAskedQuestions;
 
   const ChatbotBody({
     super.key,
@@ -457,6 +500,7 @@ class ChatbotBody extends StatelessWidget {
     required this.typingAnimation,
     required this.onFeedback,
     required this.onSendMessage,
+    required this.onShowFrequentlyAskedQuestions
   });
 
   @override
@@ -499,10 +543,10 @@ class ChatbotBody extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     if (!isUser) ...[
-                      const CircleAvatar(
+                      CircleAvatar(
                         radius: 16,
-                        backgroundColor: AppColors.lightprimary,
-                        child: Icon(
+                        backgroundColor: isDarkMode ? AppColors.darkprimary : AppColors.lightprimary,
+                        child: const Icon(
                           Icons.smart_toy,
                           color: Colors.white,
                           size: 18,
@@ -537,26 +581,66 @@ class ChatbotBody extends StatelessWidget {
                                     Radius.circular(isUser ? 0.0 : 16.0)),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.grey.withOpacity(0.2),
+                                color: Colors.grey.withValues(alpha: 0.2),
                                 spreadRadius: 1,
                                 blurRadius: 3,
                                 offset: const Offset(0, 1),
                               ),
                             ],
                           ),
-                          child: Text(
-                            message['text'] ?? '',
-                            style: TextStyle(
-                              color: isUser
-                                  ? Colors.white
-                                  : (isDarkMode
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              //Si el mensaje es normal...
+                              if (message['text'] != null && message['text'].isNotEmpty)
+                                Text(
+                                  message['text'] ?? '',
+                                  style: TextStyle(
+                                    color : isUser
                                       ? Colors.white
-                                      : Colors.black87),
-                              fontSize: 16,
-                              fontFamily: 'Poppins',
-                              fontWeight: FontWeight.w400,
-                            ),
-                          ),
+                                      : (isDarkMode ? Colors.white : Colors.black87), 
+                                    fontSize: 16,
+                                    fontFamily: 'Poppins',
+                                    fontWeight: FontWeight.w400
+                                  ),
+                                ),
+                              //Si el mensaje es de bienvenida...
+                              if (message['type'] == 'welcome_message')
+                              Column(
+                                children: [
+                                  const SizedBox(height: 12,),
+                                  Container(
+                                    height: 1,
+                                    color: Colors.grey[300],
+                                  ),
+                                  const SizedBox(height: 8,),
+                                  BlocBuilder<FaqBloc, FaqState>(
+                                    builder: (context, faqState){
+                                      return TextButton(
+                                        onPressed: () => onShowFrequentlyAskedQuestions(),
+                                        style: TextButton.styleFrom(
+                                          padding: EdgeInsets.zero,
+                                          minimumSize: Size.zero,
+                                          tapTargetSize: MaterialTapTargetSize.shrinkWrap
+                                        ), 
+                                        child: Text(
+                                          "Preguntas frecuentes",
+                                          style: TextStyle(
+                                            color: isDarkMode 
+                                              ? AppColors.darkFaqsButton
+                                              : AppColors.lightFaqsButton,
+                                            fontSize: 14,
+                                            fontFamily: 'Poppins',
+                                            fontWeight: FontWeight.w600, 
+                                          ),
+                                        ) 
+                                      );
+                                    }
+                                  )
+                                ],
+                              )  
+                            ],
+                          )
                         ),
                       ),
                     if (isUser) ...[
@@ -573,7 +657,8 @@ class ChatbotBody extends StatelessWidget {
                     ],
                   ],
                 ),
-                if (!isUser && isLastBotMessage) _buildFeedbackButtons(message),
+                if (!isUser && isLastBotMessage && message['type'] != 'welcome_message') 
+                  _buildFeedbackButtons(message),
               ],
             ),
           );
@@ -616,12 +701,10 @@ class ChatbotBody extends StatelessWidget {
     final feedbackState = message['feedback'];
     final messageId = message['id'];
 
-    if (message['text']
-        .toString()
-        .contains("¡Hola! Soy el asistente virtual")) {
-      return const SizedBox.shrink();
+    if (message['type'] == 'welcome_message'){
+      return const SizedBox.shrink() ;
     }
-
+    
     return feedbackState == null
         ? Padding(
             padding: const EdgeInsets.only(left: 48, top: 8),
@@ -677,7 +760,7 @@ class ChatbotBody extends StatelessWidget {
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.grey.withOpacity(0.2),
+                  color: Colors.grey.withValues(alpha: 0.2),
                   spreadRadius: 1,
                   blurRadius: 3,
                   offset: const Offset(0, 1),
