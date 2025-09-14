@@ -12,17 +12,26 @@ class AppLocalizationsEs extends AppLocalizations {
   String get search => 'Buscar';
 
   @override
-  String get galeriaArteNatural => 'Galería de Arte Natural';
+  String get otono => 'Otoño';
 
   @override
-  String get armerillo => 'Armerillo';
+  String get invierno => 'Invierno';
 
   @override
-  String get pasoNevado => 'Paso Nevado';
+  String get primavera => 'Primavera';
 
   @override
-  String get pagina4 => 'Botón Página 4';
+  String get verano => 'Verano';
 
   @override
-  String get pagina5 => 'Botón Página 5';
+  String get vista360 => 'Vista 360°';
+
+  @override
+  String get descripcion => 'Descripción';
+
+  @override
+  String get recomendados => 'Recomendados';
+
+  @override
+  String get cercanos => 'Cerca de ti';
 }

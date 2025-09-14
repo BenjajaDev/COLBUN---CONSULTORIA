@@ -106,35 +106,53 @@ abstract class AppLocalizations {
   /// **'Buscar'**
   String get search;
 
-  /// No description provided for @galeriaArteNatural.
+  /// version de Otoño para vista 360
   ///
   /// In es, this message translates to:
-  /// **'Galería de Arte Natural'**
-  String get galeriaArteNatural;
+  /// **'Otoño'**
+  String get otono;
 
-  /// No description provided for @armerillo.
+  /// version de Invierno para vista 360
   ///
   /// In es, this message translates to:
-  /// **'Armerillo'**
-  String get armerillo;
+  /// **'Invierno'**
+  String get invierno;
 
-  /// No description provided for @pasoNevado.
+  /// version de Primavera para vista 360
   ///
   /// In es, this message translates to:
-  /// **'Paso Nevado'**
-  String get pasoNevado;
+  /// **'Primavera'**
+  String get primavera;
 
-  /// No description provided for @pagina4.
+  /// version de Verano para vista 360
   ///
   /// In es, this message translates to:
-  /// **'Botón Página 4'**
-  String get pagina4;
+  /// **'Verano'**
+  String get verano;
 
-  /// No description provided for @pagina5.
+  /// Texto para el botón de vista 360
   ///
   /// In es, this message translates to:
-  /// **'Botón Página 5'**
-  String get pagina5;
+  /// **'Vista 360°'**
+  String get vista360;
+
+  /// Título para la sección de descripción
+  ///
+  /// In es, this message translates to:
+  /// **'Descripción'**
+  String get descripcion;
+
+  /// Título para la sección de puntos de interés recomendados
+  ///
+  /// In es, this message translates to:
+  /// **'Recomendados'**
+  String get recomendados;
+
+  /// Título para la sección de puntos de interés cercanos
+  ///
+  /// In es, this message translates to:
+  /// **'Cerca de ti'**
+  String get cercanos;
 }
 
 class _AppLocalizationsDelegate

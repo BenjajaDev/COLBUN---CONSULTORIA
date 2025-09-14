@@ -1,4 +1,6 @@
 import 'package:consultoria_chat_bot/blocs/poi_bloc.dart';
+import 'package:consultoria_chat_bot/events/poi_event.dart';
+import 'package:consultoria_chat_bot/l10n/app_localizations.dart';
 import 'package:consultoria_chat_bot/states/poi_state.dart';
 import 'package:flutter/material.dart';
 
@@ -12,9 +14,48 @@ class PoiScreen extends StatefulWidget {
 }
 
 class _PoiScreenState extends State<PoiScreen> {
+  int _selectedIndex = 0;
   bool _isFavorito = false;
   String? valorSeleccionado = 'Otoño';
   final List<String> opciones = ['Otoño', 'Invierno', 'Primavera', 'Verano'];
+  final Map<String, Map<String, Color>> chipsColors = {
+    'naturaleza': {
+      'background': Colors.green.shade100,
+      'text': Colors.green.shade800,
+    },
+    'trekking': {
+      'background': Colors.brown.shade100,
+      'text': Colors.brown.shade800,
+    },
+  };
+  @override
+  void initState()  { 
+    BlocProvider.of<PoiBloc>(context).add(LoadPoi('AxvPPVXO0uawN60tbkWu'));
+    super.initState();
+  }
+  // datos de ejemplo para recomendados y cercanos cambiar cuando se implemente la logica
+  List<Map<String, dynamic>> recomendados = [
+    {
+      'nombre': 'Cascada El Salto',
+      'categorias': ['naturaleza', 'aventura'],
+      'actividades':[]
+    },
+    {
+      'nombre': 'Mirador Los Andes',
+      'categorias': ['paisajes', 'fotografía'],
+      'actividades':[]
+    },
+  ];
+  List<Map<String, dynamic>> cercanos = [
+    {
+      'nombre': 'Cascada El Salto',
+      'distancia': 2.5
+    },
+    {
+      'nombre': 'Mirador Los Andes',
+      'distancia': 4.2
+    },
+  ];
 
   // Overlay (info)
   OverlayEntry? _overlayEntry;
@@ -86,248 +127,356 @@ class _PoiScreenState extends State<PoiScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (_) => PoiBloc(),
-      child: Scaffold(
-        body: SafeArea(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              return BlocBuilder<PoiBloc, PoiState>(
-                builder: (context, state) {
-                  if (state is POI) {
-                    return Column(
-                      children: [
-                        Expanded(
-                          child: SingleChildScrollView(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // ==================== TITULO + BOTON X ====================
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: Container(
-                                        padding: const EdgeInsets.all(8),
-                                        child: const Text(
-                                          "Parque Las Vizcachas de Rari",
-                                          style: TextStyle(
-                                            fontSize: 25,
-                                            color: Colors.black,
-                                          ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                    ),
-                                    IconButton(
-                                      icon: const Icon(
-                                        Icons.close,
-                                        color: Colors.black,
-                                      ),
-                                      onPressed: () => Navigator.pop(context),
-                                    ),
-                                  ],
+    return Scaffold(
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return BlocBuilder<PoiBloc, PoiState>(
+              builder: (context, state) {
+                
+                if (state is PoiLoaded) {
+                  final List<String> items = [
+                    ...List<String>.from(state.poi.categorias),
+                    ...List<String>.from(state.poi.actividades),
+                  ];
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // ==================== TITULO + BOTON X ====================
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Container(
+                              padding: const EdgeInsets.all(16),
+                              child: Text(
+                                state.poi.nombre,
+                                style: const TextStyle(
+                                  fontSize: 25,
+                                  color: Colors.black,
                                 ),
-          
-                                // ==================== IMAGEN PRINCIPAL ====================
-                                GestureDetector(
-                                  onTap: () {
-                                    showDialog(
-                                      context: context,
-                                      builder: (context) {
-                                        return Dialog(
-                                          child: Image.network(
-                                            state.imagen,
-                                            fit: BoxFit.contain,
-                                          ),
-                                        );
-                                      },
-                                    );
-                                  },
-                                  child: Image.network(
-                                    state.imagen,
-                                    fit: BoxFit.cover,
-                                    width: double.infinity,
-                                    height: 250,
-                                  ),
-                                ),
-          
-                                // ==================== BOTONES DE ACTIVIDADES ====================
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 5,
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Expanded(
-                                        child: Container(
-                                          margin: const EdgeInsets.all(10),
-                                          child: ElevatedButton(
-                                            onPressed: () {},
-                                            style: ElevatedButton.styleFrom(
-                                              backgroundColor: Colors.blue[50],
-                                            ),
-                                            child: const Text(
-                                              "Trekking",
-                                              style: TextStyle(
-                                                fontSize: 18,
-                                                color: Colors.blue,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      Expanded(
-                                        child: Container(
-                                          margin: const EdgeInsets.all(10),
-                                          child: ElevatedButton(
-                                            onPressed: () {},
-                                            style: ElevatedButton.styleFrom(
-                                              backgroundColor: Colors.green[50],
-                                            ),
-                                            child: const Text(
-                                              "Naturaleza",
-                                              style: TextStyle(
-                                                fontSize: 18,
-                                                color: Colors.green,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      SizedBox(
-                                        child: IconButton(
-                                          icon: Icon(
-                                            _isFavorito
-                                                ? Icons.favorite
-                                                : Icons.favorite_border,
-                                            color: _isFavorito
-                                                ? Colors.pink
-                                                : Colors.grey,
-                                          ),
-                                          onPressed: _togglefavorito,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-          
-                                // ==================== DROPDOWN + INFO + VISTA 360 + BOTON EMERGENCIA ====================
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      DropdownButton<String>(
-                                        value: valorSeleccionado,
-                                        items: opciones.map((String opcion) {
-                                          return DropdownMenuItem<String>(
-                                            value: opcion,
-                                            child: Text(opcion),
-                                          );
-                                        }).toList(),
-                                        onChanged: (String? nuevoValor) {
-                                          setState(() {
-                                            valorSeleccionado = nuevoValor;
-                                          });
-                                        },
-                                      ),
-                                      const SizedBox(width: 10),
-                                      ElevatedButton(
-                                        onPressed: () {},
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: Colors.blue,
-                                        ),
-                                        child: const Text(
-                                          "Vista 360",
-                                          style: TextStyle(color: Colors.white),
-                                        ),
-                                      ),
-          
-                                      // Icono de información con overlay
-                                      const SizedBox(width: 8),
-                                      IconButton(
-                                        key: _iconKey,
-                                        icon: const Icon(
-                                          Icons.info_outline,
-                                          color: Colors.black,
-                                        ),
-                                        onPressed: () {
-                                          // toggle overlay
-                                          if (_overlayEntry == null) {
-                                            _showOverlay();
-                                          } else {
-                                            _overlayEntry?.remove();
-                                            _overlayEntry = null;
-                                          }
-                                        },
-                                      ),
-          
-                                      const Spacer(),
-                                      ElevatedButton.icon(
-                                        onPressed: () {},
-                                        style: ElevatedButton.styleFrom(
-                                          shape: const CircleBorder(),
-                                          padding: const EdgeInsets.all(14),
-                                          backgroundColor: Colors.red,
-                                        ),
-                                        label: const Icon(
-                                          Icons.call,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-          
-                                // ==================== DESCRIPCION ====================
-                                const Padding(
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: 15,
-                                    vertical: 10,
-                                  ),
-                                  child: Text(
-                                    "Descripción:",
-                                    style: TextStyle(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                                const Padding(
-                                  padding: EdgeInsets.symmetric(horizontal: 15),
-                                  child: Text(
-                                    "El Parque Las Vizcachas de Rari es un centro recreativo familiar en la comuna de Colbún, con piscinas, áreas de picnic y camping, rodeado de naturaleza y cercano a atractivos como el Lago Colbún y las artesanías en crin de Rari.",
-                                  ),
-                                ),
-          
-                                // ==================== RECOMENDADOS ====================
-                                const Padding(
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: 15,
-                                    vertical: 10,
-                                  ),
-                                  child: Text(
-                                    "Recomendados",
-                                    style: TextStyle(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ],
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                           ),
+                          IconButton(
+                            icon: const Icon(
+                              Icons.close,
+                              color: Colors.black,
+                            ),
+                            onPressed: () => Navigator.pop(context),
+                          ),
+                        ],
+                      ),
+
+                      // ==================== IMAGEN PRINCIPAL ====================
+                      GestureDetector(
+                        onTap: () {
+                          showDialog(
+                            context: context,
+                            builder: (context) => Dialog(
+                              child: Image.network(
+                                state.poi.imagen,
+                                fit: BoxFit.contain,
+                              ),
+                            ),
+                          );
+                        },
+                        child: Image.network(
+                          state.poi.imagen,
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          height: 250,
                         ),
-                      ],
-                    );
-                  }
+                      ),
+
+                      // ==================== Categorias y actividades ====================
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        child: Row(
+                          children: [
+                            // Lista de chips horizontal
+                            Expanded(
+                              child: SizedBox(
+                                height: 40,
+                                child: ListView.separated(
+                                  scrollDirection: Axis.horizontal,
+                                  itemCount: items.length,
+                                  separatorBuilder: (context, index) =>
+                                      const SizedBox(width: 8),
+                                  itemBuilder: (context, index) {
+                                    return ActionChip(
+                                      label: Text(
+                                        items[index],
+                                        style: TextStyle(
+                                          color:
+                                              chipsColors[items[index]]?['text'] ??
+                                              Colors.black,
+                                        ),
+                                      ),
+                                      backgroundColor:
+                                          chipsColors[items[index]]?['background'] ??
+                                          Colors.grey.shade200,
+                                      side: BorderSide.none,
+
+                                      onPressed: () {},
+                                    );
+                                  },
+                                ),
+                              ),
+                            ),
+                            // Icono de favorito
+                            IconButton(
+                              icon: Icon(
+                                _isFavorito
+                                    ? Icons.favorite
+                                    : Icons.favorite_border,
+                                color: _isFavorito
+                                    ? Colors.pink
+                                    : Colors.grey,
+                              ),
+                              onPressed: _togglefavorito,
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // ==================== DROPDOWN + INFO + VISTA 360 + BOTON EMERGENCIA ====================
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        child: Row(
+                          children: [
+                            DropdownButton<String>(
+                              value: valorSeleccionado,
+                              items: opciones.map((String opcion) {
+                                return DropdownMenuItem<String>(
+                                  value: opcion,
+                                  child: Text(opcion),
+                                );
+                              }).toList(),
+                              onChanged: (String? nuevoValor) {
+                                setState(() {
+                                  valorSeleccionado = nuevoValor;
+                                });
+                              },
+                            ),
+                            const SizedBox(width: 10),
+                            ElevatedButton(
+                              onPressed: () {},
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.blue,
+                              ),
+                              child:  Text(
+                                AppLocalizations.of(context)!.vista360,
+                                style: TextStyle(color: Colors.white),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            IconButton(
+                              key: _iconKey,
+                              icon: const Icon(
+                                Icons.info_outline,
+                                color: Colors.black,
+                              ),
+                              onPressed: () {
+                                if (_overlayEntry == null) {
+                                  _showOverlay();
+                                } else {
+                                  _overlayEntry?.remove();
+                                  _overlayEntry = null;
+                                }
+                              },
+                            ),
+                            const Spacer(),
+                            ElevatedButton.icon(
+                              onPressed: () {},
+                              style: ElevatedButton.styleFrom(
+                                shape: const CircleBorder(),
+                                padding: const EdgeInsets.all(14),
+                                backgroundColor: Colors.red,
+                              ),
+                              label: const Icon(
+                                Icons.call,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      Expanded(
+                        child: ListView(
+                          children: [
+                            //=================Estacion actual========================
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                              ),
+                              child: Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Colors.blue.shade50,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Text(
+                                  "Temporada actual: Primavera \n Clima templado, flora abundante, ideal para trekking",
+                                ),
+                              ),
+                            ),
+                            // ==================== DESCRIPCION ====================
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 10,
+                              ),
+                              child: Text(
+                                AppLocalizations.of(context)!.descripcion,
+                                style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 15,
+                              ),
+                              child: Text(state.poi.descripcion[Localizations.localeOf(context).languageCode.toString()] ?? 'es'),
+                            ),
+
+                            // ==================== RECOMENDADOS ====================
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.center,
+                                    children: [
+                                      Container(
+                                        decoration: BoxDecoration(
+                                          border: Border(
+                                            bottom: BorderSide(
+                                              color: _selectedIndex == 0 ? Colors.blue : Colors.black,
+                                              width: _selectedIndex == 0 ? 3 : 1,
+                                            ),
+                                          ),
+                                        ),
+                                        child: TextButton(
+                                          style: TextButton.styleFrom(
+                                            padding: EdgeInsets.zero,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(0),
+                                            ),
+                                          ),
+                                          onPressed: () {
+                                            setState(() {
+                                              _selectedIndex =0; 
+                                            });
+                                          },
+                                          child: Text(
+                                            AppLocalizations.of(context)!.recomendados,
+                                            style: TextStyle(
+                                              color: _selectedIndex == 0 ? Colors.blue : Colors.black,
+                                              fontSize: 18,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      Container(
+                                        decoration: BoxDecoration(
+                                          border: Border(
+                                            bottom: BorderSide(
+                                              color: _selectedIndex == 1 ? Colors.blue : Colors.black,
+                                              width: _selectedIndex == 1 ? 3 : 1,
+                                            ),
+                                          ),
+                                        ),
+                                        child: TextButton(
+                                          style: TextButton.styleFrom(
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(0),
+                                            ),
+                                          ),
+                                          onPressed: () {
+                                            setState(() {
+                                              _selectedIndex = 1;
+                                            });
+                                          },
+                                          child: Text(
+                                            AppLocalizations.of(context)!.cercanos,
+                                            style: TextStyle(
+                                              color: _selectedIndex == 1 ? Colors.blue : Colors.black,
+                                              fontSize: 18,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  if (_selectedIndex == 0)
+                                    Column(
+                                      children: recomendados.map( (rec){
+                                        return Card(
+                                          margin: const EdgeInsets.symmetric(
+                                            vertical: 8,
+                                          ),
+                                          child: ListTile(
+                                            title: Text(rec['nombre']!),
+                                            subtitle: Text(rec['categorias']!.join(", ")),
+                                            onTap: () {
+                                              // Acción al tocar el POI recomendado
+                                            },
+                                          ),
+                                       );
+                                      }).toList(),
+                                    )
+                                  else
+                                    Column(
+                                      children: cercanos.map((rec) {
+                                        return Card(
+                                          margin: const EdgeInsets.symmetric(
+                                            vertical: 8,
+                                          ),
+                                          child: ListTile(
+                                            title: Text(rec['nombre']!),
+                                            subtitle: Text("${rec['distancia']} km"),
+                                            onTap: () {
+                                              // Acción al tocar el POI cercano
+                                            },
+                                          ),
+                                        );
+                                      }).toList(),
+                                    ),
+                                ],
+                              ),
+                            )
+                          ],
+                        ),
+                      ),
+                    ],
+                    
+                  );
+                } else {
                   return const Center(child: CircularProgressIndicator());
-                },
-              );
-            },
-          ),
+                }
+              },
+            );
+          },
         ),
       ),
     );

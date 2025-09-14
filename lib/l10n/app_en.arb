@@ -4,5 +4,9 @@
     "otono": "Autumn",
     "invierno": "Winter",
     "primavera": "Spring",
-    "verano": "Summer"
+    "verano": "Summer",
+    "vista360": "360° View",
+    "descripcion": "Description",
+    "recomendados": "Recommended",
+    "cercanos":"Near you"
 }
