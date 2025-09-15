@@ -29,7 +29,7 @@ class Poi {
     final lat = data['lat'];
     final lng = data['lng'];
 
-    // Soporte GeoPoint / num / string
+
     final LatLng loc = (lat is GeoPoint && lng is GeoPoint)
         ? LatLng(lat.latitude, lng.longitude)
         : LatLng(_toDouble(lat), _toDouble(lng));

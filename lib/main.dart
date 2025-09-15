@@ -1,4 +1,3 @@
-import 'package:consultoria_chat_bot/data/seed_service.dart';
 import 'package:consultoria_chat_bot/l10n/app_localizations.dart';
 import 'package:consultoria_chat_bot/screens/map_page.dart';
 import 'package:flutter/material.dart';
@@ -6,14 +5,13 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'package:consultoria_chat_bot/data/map_repository.dart';
-
 import 'package:consultoria_chat_bot/blocs/map_bloc.dart';
 import 'package:consultoria_chat_bot/events/map_event.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  //await SeedService().seed();
+  //await SeedService().seed(); // lo deje comentado porque sirve para lanzar la info hacia la firestore
   runApp(const MyApp());
 }
 

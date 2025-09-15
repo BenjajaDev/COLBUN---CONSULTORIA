@@ -129,7 +129,7 @@ class _MapPageState extends State<MapPage> {
                             ),
                           );
                         }).toList(),
-                      ), // <-- CAMBIO 2: ESTA CAPA QUEDA ÚLTIMA
+                      ), 
                     ],
                   ),
 
