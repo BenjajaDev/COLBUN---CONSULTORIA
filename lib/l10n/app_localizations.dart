@@ -105,6 +105,54 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Buscar'**
   String get search;
+
+  /// version de Otoño para vista 360
+  ///
+  /// In es, this message translates to:
+  /// **'Otoño'**
+  String get otono;
+
+  /// version de Invierno para vista 360
+  ///
+  /// In es, this message translates to:
+  /// **'Invierno'**
+  String get invierno;
+
+  /// version de Primavera para vista 360
+  ///
+  /// In es, this message translates to:
+  /// **'Primavera'**
+  String get primavera;
+
+  /// version de Verano para vista 360
+  ///
+  /// In es, this message translates to:
+  /// **'Verano'**
+  String get verano;
+
+  /// Texto para el botón de vista 360
+  ///
+  /// In es, this message translates to:
+  /// **'Vista 360°'**
+  String get vista360;
+
+  /// Título para la sección de descripción
+  ///
+  /// In es, this message translates to:
+  /// **'Descripción'**
+  String get descripcion;
+
+  /// Título para la sección de puntos de interés recomendados
+  ///
+  /// In es, this message translates to:
+  /// **'Recomendados'**
+  String get recomendados;
+
+  /// Título para la sección de puntos de interés cercanos
+  ///
+  /// In es, this message translates to:
+  /// **'Cerca de ti'**
+  String get cercanos;
 }
 
 class _AppLocalizationsDelegate

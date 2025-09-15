@@ -1,4 +1,12 @@
 {
     "@@locale": "pt",
-    "search": "Pesquisar"
+    "search": "Pesquisar",
+    "otono": "Outono",
+    "invierno": "Inverno",
+    "primavera": "Primavera",
+    "verano": "Verão",
+    "vista360": "Vista 360°",
+    "descripcion": "Descrição",
+    "recomendados": "Recomendados",
+    "cercanos":"Perto de você"
 }
