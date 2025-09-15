@@ -1,78 +1,90 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:consultoria_chat_bot/events/map_event.dart';
 import 'package:consultoria_chat_bot/states/map_state.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:flutter_compass/flutter_compass.dart';
+import 'package:consultoria_chat_bot/data/routes_repository.dart';
+import 'dart:async';
+import 'package:consultoria_chat_bot/models/route360.dart';
 
 class MapBloc extends Bloc<MapEvent, MapState> {
+  final RoutesRepository repo;
+  StreamSubscription<List<Route360>>? _routesSub;
 
-  MapBloc() : super(MapInitial(center: LatLng(-33.4489, -70.6693))) {
+  MapBloc({required this.repo})
+      : super(MapInitial(center: const LatLng(-33.4489, -70.6693))) {
+    on<SubscribeRoutes>(_onSubscribeRoutes);
+    on<LoadRoutes>(_onLoadRoutes);
+    on<RoutesUpdated>(_onRoutesUpdated);
+    on<SelectRoute>(_onSelectRoute);
     on<AddMarker>(_onAddMarker);
     on<UpdateUserLocation>(_onUpdateUserLocation);
     on<UpdateHeading>(_onUpdateHeading);
+    on<DeselectRoute>((event, emit) {
+      final cur = state as MapInitial;
+      emit(cur.copyWith(selectedRouteId: null));
+    });
 
-    _startTrackingLocation();
-    _startTrackingHeading();
+
+    add(LoadRoutes()); 
+    add(SubscribeRoutes());
+  }
+
+  void _onSubscribeRoutes(SubscribeRoutes event, Emitter<MapState> emit) {
+    _routesSub?.cancel();
+    _routesSub = repo.streamRoutes().listen(
+      (routes) {
+        add(RoutesUpdated(routes));
+      },
+      onError: (e) => emit(MapFailure(e.toString())),
+    );
+  }
+
+  void _onRoutesUpdated(RoutesUpdated event, Emitter<MapState> emit) {
+    final cur = state is MapInitial
+        ? state as MapInitial
+        : MapInitial(center: const LatLng(-35.78, -71.33));
+    emit(cur.copyWith(
+      routes: event.routes,
+      selectedRouteId: cur.selectedRouteId,
+    ));
+  }
+
+
+  Future<void> _onLoadRoutes(
+      LoadRoutes event, Emitter<MapState> emit) async {
+    try {
+      final routes = await repo.fetchRoutes();
+      add(RoutesUpdated(routes));
+    } catch (e) {
+      emit(MapFailure(e.toString()));
+    }
+  }
+
+  void _onSelectRoute(SelectRoute event, Emitter<MapState> emit) {
+    final cur = state as MapInitial;
+    emit(cur.copyWith(selectedRouteId: event.routeId));
   }
 
   void _onAddMarker(AddMarker event, Emitter<MapState> emit) {
-    final current = state as MapInitial;
-    final updatedMarkers = List<LatLng>.from(current.markers)..add(event.position);
-    emit(MapInitial(
-      center: current.center,
-      markers: updatedMarkers,
-      userLocation: current.userLocation,
-      heading: current.heading,
-    ));
+    final cur = state as MapInitial;
+    final updated = List<LatLng>.from(cur.markers)..add(event.position);
+    emit(cur.copyWith(markers: updated));
   }
 
-  void _onUpdateUserLocation(UpdateUserLocation event, Emitter<MapState> emit) {
-    final current = state as MapInitial;
-    emit(MapInitial(
-      center: event.position,
-      markers: current.markers,
-      userLocation: event.position,
-      heading: current.heading,
-    ));
+  void _onUpdateUserLocation(
+      UpdateUserLocation event, Emitter<MapState> emit) {
+    final cur = state as MapInitial;
+    emit(cur.copyWith(userLocation: event.position));
   }
 
   void _onUpdateHeading(UpdateHeading event, Emitter<MapState> emit) {
-    final current = state as MapInitial;
-    emit(MapInitial(
-      center: current.center,
-      markers: current.markers,
-      userLocation: current.userLocation,
-      heading: event.heading,
-    ));
+    final cur = state as MapInitial;
+    emit(cur.copyWith(heading: event.heading));
   }
 
-
-  Future<void> _startTrackingLocation() async {
-    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) return;
-
-    LocationPermission permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) return;
-    }
-    if (permission == LocationPermission.deniedForever) return;
-
-    Geolocator.getPositionStream(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.high,
-        distanceFilter: 5,
-      ),
-    ).listen((Position position) {
-      add(UpdateUserLocation(LatLng(position.latitude, position.longitude)));
-    });
-  }
-
-  void _startTrackingHeading() {
-    FlutterCompass.events?.listen((event) {
-      final heading = event.heading ?? 0.0;
-      add(UpdateHeading(heading));
-    });
+  @override
+  Future<void> close() {
+    _routesSub?.cancel(); 
+    return super.close();
   }
 }
