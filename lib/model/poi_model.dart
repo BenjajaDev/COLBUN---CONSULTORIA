@@ -7,7 +7,7 @@ class POI  {
   final double longitud;
   final List<String> categorias;
   final List<String> actividades;
-  final List<String> vistas360;
+  final Map<String, dynamic> vistas360;
 
 
   POI({

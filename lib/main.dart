@@ -23,8 +23,8 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiBlocProvider(
       providers: [
-        BlocProvider(create: (context) => MapBloc()),
-        BlocProvider(create: (context) => PoiBloc(FireStoreService())),
+        BlocProvider(create: (context) => MapBloc(FireStoreService())),
+        BlocProvider(create: (context) => PoiBloc()),
       ],
       child: MaterialApp(
         title: 'Flutter Demo',

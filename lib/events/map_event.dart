@@ -1,3 +1,4 @@
+import 'package:consultoria_chat_bot/model/route_model.dart';
 import 'package:latlong2/latlong.dart';
 
 
@@ -15,3 +16,7 @@ class UpdateHeading extends MapEvent {
   final double heading;
   UpdateHeading(this.heading);
 }
+class LoadRoute extends MapEvent {
+
+}
+
