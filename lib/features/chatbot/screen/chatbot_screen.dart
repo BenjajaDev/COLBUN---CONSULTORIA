@@ -1,55 +1,37 @@
 import 'dart:convert';
 import 'dart:async';
 import 'dart:math' as math;
-import 'package:consultoria_chat_bot/features/chatbot/bloc/faq_bloc.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../bloc/theme_bloc.dart';
+import '../bloc/faq_bloc.dart';
+import '../models/bot_response.dart';
+import '../utils/app_colors.dart';
+import '../components/chatbot_header.dart';
+import '../components/chatbot_body.dart';
+import '../components/chatbot_footer.dart';
 
-// Estructura de colores (sin cambios)
-class AppColors {
-  static const Color lightprimary = Color(0xFF4D67AE);
-  static const Color lightbackground = Colors.white;
-  static const Color lightTextFieldBorder = Color(0xFFE0E0E0);
-  static const Color lightFaqsButton = Color(0xFF4861DB);
-  static const Color darkprimary = Color(0xFF494C6B);
-  static const Color darkBackground = Color(0xFF252525);
-  static const Color darkFaqsButton = Color(0xFF6C8AE5);
-}
-
-class BotResponse {
-  final String answer;
-  final String? action; // El action es opcional
-
-  BotResponse({required this.answer, this.action});
-}
-
-// Pantalla principal
 class ChatbotScreen extends StatefulWidget {
   const ChatbotScreen({super.key});
   @override
   State<ChatbotScreen> createState() => _ChatbotScreenState();
 }
 
-// Estado de la pantalla
 class _ChatbotScreenState extends State<ChatbotScreen>
     with TickerProviderStateMixin {
   final List<Map<String, dynamic>> messages = [];
   int _messageIdCounter = 0;
-
   bool _isTyping = false;
   late AnimationController _typingController;
   Animation<double>? _typingAnimation;
-
   Map<String, dynamic>? _faqs;
   final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
-
     _typingController = AnimationController(
       duration: const Duration(milliseconds: 1500),
       vsync: this,
@@ -65,7 +47,6 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       parent: _typingController,
       curve: Curves.easeInOut,
     ));
-
     _loadFaqs();
   }
 
@@ -85,31 +66,13 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     });
   }
 
-  // ============== FUNCIÓN MODIFICADA ==============
   void _initializeChat() {
-    // 1. Añade el mensaje de bienvenida
     addMessage(
-        sender: "bot",
-        text:
-            "¡Hola! Soy el asistente virtual de Colbún. ¿En qué puedo ayudarte?",
-        type: "welcome_message"    
+      sender: "bot",
+      text: "¡Hola! Soy el asistente virtual de Colbún. ¿En qué puedo ayudarte?",
+      type: "welcome_message"
     );
-
-    /* // 2. Procesa y muestra las FAQs aleatorias desde el JSON usando la funcion helper get
-    final List<String> randomFaqs = _getRandomFaqs(count: 3);
-
-    // Añade las randomFaqs como opciones en el chat
-    if (randomFaqs.isNotEmpty){
-      addMessage(
-        sender: "bot",
-        text: "",
-        type: "faq_options",
-        options: randomFaqs
-      );
-    } */                //Descomentar si se quiere las faqs desde un inicio
   }
-
-  // ============== FIN DE LA FUNCIÓN MODIFICADA ==============
 
   BotResponse _getBotResponse(String userMessage) {
     if (_faqs == null) {
@@ -125,8 +88,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       texto = texto.replaceAll(RegExp(r'[óöòôõ]'), 'o');
       texto = texto.replaceAll(RegExp(r'[úüùû]'), 'u');
       texto = texto.replaceAll('ñ', 'n');
-      texto =
-          texto.replaceAll('Ñ', 'N'); // Opcional, si quieres manejar mayúsculas
+      texto = texto.replaceAll('Ñ', 'N');
       return texto;
     }
 
@@ -140,12 +102,18 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       ..._faqs!['farewells'],
       ..._faqs!['faq_emergencias'],
     ];
+    
     for (var entry in allEntries) {
       List<dynamic> tags = entry['tags'];
       if (tags.any((tag) => message.contains(tag.toLowerCase()))) {
+        // Determina si la respuesta es un saludo o despedida para no pedir feedback
+        bool isGreetingOrFarewell = (_faqs!['greetings'].contains(entry) ||
+            _faqs!['farewells'].contains(entry));
+            
         return BotResponse(
           answer: entry['answer'],
           action: entry['action'],
+          isStandardResponse: !isGreetingOrFarewell,
         );
       }
     }
@@ -156,8 +124,10 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     );
   }
 
-
   void handleSendMessage(String text) {
+    // Elimina las opciones de FAQ anteriores para que no se acumulen
+    setState(() => messages.removeWhere((m) => m['type'] == 'faq_options'));
+    
     addMessage(sender: "user", text: text);
     setState(() {
       _isTyping = true;
@@ -170,9 +140,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     int complexityTime = (text.length * 10).clamp(0, 1000);
     int responseComplexity = (botResponse.answer.length * 3).clamp(0, 300);
     int randomVariation = random.nextInt(300);
-    int totalTTR =
-        (baseTime + complexityTime + responseComplexity + randomVariation)
-            .clamp(800, 3000);
+    int totalTTR = (baseTime + complexityTime + responseComplexity + randomVariation).clamp(800, 3000);
 
     Future.delayed(Duration(milliseconds: totalTTR), () {
       if (mounted) {
@@ -181,66 +149,99 @@ class _ChatbotScreenState extends State<ChatbotScreen>
         });
         _typingController.stop();
 
-        addMessage(sender: "bot", text: botResponse.answer);
+        final messageId = DateTime.now().millisecondsSinceEpoch.toString();
+        addMessage(sender: "bot", text: botResponse.answer, messageId: messageId);
 
         if (botResponse.action == "open_whatsapp") {
           _launchWhatsApp();
         } else if (botResponse.action == "query_openai") {
           Future.delayed(const Duration(seconds: 2), () {
             if (mounted) {
+              final aiMessageId = DateTime.now().millisecondsSinceEpoch.toString();
               addMessage(
-                  sender: "bot",
-                  text: "Respuesta simulada de la IA para: \"$text\".");
+                sender: "bot",
+                text: "Respuesta simulada de la IA para: \"$text\".",
+                messageId: aiMessageId,
+              );
+              // Pide feedback para la respuesta de la IA
+              addMessage(
+                sender: "bot",
+                text: "¿Fue útil esta información?",
+                type: "feedback",
+                messageId: aiMessageId,
+              );
             }
           });
-        }
-      }
-    });
-  }
-
-  void addMessage(
-      {required String sender,
-      String? text,
-      String? type,
-      List<String>? options}) {
-    setState(() {
-      messages.add({
-        "id": _messageIdCounter++,
-        "sender": sender,
-        "text": text,
-        "type": type,
-        "options": options,
-        "feedback": null,
-      });
-    });
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          0.0,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
-      }
-    });
-  }
-
-  //Fn controlador feedback
-  void _handleFeedback(int messageId, String feedbackType) {
-    setState(() {
-      final messageIndex = messages.indexWhere((m) => m['id'] == messageId);
-      if (messageIndex != -1) {
-        messages[messageIndex]['feedback'] = feedbackType;
-        if (feedbackType == 'good') {
-          print('+1 fue válido');
         } else {
-          print('+1 no fue válido');
+          // Si es una respuesta estándar, pide feedback
+          if (botResponse.isStandardResponse) {
+            addMessage(
+              sender: "bot",
+              text: "¿Fue útil esta información?",
+              type: "feedback",
+              messageId: messageId,
+            );
+          }
         }
       }
     });
   }
 
-  //Fn limpiar historial
+  void addMessage({
+  required String sender,
+  String? text,
+  String? type,
+  List<String>? options,
+  String? messageId,
+  int? insertAtIndex, // Nuevo parámetro opcional
+}) {
+  setState(() {
+    final newMessage = {
+      "id": messageId ?? _messageIdCounter++,
+      "sender": sender,
+      "text": text,
+      "type": type,
+      "options": options,
+      "feedback": null,
+      "visible": true,
+    };
+    
+    if (insertAtIndex != null) {
+      // Insertar en posición específica
+      messages.insert(insertAtIndex, newMessage);
+    } else {
+      // Agregar al final (comportamiento normal)
+      messages.add(newMessage);
+    }
+  });
+
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        0.0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
+  });
+}
+
+  void _handleFeedback(String messageId, bool wasUseful) {
+    // Oculta los botones de feedback para que no se pueda volver a votar
+    if (!mounted) return;
+    setState(() {
+      final feedbackIndex = messages
+          .indexWhere((m) => m['type'] == 'feedback' && m['id'] == messageId);
+      if (feedbackIndex != -1) messages[feedbackIndex]['visible'] = false;
+    });
+
+    // Muestra un mensaje de agradecimiento
+    addMessage(
+      sender: "bot",
+      text: "¡Gracias por tu feedback!",
+    );
+  }
+
   void _clearChatHistory() {
     setState(() {
       messages.clear();
@@ -248,7 +249,6 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     });
   }
 
-  //Fn Ir a whatsapp 
   void _launchWhatsApp() async {
     const phoneNumber = "+56912345678";
     const message = "Hola, necesito ayuda de un asesor.";
@@ -261,13 +261,10 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     }
   }
 
-  //Nueva función helper que se usará en 2 funciones _showFrequentlyAskedQuestions() y _initializeChat()
-  List<String> _getRandomFaqs({int count = 3}){
+  List<String> _getRandomFaqs({int count = 3}) {
     final List<String> allQuestions = [];
-
     if (_faqs == null) return allQuestions;
 
-    // Lista de claves de donde extraer las FAQs
     const faqKeys = ['faq_turismo', 'faq_servicios', 'faq_emergencias'];
   
     for (var key in faqKeys) {
@@ -279,41 +276,43 @@ class _ChatbotScreenState extends State<ChatbotScreen>
         }
       }
     }
-     // Baraja y toma las preguntas necesarias
+    
     allQuestions.shuffle();
     return allQuestions.take(count).toList();
   }
 
   void _showFrequentlyAskedQuestions() {
-    final faqBloc = context.read<FaqBloc>();
-    final currentState = faqBloc.state;
+  final faqBloc = context.read<FaqBloc>();
+  final currentState = faqBloc.state;
 
-    if (!currentState.showFaqs){ //Mostar faqs
-       // Usa la función helper para obtener FAQs aleatorias
+  if (!currentState.showFaqs) {
+    // Encontrar la posición del mensaje de bienvenida
+    final welcomeIndex = messages.indexWhere((m) => m['type'] == 'welcome_message');
+    
+    if (welcomeIndex != -1) {
+      // Obtener FAQs aleatorias
       final List<String> randomFaqs = _getRandomFaqs(count: 3);
       
-      // Añade las preguntas como opciones en el chat
       if (randomFaqs.isNotEmpty) {
+        // Insertar las FAQs justo después del mensaje de bienvenida
         addMessage(
           sender: "bot",
           text: "Aquí tienes algunas preguntas frecuentes:",
           type: "faq_options",
           options: randomFaqs,
+          insertAtIndex: welcomeIndex + 1, // Insertar después del welcome
         );
       }
-    } else { //Ocultar faqs
-      setState((){
-        messages.removeWhere((message) => message['type'] == 'faq_options');
-      });
     }
-
-    faqBloc.add(ToggleFaqsEvent()); 
+  } else {
+    // Eliminar FAQs existentes
+    setState(() {
+      messages.removeWhere((message) => message['type'] == 'faq_options');
+    });
   }
 
-  // ============================================================================
-  // Inicio construcción visual chat
-  // ============================================================================
-
+  faqBloc.add(ToggleFaqsEvent()); 
+}
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<ThemeBloc, ThemeState>(builder: (context, state) {
@@ -351,558 +350,5 @@ class _ChatbotScreenState extends State<ChatbotScreen>
         ),
       );
     });
-  }
-}
-
-// ============================================================================
-// COMPONENTE HEADER (Sin cambios)
-// ============================================================================
-class ChatbotHeader extends StatelessWidget implements PreferredSizeWidget {
-  final VoidCallback onClearHistory;
-  final VoidCallback onContactWhatsApp;
-  const ChatbotHeader({
-    super.key,
-    required this.onClearHistory,
-    required this.onContactWhatsApp,
-  });
-  @override
-  Widget build(BuildContext context) {
-    return BlocBuilder<ThemeBloc, ThemeState>(
-      builder: (context, state) {
-        return AppBar(
-          elevation: 0,
-          backgroundColor:
-              state.isDarkMode ? AppColors.darkprimary : AppColors.lightprimary,
-          iconTheme: const IconThemeData(color: AppColors.lightbackground),
-          title: const Text(
-            'Asistente Colbún',
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 28,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFFFFFFFF),
-            ),
-          ),
-          actions: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8.0),
-              child: Row(
-                children: [
-                  Icon(
-                    state.isDarkMode ? Icons.nightlight_round : Icons.wb_sunny,
-                    color: Colors.white,
-                  ),
-                  const SizedBox(width: 4),
-                  Switch(
-                    value: state.isDarkMode,
-                    onChanged: (value) {
-                      context.read<ThemeBloc>().add(ToggleThemeEvent());
-                    },
-                    activeThumbColor: Colors.white,
-                    activeTrackColor: Colors.white.withValues(alpha: 0.5),
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(
-              width: 44,
-              height: 44,
-              child: PopupMenuButton(
-                icon: const Icon(Icons.more_vert, color: Color(0xFFFFFFFF)),
-                color: state.isDarkMode
-                    ? AppColors.darkprimary
-                    : AppColors.lightprimary,
-                iconSize: 32,
-                position: PopupMenuPosition.under,
-                elevation: 8,
-                offset: const Offset(0, 15),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8.0),
-                ),
-                onSelected: (value) {
-                  if (value == 'Whatsapp') {
-                    onContactWhatsApp();
-                  } else if (value == 'Borrar Historial') {
-                    onClearHistory();
-                  }
-                },
-                itemBuilder: (BuildContext context) {
-                  FocusScope.of(context).unfocus();
-                  return [
-                    const PopupMenuItem(
-                      value: 'Whatsapp',
-                      child: ListTile(
-                        leading: Icon(Icons.chat, color: Colors.green),
-                        title: Text(
-                          'Contactar por WhatsApp',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontFamily: 'Poppins',
-                            fontWeight: FontWeight.w400,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const PopupMenuItem(
-                      enabled: false,
-                      height: 0,
-                      child: Divider(
-                        color: Colors.white,
-                        height: 1,
-                      ),
-                    ),
-                    const PopupMenuItem(
-                      value: 'Borrar Historial',
-                      child: ListTile(
-                        leading: Icon(Icons.delete, color: Colors.red),
-                        title: Text(
-                          'Borrar Historial de conversación',
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontFamily: 'Poppins',
-                              fontWeight: FontWeight.w400),
-                        ),
-                      ),
-                    ),
-                  ];
-                },
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  @override
-  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
-}
-
-// ============================================================================
-// COMPONENTE BODY (Sin cambios)
-// ============================================================================
-class ChatbotBody extends StatelessWidget {
-  final bool isDarkMode;
-  final List<Map<String, dynamic>> messages;
-  final ScrollController scrollController;
-  final bool isTyping;
-  final Animation<double> typingAnimation;
-  final Function(int, String) onFeedback;
-  final Function(String) onSendMessage;
-  final VoidCallback onShowFrequentlyAskedQuestions;
-
-  const ChatbotBody({
-    super.key,
-    required this.isDarkMode,
-    required this.messages,
-    required this.scrollController,
-    required this.isTyping,
-    required this.typingAnimation,
-    required this.onFeedback,
-    required this.onSendMessage,
-    required this.onShowFrequentlyAskedQuestions
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final lastBotMessageIndex = messages.lastIndexWhere(
-        (m) => m['sender'] == 'bot' && m['type'] != 'faq_options');
-
-    return Container(
-      width: double.infinity,
-      color: isDarkMode ? AppColors.darkBackground : Colors.grey[50],
-      padding: const EdgeInsets.all(16.0),
-      child: ListView.builder(
-        controller: scrollController,
-        reverse: true,
-        itemCount: messages.length + (isTyping ? 1 : 0),
-        itemBuilder: (context, index) {
-          if (isTyping && index == 0) {
-            return _buildTypingIndicator();
-          }
-
-          final messageIndex = isTyping ? index - 1 : index;
-          final reversedIndex = messages.length - 1 - messageIndex;
-          final message = messages[reversedIndex];
-          final isUser = message['sender'] == 'user';
-          final bool isLastBotMessage = reversedIndex == lastBotMessageIndex;
-
-          if (message['type'] == 'faq_options' && message['options'] != null) {
-            return _buildFaqOptions(context, message['options']);
-          }
-
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4.0),
-            child: Column(
-              crossAxisAlignment:
-                  isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment:
-                      isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    if (!isUser) ...[
-                      CircleAvatar(
-                        radius: 16,
-                        backgroundColor: isDarkMode ? AppColors.darkprimary : AppColors.lightprimary,
-                        child: const Icon(
-                          Icons.smart_toy,
-                          color: Colors.white,
-                          size: 18,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                    ],
-                    if (message['text'] != null && message['text'].isNotEmpty)
-                      Flexible(
-                        child: Container(
-                          constraints: BoxConstraints(
-                            maxWidth: MediaQuery.of(context).size.width * 0.7,
-                          ),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16.0,
-                            vertical: 12.0,
-                          ),
-                          decoration: BoxDecoration(
-                            color: isUser
-                                ? (isDarkMode
-                                    ? AppColors.darkprimary
-                                    : AppColors.lightprimary)
-                                : (isDarkMode
-                                    ? Colors.grey[800]
-                                    : Colors.white),
-                            borderRadius: BorderRadius.only(
-                                topLeft: const Radius.circular(16.0),
-                                topRight: const Radius.circular(16.0),
-                                bottomLeft:
-                                    Radius.circular(isUser ? 16.0 : 0.0),
-                                bottomRight:
-                                    Radius.circular(isUser ? 0.0 : 16.0)),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.grey.withValues(alpha: 0.2),
-                                spreadRadius: 1,
-                                blurRadius: 3,
-                                offset: const Offset(0, 1),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              //Si el mensaje es normal...
-                              if (message['text'] != null && message['text'].isNotEmpty)
-                                Text(
-                                  message['text'] ?? '',
-                                  style: TextStyle(
-                                    color : isUser
-                                      ? Colors.white
-                                      : (isDarkMode ? Colors.white : Colors.black87), 
-                                    fontSize: 16,
-                                    fontFamily: 'Poppins',
-                                    fontWeight: FontWeight.w400
-                                  ),
-                                ),
-                              //Si el mensaje es de bienvenida...
-                              if (message['type'] == 'welcome_message')
-                              Column(
-                                children: [
-                                  const SizedBox(height: 12,),
-                                  Container(
-                                    height: 1,
-                                    color: Colors.grey[300],
-                                  ),
-                                  const SizedBox(height: 8,),
-                                  BlocBuilder<FaqBloc, FaqState>(
-                                    builder: (context, faqState){
-                                      return TextButton(
-                                        onPressed: () => onShowFrequentlyAskedQuestions(),
-                                        style: TextButton.styleFrom(
-                                          padding: EdgeInsets.zero,
-                                          minimumSize: Size.zero,
-                                          tapTargetSize: MaterialTapTargetSize.shrinkWrap
-                                        ), 
-                                        child: Text(
-                                          "Preguntas frecuentes",
-                                          style: TextStyle(
-                                            color: isDarkMode 
-                                              ? AppColors.darkFaqsButton
-                                              : AppColors.lightFaqsButton,
-                                            fontSize: 14,
-                                            fontFamily: 'Poppins',
-                                            fontWeight: FontWeight.w600, 
-                                          ),
-                                        ) 
-                                      );
-                                    }
-                                  )
-                                ],
-                              )  
-                            ],
-                          )
-                        ),
-                      ),
-                    if (isUser) ...[
-                      const SizedBox(width: 8),
-                      const CircleAvatar(
-                        radius: 16,
-                        backgroundColor: Colors.grey,
-                        child: Icon(
-                          Icons.person,
-                          color: Colors.white,
-                          size: 18,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-                if (!isUser && isLastBotMessage && message['type'] != 'welcome_message') 
-                  _buildFeedbackButtons(message),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildFaqOptions(BuildContext context, List<String> options) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 8, bottom: 8, left: 48),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: options.map((option) {
-          return Container(
-            margin: const EdgeInsets.symmetric(vertical: 4.0),
-            child: ElevatedButton(
-              onPressed: () {
-                onSendMessage(option);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor:
-                    isDarkMode ? AppColors.darkprimary : AppColors.lightprimary,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20.0),
-                ),
-                padding: const EdgeInsets.symmetric(
-                    vertical: 12.0, horizontal: 16.0),
-              ),
-              child: Text(option),
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-
-  Widget _buildFeedbackButtons(Map<String, dynamic> message) {
-    final feedbackState = message['feedback'];
-    final messageId = message['id'];
-
-    if (message['type'] == 'welcome_message'){
-      return const SizedBox.shrink() ;
-    }
-    
-    return feedbackState == null
-        ? Padding(
-            padding: const EdgeInsets.only(left: 48, top: 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.start,
-              children: [
-                InkWell(
-                  onTap: () => onFeedback(messageId, 'good'),
-                  child: const Icon(Icons.thumb_up_alt_outlined,
-                      size: 20, color: Colors.grey),
-                ),
-                const SizedBox(width: 16),
-                InkWell(
-                  onTap: () => onFeedback(messageId, 'bad'),
-                  child: const Icon(Icons.thumb_down_alt_outlined,
-                      size: 20, color: Colors.grey),
-                ),
-              ],
-            ),
-          )
-        : Padding(
-            padding: const EdgeInsets.only(left: 48, top: 8),
-            child: Text(
-              "Gracias por tu feedback.",
-              style: TextStyle(color: Colors.grey[600], fontSize: 12),
-            ),
-          );
-  }
-
-  Widget _buildTypingIndicator() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.start,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const CircleAvatar(
-            radius: 16,
-            backgroundColor: AppColors.lightprimary,
-            child: Icon(Icons.smart_toy, color: Colors.white, size: 18),
-          ),
-          const SizedBox(width: 8),
-          Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-            decoration: BoxDecoration(
-              color: isDarkMode ? Colors.grey[800] : Colors.white,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(16.0),
-                topRight: Radius.circular(16.0),
-                bottomLeft: Radius.circular(0.0),
-                bottomRight: Radius.circular(16.0),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.withValues(alpha: 0.2),
-                  spreadRadius: 1,
-                  blurRadius: 3,
-                  offset: const Offset(0, 1),
-                ),
-              ],
-            ),
-            child: AnimatedBuilder(
-              animation: typingAnimation,
-              builder: (context, child) {
-                return Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _buildTypingDot(0),
-                    const SizedBox(width: 4),
-                    _buildTypingDot(1),
-                    const SizedBox(width: 4),
-                    _buildTypingDot(2),
-                  ],
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTypingDot(int index) {
-    double delay = index * 0.2;
-    double animationValue = (typingAnimation.value - delay).clamp(0.0, 1.0);
-    double scale =
-        0.5 + (0.5 * (1 + math.cos(animationValue * 2 * math.pi)) / 2);
-    return Transform.scale(
-      scale: scale,
-      child: Container(
-        width: 8,
-        height: 8,
-        decoration: BoxDecoration(
-          color: isDarkMode ? Colors.white70 : Colors.grey[600],
-          shape: BoxShape.circle,
-        ),
-      ),
-    );
-  }
-}
-
-// ============================================================================
-// COMPONENTE FOOTER (Sin cambios)
-// ============================================================================
-class ChatbotFooter extends StatefulWidget {
-  final bool isDarkMode;
-  final Function(String) onSendMessage;
-
-  const ChatbotFooter({
-    super.key,
-    required this.isDarkMode,
-    required this.onSendMessage,
-  });
-
-  @override
-  State<ChatbotFooter> createState() => _ChatbotFooterState();
-}
-
-class _ChatbotFooterState extends State<ChatbotFooter> {
-  final TextEditingController _textController = TextEditingController();
-
-  void _sendMessage() {
-    final messageText = _textController.text.trim();
-    if (messageText.isNotEmpty) {
-      widget.onSendMessage(messageText);
-      _textController.clear();
-      FocusScope.of(context).unfocus();
-    }
-  }
-
-  @override
-  void dispose() {
-    _textController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: widget.isDarkMode
-          ? AppColors.darkBackground
-          : AppColors.lightbackground,
-      padding: const EdgeInsets.all(16.0),
-      child: Row(
-        children: [
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                  color: widget.isDarkMode
-                      ? AppColors.darkBackground
-                      : AppColors.lightbackground,
-                  borderRadius: BorderRadius.circular(16.0),
-                  border: Border.all(
-                      color: widget.isDarkMode
-                          ? Colors.grey[600]!
-                          : AppColors.lightTextFieldBorder)),
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: TextField(
-                controller: _textController,
-                style: TextStyle(
-                    color: widget.isDarkMode ? Colors.white : Colors.black),
-                decoration: InputDecoration(
-                  hintText: 'Escribe un mensaje',
-                  border: InputBorder.none,
-                  hintStyle: TextStyle(
-                    color: widget.isDarkMode
-                        ? Colors.grey[400]
-                        : const Color(0xFF828282),
-                    fontFamily: 'Poppins',
-                    fontWeight: FontWeight.w400,
-                    fontSize: 16,
-                  ),
-                ),
-                onSubmitted: (_) => _sendMessage(),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12.0),
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: widget.isDarkMode
-                  ? AppColors.darkBackground
-                  : AppColors.lightbackground,
-            ),
-            child: IconButton(
-              icon: Icon(Icons.send,
-                  color: widget.isDarkMode
-                      ? Colors.white
-                      : const Color(0XFF1d1b20)),
-              iconSize: 24,
-              onPressed: _sendMessage,
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }
