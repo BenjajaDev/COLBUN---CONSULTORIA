@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 // Asegúrate de que el nombre del proyecto sea el correcto
-import 'package:consultoria_chat_bot/features/home/screen/home_screen.dart';
+import '../features/home/screen/home_screen.dart';
 //Importaciones flutter_bloc
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'features/chatbot/bloc/theme_bloc.dart';
@@ -27,6 +27,7 @@ class MyApp extends StatelessWidget {
             title: 'Mi Aplicación',
             theme: ThemeData(
               colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+              fontFamily: 'Poppins',
               useMaterial3: true,
             ),
             themeMode: state.isDarkMode ? ThemeMode.dark : ThemeMode.light,
