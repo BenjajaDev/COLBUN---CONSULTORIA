@@ -19,11 +19,23 @@ class _MapPageState extends State<MapPage> {
   final MapController mapController = MapController();
   final TextEditingController searchController = TextEditingController();
   int? selectedRouteIndex;
+  double _initialSheetChildSize = 0.25;
+  double _dragScrollSheetExtent = 0;
+
+  double _widgetHeight = 0;
+  double _fabPosition = 0;
+  double _fabPositionPadding = 10;
 
   @override
   void initState() {
     BlocProvider.of<MapBloc>(context).add(LoadRoute());
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      setState(() {
+        // render the floating button on widget
+        _fabPosition = _initialSheetChildSize * context.size!.height;
+      });
+    });
   }
 
   @override
@@ -137,126 +149,107 @@ class _MapPageState extends State<MapPage> {
                       ),
                     ],
                   ),
-                  DraggableScrollableSheet(
-                    initialChildSize: 0.25, // Altura inicial (25%)
-                    minChildSize: 0.2, // Altura mínima
-                    maxChildSize: 0.6, // Altura máxima
-                    snap: true,
-                    builder: (context, scrollController) {
-                      return Container(
-                        decoration: const BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.vertical(
-                            top: Radius.circular(20),
+                  Positioned(
+                    bottom: _fabPosition + _fabPositionPadding,
+                    right: 16,
+                    child: FloatingActionButton(
+                      backgroundColor: const Color(0xFF4D67AE),
+                      onPressed: () {
+                        mapController.move(
+                          state.userLocation!,
+                          15,
+                        ); // 👈 Centrar
+                      },
+                      child: const Icon(Icons.my_location, color: Colors.white),
+                    ),
+                  ),
+                  NotificationListener<DraggableScrollableNotification>(
+                    onNotification: (notification) {
+                      setState(() {
+                        _widgetHeight = context.size!.height;
+                        _dragScrollSheetExtent = notification.extent;
+
+                        // Calculate FAB position based on parent widget height and DraggableScrollable position
+                        _fabPosition = _dragScrollSheetExtent * _widgetHeight;
+                      });
+                      return true;
+                    },
+                    child: DraggableScrollableSheet(
+                      initialChildSize:
+                          _initialSheetChildSize, // Altura inicial (25%)
+                      minChildSize: 0.2, // Altura mínima
+                      maxChildSize: 0.6, // Altura máxima
+                      snap: true,
+                      builder: (context, scrollController) {
+                        return Container(
+                          decoration: const BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.vertical(
+                              top: Radius.circular(20),
+                            ),
+                            boxShadow: [
+                              BoxShadow(color: Colors.black26, blurRadius: 8),
+                            ],
                           ),
-                          boxShadow: [
-                            BoxShadow(color: Colors.black26, blurRadius: 8),
-                          ],
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Center(
-                              child: Container(
-                                margin: const EdgeInsets.only(top: 8),
-                                width: 50,
-                                height: 5,
-                                decoration: BoxDecoration(
-                                  color: Colors.grey.shade400,
-                                  borderRadius: BorderRadius.circular(10),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Center(
+                                child: Container(
+                                  margin: const EdgeInsets.only(top: 8),
+                                  width: 50,
+                                  height: 5,
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey.shade400,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
                                 ),
                               ),
-                            ),
-                            const SizedBox(height: 10),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16.0,
-                              ),
-                              child: Row(
-                                children: [
-                                  if (selectedRouteIndex != null)
-                                    GestureDetector(
-                                      onTap: () {
-                                        setState(() {
-                                          selectedRouteIndex = null;
-                                        });
-                                      },
-                                      child: const Icon(Icons.arrow_back, size: 22),
+                              const SizedBox(height: 10),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16.0,
+                                ),
+                                child: Row(
+                                  children: [
+                                    if (selectedRouteIndex != null)
+                                      GestureDetector(
+                                        onTap: () {
+                                          setState(() {
+                                            selectedRouteIndex = null;
+                                          });
+                                        },
+                                        child: const Icon(
+                                          Icons.arrow_back,
+                                          size: 22,
+                                        ),
+                                      ),
+                                    if (selectedRouteIndex != null)
+                                      const SizedBox(width: 8),
+                                    Text(
+                                      selectedRouteIndex == null
+                                          ? "Rutas Disponibles"
+                                          : state
+                                                .route[selectedRouteIndex!]
+                                                .name,
+                                      style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
-                                  if (selectedRouteIndex != null)
-                                    const SizedBox(width: 8),
-                                  Text(
-                                    selectedRouteIndex == null
-                                        ? "Rutas Disponibles"
-                                        : state.route[selectedRouteIndex!].name,
-                                    style: const TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 10),
-                            
-                            Expanded(
-                              child: selectedRouteIndex == null
-                                  ? ListView.builder(
-                                      controller: scrollController,
-                                      itemCount: state.route.length,
-                                      itemBuilder: (context, index) {
-                                        final route = state.route[index];
-                                        return Container(
-                                          decoration: BoxDecoration(
-                                            border: Border(
-                                              bottom: BorderSide(
-                                                color: Colors.grey.shade300,
-                                              ),
-                                            ),
-                                          ),
-                                          child: ListTile(
-                                            leading: const Icon(
-                                              Icons.alt_route,
-                                              color: Colors.blue,
-                                            ),
-                                            title: Text("Ruta ${route.name}"),
-                                            trailing: const Icon(
-                                              Icons.arrow_forward_ios,
-                                              color: Colors.grey,
-                                              size: 18,
-                                            ),
-                                            selected: selectedRouteIndex == index,
-                                            selectedTileColor: Colors.blue.shade50,
-                                            onTap: () {
-                                              final center = LatLng(
-                                                (route.initialLatitude +
-                                                        route.finalLatitude) / 2,
-                                                (route.initialLongitude +
-                                                        route.finalLongitude) / 2,
-                                              );
-                                              setState(() {
-                                                selectedRouteIndex = index;
-                                              });
-                                              mapController.move(center, 14);
-                                            },
-                                          ),
-                                        );
-                                      },
-                                    )
-                                  : ListView.builder(
-                                      controller: scrollController,
-                                      itemCount: state.route[selectedRouteIndex!].pois.length,
-                                      itemBuilder: (context, index) {
-                                        final poi = state.route[selectedRouteIndex!].pois[index];
-                                        return GestureDetector(
-                                          onTap: () {
-                                            // Center map on POI
-                                            mapController.move(
-                                              LatLng(poi.latitud, poi.longitud),
-                                              16,
-                                            );
-                                          },
-                                          child: Container(
+                              const SizedBox(height: 10),
+
+                              Expanded(
+                                child: selectedRouteIndex == null
+                                    ? ListView.builder(
+                                        controller: scrollController,
+                                        itemCount: state.route.length,
+                                        itemBuilder: (context, index) {
+                                          final route = state.route[index];
+                                          return Container(
                                             decoration: BoxDecoration(
                                               border: Border(
                                                 bottom: BorderSide(
@@ -265,33 +258,98 @@ class _MapPageState extends State<MapPage> {
                                               ),
                                             ),
                                             child: ListTile(
-                                              title: Text(poi.nombre),
-                                              subtitle: Text(
-                                                (poi.categorias.isNotEmpty)
-                                                    ? poi.categorias[0]
-                                                    : '',
+                                              leading: const Icon(
+                                                Icons.alt_route,
+                                                color: Colors.blue,
                                               ),
-                                              trailing: GestureDetector(
-                                                onTap: () {
-                                                  Navigator.push(
-                                                    context,
-                                                    MaterialPageRoute(
-                                                      builder: (context) => PoiScreen(poi),
-                                                    ),
-                                                  );
-                                                },
-                                                child: const Icon(Icons.add),
+                                              title: Text("Ruta ${route.name}"),
+                                              trailing: const Icon(
+                                                Icons.arrow_forward_ios,
+                                                color: Colors.grey,
+                                                size: 18,
+                                              ),
+                                              selected:
+                                                  selectedRouteIndex == index,
+                                              selectedTileColor:
+                                                  Colors.blue.shade50,
+                                              onTap: () {
+                                                final center = LatLng(
+                                                  (route.initialLatitude +
+                                                          route.finalLatitude) /
+                                                      2,
+                                                  (route.initialLongitude +
+                                                          route
+                                                              .finalLongitude) /
+                                                      2,
+                                                );
+                                                setState(() {
+                                                  selectedRouteIndex = index;
+                                                });
+                                                mapController.move(center, 14);
+                                              },
+                                            ),
+                                          );
+                                        },
+                                      )
+                                    : ListView.builder(
+                                        controller: scrollController,
+                                        itemCount: state
+                                            .route[selectedRouteIndex!]
+                                            .pois
+                                            .length,
+                                        itemBuilder: (context, index) {
+                                          final poi = state
+                                              .route[selectedRouteIndex!]
+                                              .pois[index];
+                                          return GestureDetector(
+                                            onTap: () {
+                                              // Center map on POI
+                                              mapController.move(
+                                                LatLng(
+                                                  poi.latitud,
+                                                  poi.longitud,
+                                                ),
+                                                16,
+                                              );
+                                            },
+                                            child: Container(
+                                              decoration: BoxDecoration(
+                                                border: Border(
+                                                  bottom: BorderSide(
+                                                    color: Colors.grey.shade300,
+                                                  ),
+                                                ),
+                                              ),
+                                              child: ListTile(
+                                                title: Text(poi.nombre),
+                                                subtitle: Text(
+                                                  (poi.categorias.isNotEmpty)
+                                                      ? poi.categorias[0]
+                                                      : '',
+                                                ),
+                                                trailing: GestureDetector(
+                                                  onTap: () {
+                                                    Navigator.push(
+                                                      context,
+                                                      MaterialPageRoute(
+                                                        builder: (context) =>
+                                                            PoiScreen(poi),
+                                                      ),
+                                                    );
+                                                  },
+                                                  child: const Icon(Icons.add),
+                                                ),
                                               ),
                                             ),
-                                          ),
-                                        );
-                                      },
-                                    ),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
+                                          );
+                                        },
+                                      ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
                   ),
 
                   Positioned(
@@ -356,20 +414,6 @@ class _MapPageState extends State<MapPage> {
             }
           },
         ),
-      ),
-      floatingActionButton: BlocBuilder<MapBloc, MapState>(
-        builder: (context, state) {
-          if (state is MapLoaded && state.userLocation != null) {
-            return FloatingActionButton(
-              backgroundColor: const Color(0xFF4D67AE),
-              onPressed: () {
-                mapController.move(state.userLocation!, 15); // 👈 Centrar
-              },
-              child: const Icon(Icons.my_location, color: Colors.white),
-            );
-          }
-          return const SizedBox.shrink();
-        },
       ),
     );
   }

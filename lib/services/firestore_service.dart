@@ -1,5 +1,3 @@
-
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:consultoria_chat_bot/model/poi_model.dart';
 import 'package:consultoria_chat_bot/model/route_model.dart';

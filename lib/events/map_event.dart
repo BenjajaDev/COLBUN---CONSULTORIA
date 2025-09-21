@@ -1,4 +1,3 @@
-import 'package:consultoria_chat_bot/model/route_model.dart';
 import 'package:latlong2/latlong.dart';
 
 
