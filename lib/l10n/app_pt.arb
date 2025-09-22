@@ -8,5 +8,7 @@
     "vista360": "Vista 360°",
     "descripcion": "Descrição",
     "recomendados": "Recomendados",
-    "cercanos":"Perto de você"
+    "cercanos":"Perto de você",
+    "ruta": "Rota",
+    "rutas_disponibles": "Rotas disponíveis"
 }

@@ -35,6 +35,14 @@
   "cercanos":"Cerca de ti",
   "@cercanos": {
     "description": "Título para la sección de puntos de interés cercanos"
+  },
+  "ruta": "Ruta",
+  "@ruta":{
+    "description": "prefijo para la ruta en mapa"
+  },
+  "rutas_disponibles": "Rutas disponibles",
+  "@rutas_disponibles":{
+    "description": "Título para la sección de rutas disponibles"
   }
   
 }

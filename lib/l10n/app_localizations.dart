@@ -153,6 +153,18 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Cerca de ti'**
   String get cercanos;
+
+  /// prefijo para la ruta en mapa
+  ///
+  /// In es, this message translates to:
+  /// **'Ruta'**
+  String get ruta;
+
+  /// Título para la sección de rutas disponibles
+  ///
+  /// In es, this message translates to:
+  /// **'Rutas disponibles'**
+  String get rutas_disponibles;
 }
 
 class _AppLocalizationsDelegate

@@ -1,5 +1,6 @@
 import 'package:consultoria_chat_bot/blocs/map_bloc.dart';
 import 'package:consultoria_chat_bot/events/map_event.dart';
+import 'package:consultoria_chat_bot/l10n/app_localizations.dart';
 import 'package:consultoria_chat_bot/screens/poi_screen.dart';
 import 'package:consultoria_chat_bot/states/map_state.dart';
 import 'package:flutter/material.dart';
@@ -228,7 +229,7 @@ class _MapPageState extends State<MapPage> {
                                       const SizedBox(width: 8),
                                     Text(
                                       selectedRouteIndex == null
-                                          ? "Rutas Disponibles"
+                                          ? AppLocalizations.of(context)!.rutas_disponibles
                                           : state
                                                 .route[selectedRouteIndex!]
                                                 .name,
@@ -262,7 +263,7 @@ class _MapPageState extends State<MapPage> {
                                                 Icons.alt_route,
                                                 color: Colors.blue,
                                               ),
-                                              title: Text("Ruta ${route.name}"),
+                                              title: Text("${AppLocalizations.of(context)!.ruta} ${route.name}"),
                                               trailing: const Icon(
                                                 Icons.arrow_forward_ios,
                                                 color: Colors.grey,
