@@ -2,11 +2,21 @@ part of 'faq_bloc.dart';
 
 class FaqState {
   final bool showFaqs;
+  final List<String> currentFaqs;
 
-  const FaqState({required this.showFaqs});
+  const FaqState({
+    required this.showFaqs, 
+    this.currentFaqs = const []
+  });
 
-  FaqState copyWith({bool? showFaqs}) {
-    return FaqState(showFaqs: showFaqs ?? this.showFaqs);
+  FaqState copyWith({
+    bool? showFaqs, 
+    List<String>? currentFaqs
+  }) {
+    return FaqState(
+      showFaqs: showFaqs ?? this.showFaqs,
+      currentFaqs: currentFaqs ?? this.currentFaqs
+    );
   }
 
   @override
