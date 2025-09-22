@@ -13,6 +13,7 @@ class ChatbotBody extends StatelessWidget {
   final Function(String, bool) onFeedback;
   final Function(String) onSendMessage;
   final VoidCallback onShowFrequentlyAskedQuestions;
+  final Function(String) onFaqSelected;
 
   const ChatbotBody({
     super.key,
@@ -24,6 +25,7 @@ class ChatbotBody extends StatelessWidget {
     required this.onFeedback,
     required this.onSendMessage,
     required this.onShowFrequentlyAskedQuestions,
+    required this.onFaqSelected,
   });
 
   @override
@@ -74,7 +76,7 @@ class ChatbotBody extends StatelessWidget {
             margin: const EdgeInsets.symmetric(vertical: 4.0),
             child: ElevatedButton(
               onPressed: () {
-                onSendMessage(option);
+                onFaqSelected(option);
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: isDarkMode 

@@ -282,37 +282,49 @@ class _ChatbotScreenState extends State<ChatbotScreen>
   }
 
   void _showFrequentlyAskedQuestions() {
-  final faqBloc = context.read<FaqBloc>();
-  final currentState = faqBloc.state;
+    final faqBloc = context.read<FaqBloc>();
+    final currentState = faqBloc.state;
 
-  if (!currentState.showFaqs) {
-    // Encontrar la posición del mensaje de bienvenida
-    final welcomeIndex = messages.indexWhere((m) => m['type'] == 'welcome_message');
-    
-    if (welcomeIndex != -1) {
-      // Obtener FAQs aleatorias
+    if (!currentState.showFaqs || currentState.currentFaqs.isEmpty) {
       final List<String> randomFaqs = _getRandomFaqs(count: 3);
       
       if (randomFaqs.isNotEmpty) {
-        // Insertar las FAQs justo después del mensaje de bienvenida
-        addMessage(
-          sender: "bot",
-          text: "Aquí tienes algunas preguntas frecuentes:",
-          type: "faq_options",
-          options: randomFaqs,
-          insertAtIndex: welcomeIndex + 1, // Insertar después del welcome
-        );
+        // Encontrar la posición del mensaje de bienvenida
+        final welcomeIndex = messages.indexWhere((m) => m['type'] == 'welcome_message');
+
+        if (welcomeIndex != -1){
+          //Enviar evento a FAQS
+          faqBloc.add(ToggleFaqsEvent(newFaqs: randomFaqs));
+
+          // Insertar las FAQs justo después del mensaje de bienvenida
+          addMessage(
+            sender: "bot",
+            text: "Aquí tienes algunas preguntas frecuentes:",
+            type: "faq_options",
+            options: randomFaqs,
+            insertAtIndex: welcomeIndex + 1, // Insertar después del welcome
+          );
+        }
       }
+    } else {
+      //Ocultar faqs
+      faqBloc.add(ToggleFaqsEvent());
+
+      // Eliminar FAQs existentes
+      setState(() {
+        messages.removeWhere((message) => message['type'] == 'faq_options');
+      });
     }
-  } else {
-    // Eliminar FAQs existentes
-    setState(() {
-      messages.removeWhere((message) => message['type'] == 'faq_options');
-    });
   }
 
-  faqBloc.add(ToggleFaqsEvent()); 
-}
+  void _onFaqSelected(String selectedFaq){
+    //1ro oculta faqs actuales
+    final faqBloc = context.read<FaqBloc>();
+    faqBloc.add(ToggleFaqsEvent());
+
+    handleSendMessage(selectedFaq);
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<ThemeBloc, ThemeState>(builder: (context, state) {
@@ -338,6 +350,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
                         onFeedback: _handleFeedback,
                         onSendMessage: handleSendMessage,
                         onShowFrequentlyAskedQuestions: _showFrequentlyAskedQuestions,
+                        onFaqSelected: _onFaqSelected,
                       )
                     : Container(),
               ),
