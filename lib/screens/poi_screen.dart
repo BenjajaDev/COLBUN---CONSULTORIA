@@ -357,7 +357,6 @@ class _PoiScreenState extends State<PoiScreen> {
                                 style: TextStyle(color: Colors.white),
                               ),
                             ),
-                            const SizedBox(width: 8),
                             IconButton(
                               key: _iconKey,
                               icon: const Icon(
@@ -378,7 +377,6 @@ class _PoiScreenState extends State<PoiScreen> {
                               onPressed: () {},
                               style: ElevatedButton.styleFrom(
                                 shape: const CircleBorder(),
-                                padding: const EdgeInsets.all(14),
                                 backgroundColor: Colors.red,
                               ),
                               label: const Icon(
