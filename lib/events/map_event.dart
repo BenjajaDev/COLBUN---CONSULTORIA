@@ -18,4 +18,3 @@ class UpdateHeading extends MapEvent {
 class LoadRoute extends MapEvent {
 
 }
-
