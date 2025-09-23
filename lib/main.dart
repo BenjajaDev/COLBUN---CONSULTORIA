@@ -5,10 +5,12 @@ import '../features/home/screen/home_screen.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'features/chatbot/bloc/theme_bloc.dart';
 import 'features/chatbot/bloc/faq_bloc.dart';
+import 'package:flutter/services.dart';
 
 // ESTA FUNCIÓN ES LA QUE FALTA
 void main() {
   runApp(const MyApp());
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 }
 
 class MyApp extends StatelessWidget {
