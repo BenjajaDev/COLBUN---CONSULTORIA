@@ -1,5 +1,15 @@
 {
     "@@locale": "en",
-    "search": "Search"
+    "search": "Search",
+    "otono": "Autumn",
+    "invierno": "Winter",
+    "primavera": "Spring",
+    "verano": "Summer",
+    "vista360": "360° View",
+    "descripcion": "Description",
+    "recomendados": "Recommended",
+    "cercanos":"Near you",
+    "ruta": "Route",
+    "rutas_disponibles": "Available routes"
     
 }

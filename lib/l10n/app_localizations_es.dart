@@ -10,4 +10,34 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get search => 'Buscar';
+
+  @override
+  String get otono => 'Otoño';
+
+  @override
+  String get invierno => 'Invierno';
+
+  @override
+  String get primavera => 'Primavera';
+
+  @override
+  String get verano => 'Verano';
+
+  @override
+  String get vista360 => 'Vista 360°';
+
+  @override
+  String get descripcion => 'Descripción';
+
+  @override
+  String get recomendados => 'Recomendados';
+
+  @override
+  String get cercanos => 'Cerca de ti';
+
+  @override
+  String get ruta => 'Ruta';
+
+  @override
+  String get rutas_disponibles => 'Rutas disponibles';
 }

@@ -1,3 +1,5 @@
+
+import 'package:consultoria_chat_bot/services/firestore_service.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:consultoria_chat_bot/events/map_event.dart';
@@ -5,77 +7,70 @@ import 'package:consultoria_chat_bot/states/map_state.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:flutter_compass/flutter_compass.dart';
 
-import '../data/map_repository.dart';   
-import '../data/poi.dart';              
-
 class MapBloc extends Bloc<MapEvent, MapState> {
-  final MapRepository repo;
+  final FireStoreService _firebaseService;
 
-  
-  MapBloc({MapRepository? repo})
-      : repo = repo ?? MapRepository(),
-        super(MapInitial(center: const LatLng(-35.4269, -71.6656))) {
+  MapBloc(this._firebaseService) : super(MapInitial()) {
     on<AddMarker>(_onAddMarker);
     on<UpdateUserLocation>(_onUpdateUserLocation);
     on<UpdateHeading>(_onUpdateHeading);
-    on<LoadPois>(_onLoadPois);
-
+    on<LoadRoute>(_onLoadRoute);
+   
+    
     _startTrackingLocation();
     _startTrackingHeading();
   }
 
+  
 
+  Future<void> _onLoadRoute(
+      LoadRoute event, Emitter<MapState> emit) async {
+    emit(MapLoading());
+    try {
+      final routes = await _firebaseService.fetchRoutes();
+      final poiMarkers = routes
+    .expand((route) => route.pois) // toma todos los POIs de todas las rutas
+    .map((poi) => LatLng(poi.latitud, poi.longitud))
+    .toList();
 
-  void _onAddMarker(AddMarker event, Emitter<MapState> emit) {
-    final current = state as MapInitial;
-    final updatedMarkers = List<LatLng>.from(current.markers)..add(event.position);
-    emit(MapInitial(
-      center: current.center,
-      markers: updatedMarkers,
-      userLocation: current.userLocation,
-      heading: current.heading,
-    ));
+      emit(MapLoaded(
+        center: const LatLng(-35.6960057, -71.4060907), // Default
+        markers: poiMarkers,
+        userLocation: null,
+        heading: 0.0,
+        route: routes,
+      ));
+    } catch (e) {
+      emit(MapError("Error al cargar la ruta: $e"));
+    }
   }
 
-  void _onUpdateUserLocation(UpdateUserLocation event, Emitter<MapState> emit) {
-    final current = state as MapInitial;
-    emit(MapInitial(
-      center: event.position,
-      markers: current.markers,
+  void _onAddMarker(AddMarker event, Emitter<MapState> emit) {
+    if (state is! MapLoaded) return; // ✅ Ignorar si no está listo
+    final current = state as MapLoaded;
+
+    final updatedMarkers = List<LatLng>.from(current.markers)
+      ..add(event.position);
+
+    emit(current.copyWith(markers: updatedMarkers));
+  }
+
+  void _onUpdateUserLocation(
+      UpdateUserLocation event, Emitter<MapState> emit) {
+    if (state is! MapLoaded) return; // ✅ Ignorar si no está listo
+    final current = state as MapLoaded;
+
+    emit(current.copyWith(
       userLocation: event.position,
-      heading: current.heading,
+      center: event.position,
     ));
   }
 
   void _onUpdateHeading(UpdateHeading event, Emitter<MapState> emit) {
-    final current = state as MapInitial;
-    emit(MapInitial(
-      center: current.center,
-      markers: current.markers,
-      userLocation: current.userLocation,
-      heading: event.heading,
-    ));
-  }
+    if (state is! MapLoaded) return; // ✅ Ignorar si no está listo
+    final current = state as MapLoaded;
 
-  
-  Future<void> _onLoadPois(LoadPois event, Emitter<MapState> emit) async {
-    final current = state as MapInitial;
-
-   
-    final List<Poi> pois = await repo.fetchPoisByRoute(event.routeId);
-
-   
-    final markers = pois.map((p) => p.location).toList();
-
-    final newCenter = markers.isNotEmpty ? markers.first : current.center;
-
-  
-    emit(MapInitial(
-      center: newCenter,
-      markers: markers,
-      userLocation: current.userLocation,
-      heading: current.heading,
-    ));
+    emit(current.copyWith(heading: event.heading));
   }
 
   Future<void> _startTrackingLocation() async {
@@ -95,7 +90,8 @@ class MapBloc extends Bloc<MapEvent, MapState> {
         distanceFilter: 5,
       ),
     ).listen((Position position) {
-      add(UpdateUserLocation(LatLng(position.latitude, position.longitude)));
+      add(UpdateUserLocation(
+          LatLng(position.latitude, position.longitude)));
     });
   }
 
@@ -105,4 +101,5 @@ class MapBloc extends Bloc<MapEvent, MapState> {
       add(UpdateHeading(heading));
     });
   }
+ 
 }

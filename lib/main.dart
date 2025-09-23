@@ -1,17 +1,17 @@
+import 'package:consultoria_chat_bot/blocs/map_bloc.dart';
+import 'package:consultoria_chat_bot/blocs/poi_bloc.dart';
 import 'package:consultoria_chat_bot/l10n/app_localizations.dart';
 import 'package:consultoria_chat_bot/screens/map_page.dart';
+import 'package:consultoria_chat_bot/services/firestore_service.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';        
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'firebase_options.dart';
-import 'package:consultoria_chat_bot/data/map_repository.dart';
-import 'package:consultoria_chat_bot/blocs/map_bloc.dart';
-import 'package:consultoria_chat_bot/events/map_event.dart';
+
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  //await SeedService().seed(); // lo deje comentado porque sirve para lanzar la info hacia la firestore
   runApp(const MyApp());
 }
 
@@ -21,16 +21,19 @@ class MyApp extends StatelessWidget {
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Ruta360',
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-      ),
-      home: BlocProvider(
-        create: (_) => MapBloc(repo: MapRepository())..add(LoadPois('los_bellotos')), 
-        child:  const MapPage(),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(create: (context) => MapBloc(FireStoreService())),
+        BlocProvider(create: (context) => PoiBloc()),
+      ],
+      child: MaterialApp(
+        title: 'Flutter Demo',
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        theme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        ),
+        home: MapPage(),
       ),
     );
   }
