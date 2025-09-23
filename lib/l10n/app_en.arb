@@ -8,5 +8,8 @@
     "vista360": "360° View",
     "descripcion": "Description",
     "recomendados": "Recommended",
-    "cercanos":"Near you"
+    "cercanos":"Near you",
+    "ruta": "Route",
+    "rutas_disponibles": "Available routes"
+    
 }

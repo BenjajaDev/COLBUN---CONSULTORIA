@@ -1,19 +1,23 @@
 import 'package:consultoria_chat_bot/blocs/poi_bloc.dart';
 import 'package:consultoria_chat_bot/events/poi_event.dart';
 import 'package:consultoria_chat_bot/l10n/app_localizations.dart';
+import 'package:consultoria_chat_bot/model/poi_model.dart';
 import 'package:consultoria_chat_bot/states/poi_state.dart';
 import 'package:flutter/material.dart';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 class PoiScreen extends StatefulWidget {
-  const PoiScreen({super.key});
+  final POI poi;
+  const PoiScreen(this.poi, {super.key});
 
   @override
   State<PoiScreen> createState() => _PoiScreenState();
 }
 
+
 class _PoiScreenState extends State<PoiScreen> {
+  Color colbunBlue = const Color(0xFF4D67AE);
   int _selectedIndex = 0;
   bool _isFavorito = false;
   String? valorSeleccionado = 'Otoño';
@@ -28,11 +32,8 @@ class _PoiScreenState extends State<PoiScreen> {
       'text': Colors.brown.shade800,
     },
   };
-  @override
-  void initState()  { 
-    BlocProvider.of<PoiBloc>(context).add(LoadPoi('AxvPPVXO0uawN60tbkWu'));
-    super.initState();
-  }
+  
+
   // datos de ejemplo para recomendados y cercanos cambiar cuando se implemente la logica
   List<Map<String, dynamic>> recomendados = [
     {
@@ -124,10 +125,49 @@ class _PoiScreenState extends State<PoiScreen> {
       _overlayEntry = null;
     });
   }
+  
+
+  // Add controllers and page state for pagination
+  final PageController _recomendadosController = PageController();
+  final PageController _cercanosController = PageController();
+  int _recomendadosPage = 0;
+  int _cercanosPage = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // Cargar datos del POI al iniciar la pantalla
+    context.read<PoiBloc>().add(LoadPoi());
+    context.read<PoiBloc>().add(LoadPoi());
+    _recomendadosController.addListener(() {
+      final page = _recomendadosController.page?.round() ?? 0;
+      if (page != _recomendadosPage) {
+        setState(() {
+          _recomendadosPage = page;
+        });
+      }
+    });
+    _cercanosController.addListener(() {
+      final page = _cercanosController.page?.round() ?? 0;
+      if (page != _cercanosPage) {
+        setState(() {
+          _cercanosPage = page;
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _recomendadosController.dispose();
+    _cercanosController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
@@ -136,8 +176,8 @@ class _PoiScreenState extends State<PoiScreen> {
                 
                 if (state is PoiLoaded) {
                   final List<String> items = [
-                    ...List<String>.from(state.poi.categorias),
-                    ...List<String>.from(state.poi.actividades),
+                    ...List<String>.from(widget.poi.categorias),
+                    ...List<String>.from(widget.poi.actividades),
                   ];
 
                   return Column(
@@ -150,7 +190,7 @@ class _PoiScreenState extends State<PoiScreen> {
                             child: Container(
                               padding: const EdgeInsets.all(16),
                               child: Text(
-                                state.poi.nombre,
+                                widget.poi.nombre,
                                 style: const TextStyle(
                                   fontSize: 25,
                                   color: Colors.black,
@@ -177,17 +217,20 @@ class _PoiScreenState extends State<PoiScreen> {
                             context: context,
                             builder: (context) => Dialog(
                               child: Image.network(
-                                state.poi.imagen,
+                                widget.poi.imagen,
                                 fit: BoxFit.contain,
                               ),
                             ),
                           );
                         },
-                        child: Image.network(
-                          state.poi.imagen,
-                          fit: BoxFit.cover,
-                          width: double.infinity,
-                          height: 250,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.network(
+                            widget.poi.imagen,
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                            height: 250,
+                          ),
                         ),
                       ),
 
@@ -253,32 +296,70 @@ class _PoiScreenState extends State<PoiScreen> {
                         ),
                         child: Row(
                           children: [
-                            DropdownButton<String>(
-                              value: valorSeleccionado,
-                              items: opciones.map((String opcion) {
-                                return DropdownMenuItem<String>(
-                                  value: opcion,
-                                  child: Text(opcion),
-                                );
-                              }).toList(),
-                              onChanged: (String? nuevoValor) {
-                                setState(() {
-                                  valorSeleccionado = nuevoValor;
-                                });
-                              },
+                            // Dropdown with rounded black border
+                            Container( 
+                              decoration: BoxDecoration(
+                                border: Border.all(color: Colors.black, width: 1.3),
+                                borderRadius: BorderRadius.circular(18),
+                                color: Colors.white,
+                              ),
+                              child: DropdownButton<String>(
+                                value: valorSeleccionado,
+                                underline: SizedBox(),
+                                borderRadius: BorderRadius.circular(18),
+                                items: opciones.map((String opcion) {
+                                  IconData icon;
+                                  Color iconColor;
+                                  switch (opcion) {
+                                    case 'Otoño':
+                                      icon = Icons.park;
+                                      iconColor = Colors.orange;
+                                      break;
+                                    case 'Invierno':
+                                      icon = Icons.ac_unit;
+                                      iconColor = Colors.lightBlue;
+                                      break;
+                                    case 'Primavera':
+                                      icon = Icons.eco_outlined;
+                                      iconColor = Colors.green;
+                                      break;
+                                    case 'Verano':
+                                      icon = Icons.wb_sunny;
+                                      iconColor = Colors.amber;
+                                      break;
+                                    default:
+                                      icon = Icons.circle;
+                                      iconColor = Colors.black54;
+                                  }
+                                  return DropdownMenuItem<String>(
+                                    value: opcion,
+                                    child: Row(
+                                      children: [
+                                        Icon(icon, size: 20, color: iconColor),
+                                        const SizedBox(width: 8),
+                                        Text(opcion),
+                                      ],
+                                    ),
+                                  );
+                                }).toList(),
+                                onChanged: (String? nuevoValor) {
+                                  setState(() {
+                                    valorSeleccionado = nuevoValor;
+                                  });
+                                },
+                              ),
                             ),
-                            const SizedBox(width: 10),
+                            const SizedBox(width: 8),
                             ElevatedButton(
                               onPressed: () {},
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.blue,
+                                backgroundColor: colbunBlue,
                               ),
                               child:  Text(
                                 AppLocalizations.of(context)!.vista360,
                                 style: TextStyle(color: Colors.white),
                               ),
                             ),
-                            const SizedBox(width: 8),
                             IconButton(
                               key: _iconKey,
                               icon: const Icon(
@@ -299,7 +380,6 @@ class _PoiScreenState extends State<PoiScreen> {
                               onPressed: () {},
                               style: ElevatedButton.styleFrom(
                                 shape: const CircleBorder(),
-                                padding: const EdgeInsets.all(14),
                                 backgroundColor: Colors.red,
                               ),
                               label: const Icon(
@@ -325,9 +405,14 @@ class _PoiScreenState extends State<PoiScreen> {
                                   color: Colors.blue.shade50,
                                   borderRadius: BorderRadius.circular(8),
                                 ),
-                                child: const Text(
-                                  "Temporada actual: Primavera \n Clima templado, flora abundante, ideal para trekking",
+                                child:Text(
+                                  "Temporada actual: Primavera \nClima templado, flora abundante, ideal para trekking",
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: colbunBlue,
+                                  ),
                                 ),
+                                
                               ),
                             ),
                             // ==================== DESCRIPCION ====================
@@ -348,7 +433,13 @@ class _PoiScreenState extends State<PoiScreen> {
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 15,
                               ),
-                              child: Text(state.poi.descripcion[Localizations.localeOf(context).languageCode.toString()] ?? 'es'),
+                              child: Text(
+                                widget.poi.descripcion[Localizations.localeOf(context).languageCode] ??
+                                widget.poi.descripcion['es'] ??
+                                '',
+                                style: const TextStyle(fontSize: 16),
+                                
+                              ),
                             ),
 
                             // ==================== RECOMENDADOS ====================
@@ -368,7 +459,7 @@ class _PoiScreenState extends State<PoiScreen> {
                                         decoration: BoxDecoration(
                                           border: Border(
                                             bottom: BorderSide(
-                                              color: _selectedIndex == 0 ? Colors.blue : Colors.black,
+                                              color: _selectedIndex == 0 ? colbunBlue : Colors.black,
                                               width: _selectedIndex == 0 ? 3 : 1,
                                             ),
                                           ),
@@ -389,7 +480,7 @@ class _PoiScreenState extends State<PoiScreen> {
                                           child: Text(
                                             AppLocalizations.of(context)!.recomendados,
                                             style: TextStyle(
-                                              color: _selectedIndex == 0 ? Colors.blue : Colors.black,
+                                              color: _selectedIndex == 0 ? colbunBlue : Colors.black,
                                               fontSize: 18,
                                             ),
                                           ),
@@ -399,7 +490,7 @@ class _PoiScreenState extends State<PoiScreen> {
                                         decoration: BoxDecoration(
                                           border: Border(
                                             bottom: BorderSide(
-                                              color: _selectedIndex == 1 ? Colors.blue : Colors.black,
+                                              color: _selectedIndex == 1 ? colbunBlue : Colors.black,
                                               width: _selectedIndex == 1 ? 3 : 1,
                                             ),
                                           ),
@@ -419,7 +510,7 @@ class _PoiScreenState extends State<PoiScreen> {
                                           child: Text(
                                             AppLocalizations.of(context)!.cercanos,
                                             style: TextStyle(
-                                              color: _selectedIndex == 1 ? Colors.blue : Colors.black,
+                                              color: _selectedIndex == 1 ? colbunBlue : Colors.black,
                                               fontSize: 18,
                                             ),
                                           ),
@@ -428,39 +519,128 @@ class _PoiScreenState extends State<PoiScreen> {
                                     ],
                                   ),
                                   const SizedBox(height: 8),
-                                  if (_selectedIndex == 0)
+                                  if (_selectedIndex == 0) //recomendados
                                     Column(
-                                      children: recomendados.map( (rec){
-                                        return Card(
-                                          margin: const EdgeInsets.symmetric(
-                                            vertical: 8,
-                                          ),
-                                          child: ListTile(
-                                            title: Text(rec['nombre']!),
-                                            subtitle: Text(rec['categorias']!.join(", ")),
-                                            onTap: () {
-                                              // Acción al tocar el POI recomendado
+                                      children: [
+                                        SizedBox(
+                                          height: 100,
+                                          child: PageView.builder(
+                                            controller: _recomendadosController,
+                                            itemCount: recomendados.length,
+                                            itemBuilder: (context, index) {
+                                              final rec = recomendados[index];
+                                              return Padding(
+                                                padding: const EdgeInsets.symmetric(horizontal: 8),
+                                                child: SizedBox(
+                                                  width: MediaQuery.of(context).size.width - 48,
+                                                  child: Card(
+                                                    margin: EdgeInsets.zero,
+                                                    color: const Color(0xFFF4F4F4),
+                                                    child: Padding(
+                                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                                      child: Column(
+                                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                                        mainAxisAlignment: MainAxisAlignment.center,
+                                                        children: [
+                                                          Text(
+                                                            rec['nombre']!,
+                                                            style: const TextStyle(
+                                                              fontSize: 16,
+                                                            ),
+                                                          ),
+                                                          const SizedBox(height: 4),
+                                                          Wrap(
+                                                            spacing: 6,
+                                                            children: List<Widget>.from(
+                                                              (rec['categorias'] as List)
+                                                                  .map((cat) => Chip(
+                                                                        label: Text(cat),
+                                                                        backgroundColor: Colors.white,
+                                                                        shape: RoundedRectangleBorder(
+                                                                          borderRadius: BorderRadius.circular(16),
+                                                                          side: BorderSide(color: Colors.grey.shade300),
+                                                                        ),
+                                                                      )),
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              );
                                             },
                                           ),
-                                       );
-                                      }).toList(),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Row(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: List.generate(
+                                            recomendados.length,
+                                            (i) => Container(
+                                              width: 8,
+                                              height: 8,
+                                              margin: const EdgeInsets.symmetric(horizontal: 3),
+                                              decoration: BoxDecoration(
+                                                shape: BoxShape.circle,
+                                                color: _recomendadosPage == i
+                                                    ? colbunBlue
+                                                    : Colors.grey.shade400,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     )
-                                  else
+                                  else //cercanos
                                     Column(
-                                      children: cercanos.map((rec) {
-                                        return Card(
-                                          margin: const EdgeInsets.symmetric(
-                                            vertical: 8,
-                                          ),
-                                          child: ListTile(
-                                            title: Text(rec['nombre']!),
-                                            subtitle: Text("${rec['distancia']} km"),
-                                            onTap: () {
-                                              // Acción al tocar el POI cercano
+                                      children: [
+                                        SizedBox(
+                                          height: 100,
+                                          child: PageView.builder(
+                                            controller: _cercanosController,
+                                            itemCount: cercanos.length,
+                                            itemBuilder: (context, index) {
+                                              final rec = cercanos[index];
+                                              return Padding(
+                                                padding: const EdgeInsets.symmetric(horizontal: 8),
+                                                child: SizedBox(
+                                                  width: MediaQuery.of(context).size.width - 48,
+                                                  child: Card(
+                                                    margin: EdgeInsets.zero,
+                                                    color: const Color(0xFFF4F4F4),
+                                                    child: ListTile(
+                                                      title: Text(rec['nombre']!),
+                                                      subtitle: Text("${rec['distancia']} km"),
+                                                      onTap: () {
+                                                        // Acción al tocar el POI cercano
+                                                      },
+                                                    ),
+                                                  ),
+                                                ),
+                                              );
                                             },
                                           ),
-                                        );
-                                      }).toList(),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Row(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: List.generate(
+                                            cercanos.length,
+                                            (i) => Container(
+                                              width: 8,
+                                              height: 8,
+                                              margin: const EdgeInsets.symmetric(horizontal: 3),
+                                              decoration: BoxDecoration(
+                                                shape: BoxShape.circle,
+                                                color: _cercanosPage == i
+                                                    ? colbunBlue
+                                                    : Colors.grey.shade400,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                 ],
                               ),

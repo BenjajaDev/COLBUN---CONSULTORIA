@@ -34,4 +34,10 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get cercanos => 'Perto de você';
+
+  @override
+  String get ruta => 'Rota';
+
+  @override
+  String get rutas_disponibles => 'Rotas disponíveis';
 }

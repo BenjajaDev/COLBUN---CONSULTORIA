@@ -1,51 +1,44 @@
+import 'package:consultoria_chat_bot/model/route_model.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:consultoria_chat_bot/models/route360.dart';
 
 abstract class MapState {}
 
-const _unset = Object();
-
 class MapInitial extends MapState {
+}
+class MapLoading extends MapState {
+}
+class MapLoaded extends MapState {
   final LatLng center;
   final List<LatLng> markers;
-  final double heading;
   final LatLng? userLocation;
-  final List<Route360> routes;
-  final String? selectedRouteId;
+  final double heading;
+  final List<MapRoute> route;
 
-  MapInitial({
+  MapLoaded({
     required this.center,
-    this.markers = const [],
-    this.heading = 0.0,
-    this.userLocation,
-    this.routes = const [],
-    this.selectedRouteId,
+    required this.markers,
+    required this.userLocation,
+    required this.heading,
+    required this.route,
   });
 
-  MapInitial copyWith({
+  MapLoaded copyWith({
     LatLng? center,
     List<LatLng>? markers,
+    LatLng? userLocation,
     double? heading,
-    Object? userLocation = _unset,     
-    List<Route360>? routes,
-    Object? selectedRouteId = _unset,
+    List<MapRoute>? route,
   }) {
-    return MapInitial(
+    return MapLoaded(
       center: center ?? this.center,
       markers: markers ?? this.markers,
+      userLocation: userLocation ?? this.userLocation,
       heading: heading ?? this.heading,
-      userLocation: identical(userLocation, _unset)
-          ? this.userLocation
-          : userLocation as LatLng?,
-      routes: routes ?? this.routes,
-      selectedRouteId: identical(selectedRouteId, _unset)
-          ? this.selectedRouteId
-          : selectedRouteId as String?,
+      route: route ?? this.route,
     );
   }
 }
-
-class MapFailure extends MapState {
+class MapError extends MapState {
   final String message;
-  MapFailure(this.message);
+  MapError(this.message);
 }

@@ -1,90 +1,104 @@
+import 'package:consultoria_chat_bot/services/firestore_service.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:consultoria_chat_bot/events/map_event.dart';
 import 'package:consultoria_chat_bot/states/map_state.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:consultoria_chat_bot/data/routes_repository.dart';
-import 'dart:async';
-import 'package:consultoria_chat_bot/models/route360.dart';
+import 'package:flutter_compass/flutter_compass.dart';
 
 class MapBloc extends Bloc<MapEvent, MapState> {
-  final RoutesRepository repo;
-  StreamSubscription<List<Route360>>? _routesSub;
+  final FireStoreService _firebaseService;
 
-  MapBloc({required this.repo})
-      : super(MapInitial(center: const LatLng(-33.4489, -70.6693))) {
-    on<SubscribeRoutes>(_onSubscribeRoutes);
-    on<LoadRoutes>(_onLoadRoutes);
-    on<RoutesUpdated>(_onRoutesUpdated);
-    on<SelectRoute>(_onSelectRoute);
+  MapBloc(this._firebaseService) : super(MapInitial()) {
     on<AddMarker>(_onAddMarker);
     on<UpdateUserLocation>(_onUpdateUserLocation);
     on<UpdateHeading>(_onUpdateHeading);
-    on<DeselectRoute>((event, emit) {
-      final cur = state as MapInitial;
-      emit(cur.copyWith(selectedRouteId: null));
-    });
-
-
-    add(LoadRoutes()); 
-    add(SubscribeRoutes());
+    on<LoadRoute>(_onLoadRoute);
+   
+    
+    _startTrackingLocation();
+    _startTrackingHeading();
   }
 
-  void _onSubscribeRoutes(SubscribeRoutes event, Emitter<MapState> emit) {
-    _routesSub?.cancel();
-    _routesSub = repo.streamRoutes().listen(
-      (routes) {
-        add(RoutesUpdated(routes));
-      },
-      onError: (e) => emit(MapFailure(e.toString())),
-    );
-  }
+  
 
-  void _onRoutesUpdated(RoutesUpdated event, Emitter<MapState> emit) {
-    final cur = state is MapInitial
-        ? state as MapInitial
-        : MapInitial(center: const LatLng(-35.78, -71.33));
-    emit(cur.copyWith(
-      routes: event.routes,
-      selectedRouteId: cur.selectedRouteId,
-    ));
-  }
-
-
-  Future<void> _onLoadRoutes(
-      LoadRoutes event, Emitter<MapState> emit) async {
+  Future<void> _onLoadRoute(
+      LoadRoute event, Emitter<MapState> emit) async {
+    emit(MapLoading());
     try {
-      final routes = await repo.fetchRoutes();
-      add(RoutesUpdated(routes));
+      final routes = await _firebaseService.fetchRoutes();
+      final poiMarkers = routes
+    .expand((route) => route.pois) // toma todos los POIs de todas las rutas
+    .map((poi) => LatLng(poi.latitud, poi.longitud))
+    .toList();
+
+      emit(MapLoaded(
+        center: const LatLng(-35.6960057, -71.4060907), // Default
+        markers: poiMarkers,
+        userLocation: null,
+        heading: 0.0,
+        route: routes,
+      ));
     } catch (e) {
-      emit(MapFailure(e.toString()));
+      emit(MapError("Error al cargar la ruta: $e"));
     }
   }
 
-  void _onSelectRoute(SelectRoute event, Emitter<MapState> emit) {
-    final cur = state as MapInitial;
-    emit(cur.copyWith(selectedRouteId: event.routeId));
-  }
-
   void _onAddMarker(AddMarker event, Emitter<MapState> emit) {
-    final cur = state as MapInitial;
-    final updated = List<LatLng>.from(cur.markers)..add(event.position);
-    emit(cur.copyWith(markers: updated));
+    if (state is! MapLoaded) return; // ✅ Ignorar si no está listo
+    final current = state as MapLoaded;
+
+    final updatedMarkers = List<LatLng>.from(current.markers)
+      ..add(event.position);
+
+    emit(current.copyWith(markers: updatedMarkers));
   }
 
   void _onUpdateUserLocation(
       UpdateUserLocation event, Emitter<MapState> emit) {
-    final cur = state as MapInitial;
-    emit(cur.copyWith(userLocation: event.position));
+    if (state is! MapLoaded) return; // ✅ Ignorar si no está listo
+    final current = state as MapLoaded;
+
+    emit(current.copyWith(
+      userLocation: event.position,
+      center: event.position,
+    ));
   }
 
   void _onUpdateHeading(UpdateHeading event, Emitter<MapState> emit) {
-    final cur = state as MapInitial;
-    emit(cur.copyWith(heading: event.heading));
+    if (state is! MapLoaded) return; // ✅ Ignorar si no está listo
+    final current = state as MapLoaded;
+
+    emit(current.copyWith(heading: event.heading));
   }
 
-  @override
-  Future<void> close() {
-    _routesSub?.cancel(); 
-    return super.close();
+  Future<void> _startTrackingLocation() async {
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) return;
+
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) return;
+    }
+    if (permission == LocationPermission.deniedForever) return;
+
+    Geolocator.getPositionStream(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 5,
+      ),
+    ).listen((Position position) {
+      add(UpdateUserLocation(
+          LatLng(position.latitude, position.longitude)));
+    });
   }
+
+  void _startTrackingHeading() {
+    FlutterCompass.events?.listen((event) {
+      final heading = event.heading ?? 0.0;
+      add(UpdateHeading(heading));
+    });
+  }
+ 
 }
