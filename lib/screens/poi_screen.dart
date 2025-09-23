@@ -223,11 +223,14 @@ class _PoiScreenState extends State<PoiScreen> {
                             ),
                           );
                         },
-                        child: Image.network(
-                          widget.poi.imagen,
-                          fit: BoxFit.cover,
-                          width: double.infinity,
-                          height: 250,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.network(
+                            widget.poi.imagen,
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                            height: 250,
+                          ),
                         ),
                       ),
 
@@ -317,7 +320,7 @@ class _PoiScreenState extends State<PoiScreen> {
                                       iconColor = Colors.lightBlue;
                                       break;
                                     case 'Primavera':
-                                      icon = Icons.local_florist;
+                                      icon = Icons.eco_outlined;
                                       iconColor = Colors.green;
                                       break;
                                     case 'Verano':
@@ -534,14 +537,16 @@ class _PoiScreenState extends State<PoiScreen> {
                                                     margin: EdgeInsets.zero,
                                                     color: const Color(0xFFF4F4F4),
                                                     child: Padding(
-                                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                                                       child: Column(
                                                         crossAxisAlignment: CrossAxisAlignment.start,
                                                         mainAxisAlignment: MainAxisAlignment.center,
                                                         children: [
                                                           Text(
                                                             rec['nombre']!,
-                                                           
+                                                            style: const TextStyle(
+                                                              fontSize: 16,
+                                                            ),
                                                           ),
                                                           const SizedBox(height: 4),
                                                           Wrap(

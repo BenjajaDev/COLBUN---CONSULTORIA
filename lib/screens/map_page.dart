@@ -20,12 +20,12 @@ class _MapPageState extends State<MapPage> {
   final MapController mapController = MapController();
   final TextEditingController searchController = TextEditingController();
   int? selectedRouteIndex;
-  double _initialSheetChildSize = 0.25;
+  final double _initialSheetChildSize = 0.25;
   double _dragScrollSheetExtent = 0;
 
   double _widgetHeight = 0;
   double _fabPosition = 0;
-  double _fabPositionPadding = 10;
+  final double _fabPositionPadding = 10;
 
   @override
   void initState() {
