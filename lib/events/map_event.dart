@@ -15,3 +15,7 @@ class UpdateHeading extends MapEvent {
   final double heading;
   UpdateHeading(this.heading);
 }
+class LoadRoute extends MapEvent {
+
+}
+

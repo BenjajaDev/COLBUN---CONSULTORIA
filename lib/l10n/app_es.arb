@@ -3,5 +3,46 @@
   "search": "Buscar",
   "@search": {
     "description": "Texto de búsqueda"
+  },
+  "otono": "Otoño",
+  "@otono": {
+    "description": "version de Otoño para vista 360"
+  },
+  "invierno": "Invierno",
+  "@invierno": {
+    "description": "version de Invierno para vista 360"
+  },
+  "primavera": "Primavera",
+  "@primavera": {
+    "description": "version de Primavera para vista 360"
+  },
+  "verano": "Verano",
+  "@verano": {
+    "description": "version de Verano para vista 360"
+  },
+  "vista360": "Vista 360°",
+  "@vista360": {
+    "description": "Texto para el botón de vista 360"
+  },
+  "descripcion": "Descripción",
+  "@descripcion": {
+    "description": "Título para la sección de descripción"
+  },
+  "recomendados": "Recomendados",
+  "@recomendados": {
+    "description": "Título para la sección de puntos de interés recomendados"
+  },
+  "cercanos":"Cerca de ti",
+  "@cercanos": {
+    "description": "Título para la sección de puntos de interés cercanos"
+  },
+  "ruta": "Ruta",
+  "@ruta":{
+    "description": "prefijo para la ruta en mapa"
+  },
+  "rutas_disponibles": "Rutas disponibles",
+  "@rutas_disponibles":{
+    "description": "Título para la sección de rutas disponibles"
   }
+  
 }
