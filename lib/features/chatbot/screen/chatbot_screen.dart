@@ -68,10 +68,10 @@ class _ChatbotScreenState extends State<ChatbotScreen>
 
   void _initializeChat() {
     addMessage(
-      sender: "bot",
-      text: "¡Hola! Soy el asistente virtual de Colbún. ¿En qué puedo ayudarte?",
-      type: "welcome_message"
-    );
+        sender: "bot",
+        text:
+            "¡Hola! Soy el asistente virtual de Colbún. ¿En qué puedo ayudarte?",
+        type: "welcome_message");
   }
 
   BotResponse _getBotResponse(String userMessage) {
@@ -102,14 +102,14 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       ..._faqs!['farewells'],
       ..._faqs!['faq_emergencias'],
     ];
-    
+
     for (var entry in allEntries) {
       List<dynamic> tags = entry['tags'];
       if (tags.any((tag) => message.contains(tag.toLowerCase()))) {
         // Determina si la respuesta es un saludo o despedida para no pedir feedback
         bool isGreetingOrFarewell = (_faqs!['greetings'].contains(entry) ||
             _faqs!['farewells'].contains(entry));
-            
+
         return BotResponse(
           answer: entry['answer'],
           action: entry['action'],
@@ -127,7 +127,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
   void handleSendMessage(String text) {
     // Elimina las opciones de FAQ anteriores para que no se acumulen
     setState(() => messages.removeWhere((m) => m['type'] == 'faq_options'));
-    
+
     addMessage(sender: "user", text: text);
     setState(() {
       _isTyping = true;
@@ -140,7 +140,9 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     int complexityTime = (text.length * 10).clamp(0, 1000);
     int responseComplexity = (botResponse.answer.length * 3).clamp(0, 300);
     int randomVariation = random.nextInt(300);
-    int totalTTR = (baseTime + complexityTime + responseComplexity + randomVariation).clamp(800, 3000);
+    int totalTTR =
+        (baseTime + complexityTime + responseComplexity + randomVariation)
+            .clamp(800, 3000);
 
     Future.delayed(Duration(milliseconds: totalTTR), () {
       if (mounted) {
@@ -150,14 +152,16 @@ class _ChatbotScreenState extends State<ChatbotScreen>
         _typingController.stop();
 
         final messageId = DateTime.now().millisecondsSinceEpoch.toString();
-        addMessage(sender: "bot", text: botResponse.answer, messageId: messageId);
+        addMessage(
+            sender: "bot", text: botResponse.answer, messageId: messageId);
 
         if (botResponse.action == "open_whatsapp") {
           _launchWhatsApp();
         } else if (botResponse.action == "query_openai") {
           Future.delayed(const Duration(seconds: 2), () {
             if (mounted) {
-              final aiMessageId = DateTime.now().millisecondsSinceEpoch.toString();
+              final aiMessageId =
+                  DateTime.now().millisecondsSinceEpoch.toString();
               addMessage(
                 sender: "bot",
                 text: "Respuesta simulada de la IA para: \"$text\".",
@@ -188,43 +192,43 @@ class _ChatbotScreenState extends State<ChatbotScreen>
   }
 
   void addMessage({
-  required String sender,
-  String? text,
-  String? type,
-  List<String>? options,
-  String? messageId,
-  int? insertAtIndex, // Nuevo parámetro opcional
-}) {
-  setState(() {
-    final newMessage = {
-      "id": messageId ?? _messageIdCounter++,
-      "sender": sender,
-      "text": text,
-      "type": type,
-      "options": options,
-      "feedback": null,
-      "visible": true,
-    };
-    
-    if (insertAtIndex != null) {
-      // Insertar en posición específica
-      messages.insert(insertAtIndex, newMessage);
-    } else {
-      // Agregar al final (comportamiento normal)
-      messages.add(newMessage);
-    }
-  });
+    required String sender,
+    String? text,
+    String? type,
+    List<String>? options,
+    String? messageId,
+    int? insertAtIndex, // Nuevo parámetro opcional
+  }) {
+    setState(() {
+      final newMessage = {
+        "id": messageId ?? _messageIdCounter++,
+        "sender": sender,
+        "text": text,
+        "type": type,
+        "options": options,
+        "feedback": null,
+        "visible": true,
+      };
 
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    if (_scrollController.hasClients) {
-      _scrollController.animateTo(
-        0.0,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
-    }
-  });
-}
+      if (insertAtIndex != null) {
+        // Insertar en posición específica
+        messages.insert(insertAtIndex, newMessage);
+      } else {
+        // Agregar al final (comportamiento normal)
+        messages.add(newMessage);
+      }
+    });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          0.0,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
 
   void _handleFeedback(String messageId, bool wasUseful) {
     // Oculta los botones de feedback para que no se pueda volver a votar
@@ -266,7 +270,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     if (_faqs == null) return allQuestions;
 
     const faqKeys = ['faq_turismo', 'faq_servicios', 'faq_emergencias'];
-  
+
     for (var key in faqKeys) {
       if (_faqs![key] != null && _faqs![key] is List) {
         for (var entry in _faqs![key]) {
@@ -276,7 +280,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
         }
       }
     }
-    
+
     allQuestions.shuffle();
     return allQuestions.take(count).toList();
   }
@@ -287,12 +291,13 @@ class _ChatbotScreenState extends State<ChatbotScreen>
 
     if (!currentState.showFaqs || currentState.currentFaqs.isEmpty) {
       final List<String> randomFaqs = _getRandomFaqs(count: 3);
-      
+
       if (randomFaqs.isNotEmpty) {
         // Encontrar la posición del mensaje de bienvenida
-        final welcomeIndex = messages.indexWhere((m) => m['type'] == 'welcome_message');
+        final welcomeIndex =
+            messages.indexWhere((m) => m['type'] == 'welcome_message');
 
-        if (welcomeIndex != -1){
+        if (welcomeIndex != -1) {
           //Enviar evento a FAQS
           faqBloc.add(ToggleFaqsEvent(newFaqs: randomFaqs));
 
@@ -317,7 +322,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     }
   }
 
-  void _onFaqSelected(String selectedFaq){
+  void _onFaqSelected(String selectedFaq) {
     //1ro oculta faqs actuales
     final faqBloc = context.read<FaqBloc>();
     faqBloc.add(ToggleFaqsEvent());
@@ -328,37 +333,56 @@ class _ChatbotScreenState extends State<ChatbotScreen>
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<ThemeBloc, ThemeState>(builder: (context, state) {
-      return GestureDetector(
-        onTap: () => FocusScope.of(context).unfocus(),
-        child: Scaffold(
-          backgroundColor:
-              state.isDarkMode ? AppColors.darkBackground : Colors.grey[50],
-          body: Column(
-            children: [
-              ChatbotHeader(
-                onClearHistory: _clearChatHistory,
-                onContactWhatsApp: _launchWhatsApp,
+      //
+      // --- CAMBIO 1: Envolvemos todo en AnnotatedRegion ---
+      //
+      return AnnotatedRegion<SystemUiOverlayStyle>(
+        // Le damos el estilo dinámico a la barra de estado
+        value: SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness:
+              state.isDarkMode ? Brightness.light : Brightness.dark,
+        ),
+        child: GestureDetector(
+          onTap: () => FocusScope.of(context).unfocus(),
+          //
+          // --- CAMBIO 2: Añadimos 'top: false' al SafeArea ---
+          //
+          child: SafeArea(
+            top: false, // Evita un doble espaciado en la parte de arriba
+            child: Scaffold(
+              backgroundColor:
+                  state.isDarkMode ? AppColors.darkBackground : Colors.grey[50],
+              resizeToAvoidBottomInset: true,
+              body: Column(
+                children: [
+                  ChatbotHeader(
+                    onClearHistory: _clearChatHistory,
+                    onContactWhatsApp: _launchWhatsApp,
+                  ),
+                  Expanded(
+                    child: _typingAnimation != null
+                        ? ChatbotBody(
+                            isDarkMode: state.isDarkMode,
+                            messages: messages,
+                            scrollController: _scrollController,
+                            isTyping: _isTyping,
+                            typingAnimation: _typingAnimation!,
+                            onFeedback: _handleFeedback,
+                            onSendMessage: handleSendMessage,
+                            onShowFrequentlyAskedQuestions:
+                                _showFrequentlyAskedQuestions,
+                            onFaqSelected: _onFaqSelected,
+                          )
+                        : Container(),
+                  ),
+                  ChatbotFooter(
+                    isDarkMode: state.isDarkMode,
+                    onSendMessage: handleSendMessage,
+                  ),
+                ],
               ),
-              Expanded(
-                child: _typingAnimation != null
-                    ? ChatbotBody(
-                        isDarkMode: state.isDarkMode,
-                        messages: messages,
-                        scrollController: _scrollController,
-                        isTyping: _isTyping,
-                        typingAnimation: _typingAnimation!,
-                        onFeedback: _handleFeedback,
-                        onSendMessage: handleSendMessage,
-                        onShowFrequentlyAskedQuestions: _showFrequentlyAskedQuestions,
-                        onFaqSelected: _onFaqSelected,
-                      )
-                    : Container(),
-              ),
-              ChatbotFooter(
-                isDarkMode: state.isDarkMode,
-                onSendMessage: handleSendMessage,
-              ),
-            ],
+            ),
           ),
         ),
       );
