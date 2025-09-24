@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../bloc/theme_bloc.dart';
 import '../utils/app_colors.dart';
@@ -11,7 +12,7 @@ import '../utils/app_colors.dart';
 /// del chatbot, incluyendo el título, interruptor de tema y menú de opciones.
 class ChatbotHeader extends StatelessWidget implements PreferredSizeWidget {
   // ============================ PROPIEDADES ==================================
-  
+
   final VoidCallback onClearHistory;
   final VoidCallback onContactWhatsApp;
 
@@ -30,10 +31,17 @@ class ChatbotHeader extends StatelessWidget implements PreferredSizeWidget {
     return BlocBuilder<ThemeBloc, ThemeState>(
       builder: (context, state) {
         return AppBar(
+          systemOverlayStyle: SystemUiOverlayStyle(
+            // Hacemos que la barra de estado sea transparente
+            statusBarColor: Colors.transparent,
+
+            // Ponemos los iconos (hora, batería) en color claro para que se lean bien
+            statusBarIconBrightness:
+                state.isDarkMode ? Brightness.light : Brightness.dark,
+          ),
           elevation: 0, // Sin sombra para un diseño más plano
-          backgroundColor: state.isDarkMode 
-              ? AppColors.darkprimary 
-              : AppColors.lightprimary,
+          backgroundColor:
+              state.isDarkMode ? AppColors.darkprimary : AppColors.lightprimary,
           iconTheme: const IconThemeData(color: AppColors.lightbackground),
           title: const Text(
             'Asistente Colbún',
@@ -55,7 +63,7 @@ class ChatbotHeader extends StatelessWidget implements PreferredSizeWidget {
                     color: Colors.white,
                   ),
                   const SizedBox(width: 4),
-                  
+
                   // Interruptor para cambiar entre temas claro y oscuro
                   Switch(
                     value: state.isDarkMode,
@@ -64,20 +72,20 @@ class ChatbotHeader extends StatelessWidget implements PreferredSizeWidget {
                       context.read<ThemeBloc>().add(ToggleThemeEvent());
                     },
                     activeThumbColor: Colors.white,
-                    activeTrackColor: Colors.white.withOpacity(0.5),
+                    activeTrackColor: Colors.white.withOpacity(128),
                   ),
                 ],
               ),
             ),
-            
+
             // Menú de opciones adicionales (tres puntos verticales)
             SizedBox(
               width: 44,
               height: 44,
               child: PopupMenuButton(
                 icon: const Icon(Icons.more_vert, color: Color(0xFFFFFFFF)),
-                color: state.isDarkMode 
-                    ? AppColors.darkprimary 
+                color: state.isDarkMode
+                    ? AppColors.darkprimary
                     : AppColors.lightprimary,
                 iconSize: 32,
                 position: PopupMenuPosition.under,
@@ -96,8 +104,9 @@ class ChatbotHeader extends StatelessWidget implements PreferredSizeWidget {
                 },
                 // Construye los ítems del menú desplegable
                 itemBuilder: (BuildContext context) {
-                  FocusScope.of(context).unfocus(); // Cierra el teclado si está abierto
-                  
+                  FocusScope.of(context)
+                      .unfocus(); // Cierra el teclado si está abierto
+
                   return [
                     // Opción para contactar por WhatsApp
                     const PopupMenuItem(
@@ -113,7 +122,7 @@ class ChatbotHeader extends StatelessWidget implements PreferredSizeWidget {
                         ),
                       ),
                     ),
-                    
+
                     // Separador entre opciones
                     const PopupMenuItem(
                       enabled: false,
@@ -123,7 +132,7 @@ class ChatbotHeader extends StatelessWidget implements PreferredSizeWidget {
                         height: 1,
                       ),
                     ),
-                    
+
                     // Opción para borrar el historial de conversación
                     const PopupMenuItem(
                       value: 'Borrar Historial',
