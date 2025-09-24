@@ -72,7 +72,7 @@ class ChatbotHeader extends StatelessWidget implements PreferredSizeWidget {
                       context.read<ThemeBloc>().add(ToggleThemeEvent());
                     },
                     activeThumbColor: Colors.white,
-                    activeTrackColor: Colors.white.withOpacity(128),
+                    activeTrackColor: Colors.white.withValues(alpha: 0.5)
                   ),
                 ],
               ),
