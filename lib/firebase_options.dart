@@ -17,10 +17,7 @@ import 'package:flutter/foundation.dart'
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
-      throw UnsupportedError(
-        'DefaultFirebaseOptions have not been configured for web - '
-        'you can reconfigure this by running the FlutterFire CLI again.',
-      );
+      return web;
     }
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
@@ -28,15 +25,9 @@ class DefaultFirebaseOptions {
       case TargetPlatform.iOS:
         return ios;
       case TargetPlatform.macOS:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for macos - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return macos;
       case TargetPlatform.windows:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for windows - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return windows;
       case TargetPlatform.linux:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for linux - '
@@ -65,4 +56,34 @@ class DefaultFirebaseOptions {
     storageBucket: 'chatbot-colbun.firebasestorage.app',
     iosBundleId: 'com.example.consultoriaChatBot',
   );
+
+  static const FirebaseOptions web = FirebaseOptions(
+    apiKey: 'AIzaSyC9_fkcJ3eCJtVL6Gn_vvLLGptxXJjQZ2I',
+    appId: '1:597064504946:web:3a1b9c801e72c98b93d4eb',
+    messagingSenderId: '597064504946',
+    projectId: 'chatbot-colbun',
+    authDomain: 'chatbot-colbun.firebaseapp.com',
+    storageBucket: 'chatbot-colbun.firebasestorage.app',
+    measurementId: 'G-6HBZ8N1CR9',
+  );
+
+  static const FirebaseOptions macos = FirebaseOptions(
+    apiKey: 'AIzaSyAAIZUCVQRzOtIIZ8g7Gzwdp3i8hNHaGZs',
+    appId: '1:597064504946:ios:643ac1907e5bab4393d4eb',
+    messagingSenderId: '597064504946',
+    projectId: 'chatbot-colbun',
+    storageBucket: 'chatbot-colbun.firebasestorage.app',
+    iosBundleId: 'com.example.consultoriaChatBot',
+  );
+
+  static const FirebaseOptions windows = FirebaseOptions(
+    apiKey: 'AIzaSyC9_fkcJ3eCJtVL6Gn_vvLLGptxXJjQZ2I',
+    appId: '1:597064504946:web:4afc02609c78e24393d4eb',
+    messagingSenderId: '597064504946',
+    projectId: 'chatbot-colbun',
+    authDomain: 'chatbot-colbun.firebaseapp.com',
+    storageBucket: 'chatbot-colbun.firebasestorage.app',
+    measurementId: 'G-R24Z44DBCD',
+  );
+
 }
