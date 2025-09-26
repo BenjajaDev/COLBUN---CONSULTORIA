@@ -22,10 +22,11 @@ class _MapPageState extends State<MapPage> {
   int? selectedRouteIndex;
   final double _initialSheetChildSize = 0.25;
   double _dragScrollSheetExtent = 0;
-
   double _widgetHeight = 0;
   double _fabPosition = 0;
   final double _fabPositionPadding = 10;
+
+  String searchQuery = "";
 
   @override
   void initState() {
@@ -33,7 +34,6 @@ class _MapPageState extends State<MapPage> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       setState(() {
-        // render the floating button on widget
         _fabPosition = _initialSheetChildSize * context.size!.height;
       });
     });
@@ -53,10 +53,42 @@ class _MapPageState extends State<MapPage> {
         child: BlocBuilder<MapBloc, MapState>(
           builder: (context, state) {
             if (state is MapLoaded) {
-              // Determine which POIs to show
-              final poisToShow = selectedRouteIndex == null
-                  ? state.route.expand((route) => route.pois)
-                  : state.route[selectedRouteIndex!].pois;
+              final allPois = state.route
+                  .expand((route) => route.pois)
+                  .toList();
+
+              // 🔍 Filtrado de rutas
+              final filteredRoutes =
+                  (searchQuery.isNotEmpty && selectedRouteIndex == null)
+                  ? state.route
+                        .where(
+                          (r) => r.name.toLowerCase().contains(
+                            searchQuery.toLowerCase(),
+                          ),
+                        )
+                        .toList()
+                  : (selectedRouteIndex == null ? state.route : []);
+
+              // 🔍 Filtrado de POIs
+              final filteredPois = searchQuery.isEmpty
+                  ? (selectedRouteIndex == null
+                        ? allPois
+                        : state.route[selectedRouteIndex!].pois)
+                  : (selectedRouteIndex == null
+                        ? allPois
+                              .where(
+                                (p) => p.nombre.toLowerCase().contains(
+                                  searchQuery.toLowerCase(),
+                                ),
+                              )
+                              .toList()
+                        : state.route[selectedRouteIndex!].pois
+                              .where(
+                                (p) => p.nombre.toLowerCase().contains(
+                                  searchQuery.toLowerCase(),
+                                ),
+                              )
+                              .toList());
 
               return Stack(
                 children: [
@@ -74,7 +106,7 @@ class _MapPageState extends State<MapPage> {
                       ),
                       MarkerLayer(
                         markers: [
-                          ...poisToShow.map(
+                          ...filteredPois.map(
                             (marker) => Marker(
                               point: LatLng(marker.latitud, marker.longitud),
                               width: 80,
@@ -114,17 +146,14 @@ class _MapPageState extends State<MapPage> {
                             Marker(
                               point: state.userLocation!,
                               child: Transform.rotate(
-                                angle:
-                                    state.heading *
-                                    (3.1415926535 /
-                                        180), // 🔥 Convertir a radianes
+                                angle: state.heading * (3.1415926535 / 180),
                                 child: Container(
-                                  decoration: BoxDecoration(
+                                  decoration: const BoxDecoration(
                                     color: Color(0xFF4D67AE),
                                     shape: BoxShape.circle,
                                   ),
                                   child: const Icon(
-                                    Icons.navigation, // Flecha tipo brújula
+                                    Icons.navigation,
                                     color: Colors.white,
                                     size: 24,
                                   ),
@@ -150,36 +179,36 @@ class _MapPageState extends State<MapPage> {
                       ),
                     ],
                   ),
+
+                  // FAB centrar usuario
                   Positioned(
                     bottom: _fabPosition + _fabPositionPadding,
                     right: 16,
                     child: FloatingActionButton(
                       backgroundColor: const Color(0xFF4D67AE),
                       onPressed: () {
-                        mapController.move(
-                          state.userLocation!,
-                          15,
-                        ); // 👈 Centrar
+                        if (state.userLocation != null) {
+                          mapController.move(state.userLocation!, 15);
+                        }
                       },
                       child: const Icon(Icons.my_location, color: Colors.white),
                     ),
                   ),
+
+                  // Drawer inferior
                   NotificationListener<DraggableScrollableNotification>(
                     onNotification: (notification) {
                       setState(() {
                         _widgetHeight = context.size!.height;
                         _dragScrollSheetExtent = notification.extent;
-
-                        // Calculate FAB position based on parent widget height and DraggableScrollable position
                         _fabPosition = _dragScrollSheetExtent * _widgetHeight;
                       });
                       return true;
                     },
                     child: DraggableScrollableSheet(
-                      initialChildSize:
-                          _initialSheetChildSize, // Altura inicial (25%)
-                      minChildSize: 0.2, // Altura mínima
-                      maxChildSize: 0.6, // Altura máxima
+                      initialChildSize: _initialSheetChildSize,
+                      minChildSize: 0.2,
+                      maxChildSize: 0.6,
                       snap: true,
                       builder: (context, scrollController) {
                         return Container(
@@ -207,6 +236,8 @@ class _MapPageState extends State<MapPage> {
                                 ),
                               ),
                               const SizedBox(height: 10),
+
+                              // Header
                               Padding(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 16.0,
@@ -227,24 +258,115 @@ class _MapPageState extends State<MapPage> {
                                       ),
                                     if (selectedRouteIndex != null)
                                       const SizedBox(width: 8),
-                                    Text(
-                                      selectedRouteIndex == null
-                                          ? AppLocalizations.of(context)!.rutas_disponibles
-                                          : state
-                                                .route[selectedRouteIndex!]
-                                                .name,
-                                      style: const TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
+                                    Expanded(
+                                      child: Text(
+                                        selectedRouteIndex == null
+                                            ? AppLocalizations.of(
+                                                context,
+                                              )!.rutas_disponibles
+                                            : state
+                                                  .route[selectedRouteIndex!]
+                                                  .name,
+                                        style: const TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
                                     ),
+                                    if (selectedRouteIndex != null)
+                                      TextButton.icon(
+                                        onPressed: () {
+                                          setState(() {
+                                            selectedRouteIndex = null;
+                                          });
+                                        },
+                                        icon: const Icon(
+                                          Icons.list,
+                                          size: 18,
+                                          color: Colors.blue,
+                                        ),
+                                        label: const Text(
+                                          "Ver rutas",
+                                          style: TextStyle(color: Colors.blue),
+                                        ),
+                                      ),
                                   ],
                                 ),
                               ),
+
                               const SizedBox(height: 10),
 
+                              // Contenido
                               Expanded(
-                                child: selectedRouteIndex == null
+                                child: searchQuery.isNotEmpty
+                                    ? ListView(
+                                        controller: scrollController,
+                                        children: [
+                                          ...filteredRoutes.map(
+                                            (route) => ListTile(
+                                              leading: const Icon(
+                                                Icons.alt_route,
+                                                color: Colors.blue,
+                                              ),
+                                              title: Text("Ruta ${route.name}"),
+                                              onTap: () {
+                                                final center = LatLng(
+                                                  (route.initialLatitude +
+                                                          route.finalLatitude) /
+                                                      2,
+                                                  (route.initialLongitude +
+                                                          route
+                                                              .finalLongitude) /
+                                                      2,
+                                                );
+                                                setState(() {
+                                                  selectedRouteIndex = state
+                                                      .route
+                                                      .indexOf(route);
+                                                });
+                                                mapController.move(center, 14);
+                                              },
+                                            ),
+                                          ),
+                                          ...filteredPois.map(
+                                            (poi) => ListTile(
+                                              leading: const Icon(
+                                                Icons.location_on,
+                                                color: Colors.red,
+                                                size: 28,
+                                              ),
+                                              title: Text(poi.nombre),
+                                              subtitle: Text(
+                                                poi.categorias.isNotEmpty
+                                                    ? poi.categorias[0]
+                                                    : '',
+                                              ),
+                                              onTap: () {
+                                                mapController.move(
+                                                  LatLng(
+                                                    poi.latitud,
+                                                    poi.longitud,
+                                                  ),
+                                                  16,
+                                                );
+                                              },
+                                              trailing: GestureDetector(
+                                                onTap: () {
+                                                  Navigator.push(
+                                                    context,
+                                                    MaterialPageRoute(
+                                                      builder: (context) =>
+                                                          PoiScreen(poi),
+                                                    ),
+                                                  );
+                                                },
+                                                child: const Icon(Icons.add),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      )
+                                    : selectedRouteIndex == null
                                     ? ListView.builder(
                                         controller: scrollController,
                                         itemCount: state.route.length,
@@ -263,7 +385,9 @@ class _MapPageState extends State<MapPage> {
                                                 Icons.alt_route,
                                                 color: Colors.blue,
                                               ),
-                                              title: Text("${AppLocalizations.of(context)!.ruta} ${route.name}"),
+                                              title: Text(
+                                                "${AppLocalizations.of(context)!.ruta} ${route.name}",
+                                              ),
                                               trailing: const Icon(
                                                 Icons.arrow_forward_ios,
                                                 color: Colors.grey,
@@ -302,9 +426,19 @@ class _MapPageState extends State<MapPage> {
                                           final poi = state
                                               .route[selectedRouteIndex!]
                                               .pois[index];
-                                          return GestureDetector(
+                                          return ListTile(
+                                            leading: const Icon(
+                                              Icons.location_on, // 📍
+                                              color: Colors.red,
+                                              size: 28,
+                                            ),
+                                            title: Text(poi.nombre),
+                                            subtitle: Text(
+                                              poi.categorias.isNotEmpty
+                                                  ? poi.categorias[0]
+                                                  : '',
+                                            ),
                                             onTap: () {
-                                              // Center map on POI
                                               mapController.move(
                                                 LatLng(
                                                   poi.latitud,
@@ -313,34 +447,17 @@ class _MapPageState extends State<MapPage> {
                                                 16,
                                               );
                                             },
-                                            child: Container(
-                                              decoration: BoxDecoration(
-                                                border: Border(
-                                                  bottom: BorderSide(
-                                                    color: Colors.grey.shade300,
+                                            trailing: GestureDetector(
+                                              onTap: () {
+                                                Navigator.push(
+                                                  context,
+                                                  MaterialPageRoute(
+                                                    builder: (context) =>
+                                                        PoiScreen(poi),
                                                   ),
-                                                ),
-                                              ),
-                                              child: ListTile(
-                                                title: Text(poi.nombre),
-                                                subtitle: Text(
-                                                  (poi.categorias.isNotEmpty)
-                                                      ? poi.categorias[0]
-                                                      : '',
-                                                ),
-                                                trailing: GestureDetector(
-                                                  onTap: () {
-                                                    Navigator.push(
-                                                      context,
-                                                      MaterialPageRoute(
-                                                        builder: (context) =>
-                                                            PoiScreen(poi),
-                                                      ),
-                                                    );
-                                                  },
-                                                  child: const Icon(Icons.add),
-                                                ),
-                                              ),
+                                                );
+                                              },
+                                              child: const Icon(Icons.add),
                                             ),
                                           );
                                         },
@@ -353,6 +470,7 @@ class _MapPageState extends State<MapPage> {
                     ),
                   ),
 
+                  // 🔍 Barra de búsqueda
                   Positioned(
                     top: 0,
                     right: 0,
@@ -368,12 +486,21 @@ class _MapPageState extends State<MapPage> {
                               shape: const CircleBorder(),
                             ),
                             onPressed: () {},
-                            icon: Icon(Icons.arrow_back_rounded),
+                            icon: const Icon(Icons.arrow_back_rounded),
                           ),
                           const SizedBox(width: 4.0),
                           Expanded(
                             child: TextField(
                               controller: searchController,
+                              onChanged: (value) {
+                                setState(() {
+                                  searchQuery = value;
+                                  if (value.isNotEmpty) {
+                                    selectedRouteIndex =
+                                        selectedRouteIndex; // 👈 no resetear ruta seleccionada
+                                  }
+                                });
+                              },
                               decoration: InputDecoration(
                                 hintText:
                                     Localizations.of<MaterialLocalizations>(
@@ -402,7 +529,7 @@ class _MapPageState extends State<MapPage> {
                               shape: const CircleBorder(),
                             ),
                             onPressed: () {},
-                            icon: Icon(Icons.search),
+                            icon: const Icon(Icons.search),
                           ),
                         ],
                       ),
