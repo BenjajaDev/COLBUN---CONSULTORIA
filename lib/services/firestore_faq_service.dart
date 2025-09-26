@@ -8,6 +8,7 @@ class Faq {
   final String answer;
   final String? action;
   final List<String> tags;
+   final String? link; // Nuevo campo para el link
 
   Faq({
     required this.id,
@@ -15,6 +16,7 @@ class Faq {
     required this.answer,
     this.action,
     this.tags = const [],
+    this.link, // Nuevo campo
   });
 
   factory Faq.fromFirestore(Map<String, dynamic> data, String documentId) {
@@ -28,6 +30,7 @@ class Faq {
       answer: data['answer'] ?? 'No se encontró respuesta.',
       action: data['action'],
       tags: tagsList,
+      link: data['source_url'], // Inicialización del nuevo campo
     );
   }
 }
