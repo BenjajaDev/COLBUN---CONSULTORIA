@@ -1,4 +1,3 @@
-
 import 'package:consultoria_chat_bot/services/firestore_service.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:geolocator/geolocator.dart';
