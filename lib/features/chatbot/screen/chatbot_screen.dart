@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
@@ -12,6 +11,7 @@ import '../utils/app_colors.dart';
 import '../components/chatbot_header.dart';
 import '../components/chatbot_body.dart';
 import '../components/chatbot_footer.dart';
+import 'package:consultoria_chat_bot/services/firestore_faq_service.dart';
 
 class ChatbotScreen extends StatefulWidget {
   const ChatbotScreen({super.key});
@@ -22,12 +22,14 @@ class ChatbotScreen extends StatefulWidget {
 class _ChatbotScreenState extends State<ChatbotScreen>
     with TickerProviderStateMixin {
   final List<Map<String, dynamic>> messages = [];
+  List<Faq> _allLoadedFaqs = [];
   int _messageIdCounter = 0;
   bool _isTyping = false;
   late AnimationController _typingController;
   Animation<double>? _typingAnimation;
-  Map<String, dynamic>? _faqs;
   final ScrollController _scrollController = ScrollController();
+
+  final FaqService _faqService = FaqService();
 
   @override
   void initState() {
@@ -47,7 +49,8 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       parent: _typingController,
       curve: Curves.easeInOut,
     ));
-    _loadFaqs();
+    _loadAllFaqs();
+    _initializeChat();
   }
 
   @override
@@ -57,13 +60,15 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     super.dispose();
   }
 
-  Future<void> _loadFaqs() async {
-    final String response = await rootBundle.loadString('assets/faqs.json');
-    final data = await json.decode(response);
-    setState(() {
-      _faqs = data;
-      _initializeChat();
-    });
+  Future<void> _loadAllFaqs() async {
+    final faqs = await _faqService.getAllFaqs();
+    // Esta línea nos dirá si la carga de datos fue exitosa
+    print('FAQs cargadas desde Firestore: ${faqs.length} preguntas');
+    if (mounted) {
+      setState(() {
+        _allLoadedFaqs = faqs;
+      });
+    }
   }
 
   void _initializeChat() {
@@ -74,57 +79,31 @@ class _ChatbotScreenState extends State<ChatbotScreen>
         type: "welcome_message");
   }
 
-  BotResponse _getBotResponse(String userMessage) {
-    if (_faqs == null) {
-      return BotResponse(answer: "Cargando respuestas...");
+// -> 3. La función de obtener respuesta ahora es async y usa el servicio
+  Future<BotResponse> _getBotResponse(String userMessage) async {
+    // Primero, buscar en la base de conocimiento de Firestore
+    final Faq? localFaq = await _faqService.findFaq(userMessage);
+
+    print(localFaq != null
+        ? '✅ Coincidencia encontrada en Firestore para: "$userMessage"'
+        : '❌ No se encontró coincidencia en Firestore para: "$userMessage"');
+
+    if (localFaq != null) {
+      // Se encontró una respuesta en Firestore
+      return BotResponse(
+        answer: localFaq.answer,
+        // ...
+      );
+    } else {
+      // Si no, se procede a la lógica de fallback
+      return BotResponse(
+        answer: "No encontré una respuesta. Consultando a la IA...",
+        // ...
+      );
     }
-
-    String message = userMessage.toLowerCase().trim();
-
-    String eliminarTildes(String texto) {
-      texto = texto.replaceAll(RegExp(r'[áäàâã]'), 'a');
-      texto = texto.replaceAll(RegExp(r'[éëèê]'), 'e');
-      texto = texto.replaceAll(RegExp(r'[íïìî]'), 'i');
-      texto = texto.replaceAll(RegExp(r'[óöòôõ]'), 'o');
-      texto = texto.replaceAll(RegExp(r'[úüùû]'), 'u');
-      texto = texto.replaceAll('ñ', 'n');
-      texto = texto.replaceAll('Ñ', 'N');
-      return texto;
-    }
-
-    message = eliminarTildes(message);
-
-    final allEntries = [
-      ..._faqs!['greetings'],
-      ..._faqs!['faq_turismo'],
-      ..._faqs!['faq_servicios'],
-      ..._faqs!['fallback'],
-      ..._faqs!['farewells'],
-      ..._faqs!['faq_emergencias'],
-    ];
-
-    for (var entry in allEntries) {
-      List<dynamic> tags = entry['tags'];
-      if (tags.any((tag) => message.contains(tag.toLowerCase()))) {
-        // Determina si la respuesta es un saludo o despedida para no pedir feedback
-        bool isGreetingOrFarewell = (_faqs!['greetings'].contains(entry) ||
-            _faqs!['farewells'].contains(entry));
-
-        return BotResponse(
-          answer: entry['answer'],
-          action: entry['action'],
-          isStandardResponse: !isGreetingOrFarewell,
-        );
-      }
-    }
-
-    return BotResponse(
-      answer: "No encontré una respuesta. Consultando a la IA...",
-      action: "query_openai",
-    );
   }
 
-  void handleSendMessage(String text) {
+  void handleSendMessage(String text) async {
     // Elimina las opciones de FAQ anteriores para que no se acumulen
     setState(() => messages.removeWhere((m) => m['type'] == 'faq_options'));
 
@@ -134,7 +113,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     });
     _typingController.repeat();
 
-    final botResponse = _getBotResponse(text);
+    final botResponse = await _getBotResponse(text);
     final random = math.Random();
     int baseTime = 300;
     int complexityTime = (text.length * 10).clamp(0, 1000);
@@ -153,7 +132,11 @@ class _ChatbotScreenState extends State<ChatbotScreen>
 
         final messageId = DateTime.now().millisecondsSinceEpoch.toString();
         addMessage(
-            sender: "bot", text: botResponse.answer, messageId: messageId);
+          sender: "bot",
+          text: botResponse.answer,
+          messageId: messageId,
+          source: botResponse.source,
+        );
 
         if (botResponse.action == "open_whatsapp") {
           _launchWhatsApp();
@@ -197,7 +180,8 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     String? type,
     List<String>? options,
     String? messageId,
-    int? insertAtIndex, // Nuevo parámetro opcional
+    int? insertAtIndex,
+    String? source, // Nuevo parámetro opcional
   }) {
     setState(() {
       final newMessage = {
@@ -208,6 +192,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
         "options": options,
         "feedback": null,
         "visible": true,
+        "source": source,
       };
 
       if (insertAtIndex != null) {
@@ -259,6 +244,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     final Uri whatsappUri = Uri.parse(
         "https://wa.me/$phoneNumber?text=${Uri.encodeComponent(message)}");
     if (!await launchUrl(whatsappUri, mode: LaunchMode.externalApplication)) {
+      if (!mounted) return; // <-- Añade esta línea de seguridad
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("No se pudo abrir WhatsApp.")),
       );
@@ -266,26 +252,19 @@ class _ChatbotScreenState extends State<ChatbotScreen>
   }
 
   List<String> _getRandomFaqs({int count = 3}) {
-    final List<String> allQuestions = [];
-    if (_faqs == null) return allQuestions;
+    // Usa la lista local que cargamos desde initState
+    if (_allLoadedFaqs.isEmpty) return [];
 
-    const faqKeys = ['faq_turismo', 'faq_servicios', 'faq_emergencias'];
+    final shuffledFaqs = List<Faq>.from(_allLoadedFaqs)..shuffle();
 
-    for (var key in faqKeys) {
-      if (_faqs![key] != null && _faqs![key] is List) {
-        for (var entry in _faqs![key]) {
-          if (entry['question'] != null && entry['question'] is String) {
-            allQuestions.add(entry['question']);
-          }
-        }
-      }
-    }
-
-    allQuestions.shuffle();
-    return allQuestions.take(count).toList();
+    return shuffledFaqs.take(count).map((faq) => faq.question).toList();
   }
 
   void _showFrequentlyAskedQuestions() {
+    print('Se presionó el botón de Preguntas Frecuentes.');
+    print(
+        'Número de FAQs disponibles en la lista local: ${_allLoadedFaqs.length}');
+
     final faqBloc = context.read<FaqBloc>();
     final currentState = faqBloc.state;
 
@@ -323,6 +302,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
   }
 
   void _onFaqSelected(String selectedFaq) {
+    print('Se seleccionó la FAQ y se enviará este texto: "$selectedFaq"');
     //1ro oculta faqs actuales
     final faqBloc = context.read<FaqBloc>();
     faqBloc.add(ToggleFaqsEvent());
