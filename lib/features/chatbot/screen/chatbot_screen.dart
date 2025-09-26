@@ -92,6 +92,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       // Se encontró una respuesta en Firestore
       return BotResponse(
         answer: localFaq.answer,
+        link: localFaq.link, // Pasar el link desde Firestore
         // ...
       );
     } else {
@@ -136,6 +137,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
           text: botResponse.answer,
           messageId: messageId,
           source: botResponse.source,
+          link: botResponse.link, // Pasar el link al mensaje
         );
 
         if (botResponse.action == "open_whatsapp") {
@@ -182,6 +184,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     String? messageId,
     int? insertAtIndex,
     String? source, // Nuevo parámetro opcional
+    String? link, // Nuevo parámetro para el link
   }) {
     setState(() {
       final newMessage = {
@@ -193,6 +196,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
         "feedback": null,
         "visible": true,
         "source": source,
+        "link": link, // Nuevo campo para el link
       };
 
       if (insertAtIndex != null) {

@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../bloc/faq_bloc.dart';
 import '../utils/app_colors.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ChatbotBody extends StatelessWidget {
   final bool isDarkMode;
@@ -28,12 +29,24 @@ class ChatbotBody extends StatelessWidget {
     required this.onFaqSelected,
   });
 
+// Método para abrir URLs
+  void _launchUrl(String url, BuildContext context) async {
+    final Uri uri = Uri.parse(url);
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("No se pudo abrir el enlace: $url")),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
       color: isDarkMode ? AppColors.darkBackground : Colors.grey[50],
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),// quite padding vertical
       child: ListView.builder(
         controller: scrollController,
         reverse: true,
@@ -166,7 +179,8 @@ class ChatbotBody extends StatelessWidget {
 
   Widget _buildTextMessage(BuildContext context, Map<String, dynamic> message) {
     final isUser = message['sender'] == 'user';
-    
+    final hasLink = message['link'] != null && message['link'].isNotEmpty;
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
       
@@ -191,7 +205,6 @@ class ChatbotBody extends StatelessWidget {
             ),
             const SizedBox(width: 8),
           ],
-          
           // Contenedor del mensaje de texto
           if (message['text'] != null && message['text'].isNotEmpty)
             Flexible(
@@ -244,6 +257,46 @@ class ChatbotBody extends StatelessWidget {
                         fontWeight: FontWeight.w400,
                       ),
                     ),
+                    // Mostrar link si existe
+                    if (hasLink) ...[
+                      const SizedBox(height: 8),
+                      GestureDetector(
+                        onTap: () {
+                          _launchUrl(message['link'], context);
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(8.0),
+                          decoration: BoxDecoration(
+                            color: isDarkMode ? Colors.blue[900] : Colors.blue[50],
+                            borderRadius: BorderRadius.circular(8.0),
+                            border: Border.all(
+                              color: isDarkMode ? Colors.blue[700]! : Colors.blue[200]!,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.link,
+                                size: 16,
+                                color: isDarkMode ? Colors.blue[200] : Colors.blue[700],
+                              ),
+                              const SizedBox(width: 4),
+                              Flexible(
+                                child: Text(
+                                  'Fuente',
+                                  style: TextStyle(
+                                    color: isDarkMode ? Colors.blue[200] : Colors.blue[700],
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                     // Si el mensaje es de bienvenida, muestra el botón de FAQs
                     if (message['type'] == 'welcome_message')
                       Column(
