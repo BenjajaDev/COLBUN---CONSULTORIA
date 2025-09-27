@@ -1,4 +1,5 @@
-import 'package:consultoria_chat_bot/blocs/poi_bloc.dart';
+﻿import 'package:consultoria_chat_bot/blocs/poi_bloc.dart';
+import 'package:consultoria_chat_bot/blocs/favorites_cubit.dart';
 import 'package:consultoria_chat_bot/events/poi_event.dart';
 import 'package:consultoria_chat_bot/l10n/app_localizations.dart';
 import 'package:consultoria_chat_bot/model/poi_model.dart';
@@ -15,11 +16,9 @@ class PoiScreen extends StatefulWidget {
   State<PoiScreen> createState() => _PoiScreenState();
 }
 
-
 class _PoiScreenState extends State<PoiScreen> {
   Color colbunBlue = const Color(0xFF4D67AE);
   int _selectedIndex = 0;
-  bool _isFavorito = false;
   String? valorSeleccionado = 'Otoño';
   final List<String> opciones = ['Otoño', 'Invierno', 'Primavera', 'Verano'];
   final Map<String, Map<String, Color>> chipsColors = {
@@ -32,41 +31,28 @@ class _PoiScreenState extends State<PoiScreen> {
       'text': Colors.brown.shade800,
     },
   };
-  
 
   // datos de ejemplo para recomendados y cercanos cambiar cuando se implemente la logica
   List<Map<String, dynamic>> recomendados = [
     {
       'nombre': 'Cascada El Salto',
       'categorias': ['naturaleza', 'aventura'],
-      'actividades':[]
+      'actividades': [],
     },
     {
       'nombre': 'Mirador Los Andes',
-      'categorias': ['paisajes', 'fotografía'],
-      'actividades':[]
+      'categorias': ['paisajes', 'fotografí­a'],
+      'actividades': [],
     },
   ];
   List<Map<String, dynamic>> cercanos = [
-    {
-      'nombre': 'Cascada El Salto',
-      'distancia': 2.5
-    },
-    {
-      'nombre': 'Mirador Los Andes',
-      'distancia': 4.2
-    },
+    {'nombre': 'Cascada El Salto', 'distancia': 2.5},
+    {'nombre': 'Mirador Los Andes', 'distancia': 4.2},
   ];
 
   // Overlay (info)
   OverlayEntry? _overlayEntry;
   final GlobalKey _iconKey = GlobalKey();
-
-  void _togglefavorito() {
-    setState(() {
-      _isFavorito = !_isFavorito;
-    });
-  }
 
   void _showOverlay() {
     // remove any existing
@@ -125,7 +111,6 @@ class _PoiScreenState extends State<PoiScreen> {
       _overlayEntry = null;
     });
   }
-  
 
   // Add controllers and page state for pagination
   final PageController _recomendadosController = PageController();
@@ -173,7 +158,6 @@ class _PoiScreenState extends State<PoiScreen> {
           builder: (context, constraints) {
             return BlocBuilder<PoiBloc, PoiState>(
               builder: (context, state) {
-                
                 if (state is PoiLoaded) {
                   final List<String> items = [
                     ...List<String>.from(widget.poi.categorias),
@@ -201,10 +185,7 @@ class _PoiScreenState extends State<PoiScreen> {
                             ),
                           ),
                           IconButton(
-                            icon: const Icon(
-                              Icons.close,
-                              color: Colors.black,
-                            ),
+                            icon: const Icon(Icons.close, color: Colors.black),
                             onPressed: () => Navigator.pop(context),
                           ),
                         ],
@@ -273,16 +254,27 @@ class _PoiScreenState extends State<PoiScreen> {
                               ),
                             ),
                             // Icono de favorito
-                            IconButton(
-                              icon: Icon(
-                                _isFavorito
-                                    ? Icons.favorite
-                                    : Icons.favorite_border,
-                                color: _isFavorito
-                                    ? Colors.pink
-                                    : Colors.grey,
-                              ),
-                              onPressed: _togglefavorito,
+                            BlocBuilder<FavoritesCubit, FavoritesState>(
+                              builder: (context, favoritesState) {
+                                final isFavorite = favoritesState.contains(
+                                  widget.poi.id,
+                                );
+                                return IconButton(
+                                  icon: Icon(
+                                    isFavorite
+                                        ? Icons.favorite
+                                        : Icons.favorite_border,
+                                    color: isFavorite
+                                        ? Colors.pink
+                                        : Colors.grey,
+                                  ),
+                                  onPressed: () {
+                                    context
+                                        .read<FavoritesCubit>()
+                                        .toggleFavorite(widget.poi);
+                                  },
+                                );
+                              },
                             ),
                           ],
                         ),
@@ -297,9 +289,12 @@ class _PoiScreenState extends State<PoiScreen> {
                         child: Row(
                           children: [
                             // Dropdown with rounded black border
-                            Container( 
+                            Container(
                               decoration: BoxDecoration(
-                                border: Border.all(color: Colors.black, width: 1.3),
+                                border: Border.all(
+                                  color: Colors.black,
+                                  width: 1.3,
+                                ),
                                 borderRadius: BorderRadius.circular(18),
                                 color: Colors.white,
                               ),
@@ -355,7 +350,7 @@ class _PoiScreenState extends State<PoiScreen> {
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: colbunBlue,
                               ),
-                              child:  Text(
+                              child: Text(
                                 AppLocalizations.of(context)!.vista360,
                                 style: TextStyle(color: Colors.white),
                               ),
@@ -405,14 +400,13 @@ class _PoiScreenState extends State<PoiScreen> {
                                   color: Colors.blue.shade50,
                                   borderRadius: BorderRadius.circular(8),
                                 ),
-                                child:Text(
+                                child: Text(
                                   "Temporada actual: Primavera \nClima templado, flora abundante, ideal para trekking",
                                   style: TextStyle(
                                     fontSize: 16,
                                     color: colbunBlue,
                                   ),
                                 ),
-                                
                               ),
                             ),
                             // ==================== DESCRIPCION ====================
@@ -434,11 +428,12 @@ class _PoiScreenState extends State<PoiScreen> {
                                 horizontal: 15,
                               ),
                               child: Text(
-                                widget.poi.descripcion[Localizations.localeOf(context).languageCode] ??
-                                widget.poi.descripcion['es'] ??
-                                '',
+                                widget.poi.descripcion[Localizations.localeOf(
+                                      context,
+                                    ).languageCode] ??
+                                    widget.poi.descripcion['es'] ??
+                                    '',
                                 style: const TextStyle(fontSize: 16),
-                                
                               ),
                             ),
 
@@ -452,15 +447,18 @@ class _PoiScreenState extends State<PoiScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.center,
+                                    mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
                                       Container(
                                         decoration: BoxDecoration(
                                           border: Border(
                                             bottom: BorderSide(
-                                              color: _selectedIndex == 0 ? colbunBlue : Colors.black,
-                                              width: _selectedIndex == 0 ? 3 : 1,
+                                              color: _selectedIndex == 0
+                                                  ? colbunBlue
+                                                  : Colors.black,
+                                              width: _selectedIndex == 0
+                                                  ? 3
+                                                  : 1,
                                             ),
                                           ),
                                         ),
@@ -474,13 +472,17 @@ class _PoiScreenState extends State<PoiScreen> {
                                           ),
                                           onPressed: () {
                                             setState(() {
-                                              _selectedIndex =0; 
+                                              _selectedIndex = 0;
                                             });
                                           },
                                           child: Text(
-                                            AppLocalizations.of(context)!.recomendados,
+                                            AppLocalizations.of(
+                                              context,
+                                            )!.recomendados,
                                             style: TextStyle(
-                                              color: _selectedIndex == 0 ? colbunBlue : Colors.black,
+                                              color: _selectedIndex == 0
+                                                  ? colbunBlue
+                                                  : Colors.black,
                                               fontSize: 18,
                                             ),
                                           ),
@@ -490,8 +492,12 @@ class _PoiScreenState extends State<PoiScreen> {
                                         decoration: BoxDecoration(
                                           border: Border(
                                             bottom: BorderSide(
-                                              color: _selectedIndex == 1 ? colbunBlue : Colors.black,
-                                              width: _selectedIndex == 1 ? 3 : 1,
+                                              color: _selectedIndex == 1
+                                                  ? colbunBlue
+                                                  : Colors.black,
+                                              width: _selectedIndex == 1
+                                                  ? 3
+                                                  : 1,
                                             ),
                                           ),
                                         ),
@@ -508,9 +514,13 @@ class _PoiScreenState extends State<PoiScreen> {
                                             });
                                           },
                                           child: Text(
-                                            AppLocalizations.of(context)!.cercanos,
+                                            AppLocalizations.of(
+                                              context,
+                                            )!.cercanos,
                                             style: TextStyle(
-                                              color: _selectedIndex == 1 ? colbunBlue : Colors.black,
+                                              color: _selectedIndex == 1
+                                                  ? colbunBlue
+                                                  : Colors.black,
                                               fontSize: 18,
                                             ),
                                           ),
@@ -530,37 +540,74 @@ class _PoiScreenState extends State<PoiScreen> {
                                             itemBuilder: (context, index) {
                                               final rec = recomendados[index];
                                               return Padding(
-                                                padding: const EdgeInsets.symmetric(horizontal: 8),
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 8,
+                                                    ),
                                                 child: SizedBox(
-                                                  width: MediaQuery.of(context).size.width - 48,
+                                                  width:
+                                                      MediaQuery.of(
+                                                        context,
+                                                      ).size.width -
+                                                      48,
                                                   child: Card(
                                                     margin: EdgeInsets.zero,
-                                                    color: const Color(0xFFF4F4F4),
+                                                    color: const Color(
+                                                      0xFFF4F4F4,
+                                                    ),
                                                     child: Padding(
-                                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                                      padding:
+                                                          const EdgeInsets.symmetric(
+                                                            horizontal: 16,
+                                                            vertical: 8,
+                                                          ),
                                                       child: Column(
-                                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                                        mainAxisAlignment: MainAxisAlignment.center,
+                                                        crossAxisAlignment:
+                                                            CrossAxisAlignment
+                                                                .start,
+                                                        mainAxisAlignment:
+                                                            MainAxisAlignment
+                                                                .center,
                                                         children: [
                                                           Text(
                                                             rec['nombre']!,
-                                                            style: const TextStyle(
-                                                              fontSize: 16,
-                                                            ),
+                                                            style:
+                                                                const TextStyle(
+                                                                  fontSize: 16,
+                                                                ),
                                                           ),
-                                                          const SizedBox(height: 4),
+                                                          const SizedBox(
+                                                            height: 4,
+                                                          ),
                                                           Wrap(
                                                             spacing: 6,
                                                             children: List<Widget>.from(
-                                                              (rec['categorias'] as List)
-                                                                  .map((cat) => Chip(
-                                                                        label: Text(cat),
-                                                                        backgroundColor: Colors.white,
-                                                                        shape: RoundedRectangleBorder(
-                                                                          borderRadius: BorderRadius.circular(16),
-                                                                          side: BorderSide(color: Colors.grey.shade300),
+                                                              (rec['categorias']
+                                                                      as List)
+                                                                  .map(
+                                                                    (
+                                                                      cat,
+                                                                    ) => Chip(
+                                                                      label:
+                                                                          Text(
+                                                                            cat,
+                                                                          ),
+                                                                      backgroundColor:
+                                                                          Colors
+                                                                              .white,
+                                                                      shape: RoundedRectangleBorder(
+                                                                        borderRadius:
+                                                                            BorderRadius.circular(
+                                                                              16,
+                                                                            ),
+                                                                        side: BorderSide(
+                                                                          color: Colors
+                                                                              .grey
+                                                                              .shade300,
                                                                         ),
-                                                                      )),
+                                                                      ),
+                                                                    ),
+                                                                  ),
                                                             ),
                                                           ),
                                                         ],
@@ -574,13 +621,17 @@ class _PoiScreenState extends State<PoiScreen> {
                                         ),
                                         const SizedBox(height: 8),
                                         Row(
-                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
                                           children: List.generate(
                                             recomendados.length,
                                             (i) => Container(
                                               width: 8,
                                               height: 8,
-                                              margin: const EdgeInsets.symmetric(horizontal: 3),
+                                              margin:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 3,
+                                                  ),
                                               decoration: BoxDecoration(
                                                 shape: BoxShape.circle,
                                                 color: _recomendadosPage == i
@@ -603,17 +654,30 @@ class _PoiScreenState extends State<PoiScreen> {
                                             itemBuilder: (context, index) {
                                               final rec = cercanos[index];
                                               return Padding(
-                                                padding: const EdgeInsets.symmetric(horizontal: 8),
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 8,
+                                                    ),
                                                 child: SizedBox(
-                                                  width: MediaQuery.of(context).size.width - 48,
+                                                  width:
+                                                      MediaQuery.of(
+                                                        context,
+                                                      ).size.width -
+                                                      48,
                                                   child: Card(
                                                     margin: EdgeInsets.zero,
-                                                    color: const Color(0xFFF4F4F4),
+                                                    color: const Color(
+                                                      0xFFF4F4F4,
+                                                    ),
                                                     child: ListTile(
-                                                      title: Text(rec['nombre']!),
-                                                      subtitle: Text("${rec['distancia']} km"),
+                                                      title: Text(
+                                                        rec['nombre']!,
+                                                      ),
+                                                      subtitle: Text(
+                                                        "${rec['distancia']} km",
+                                                      ),
                                                       onTap: () {
-                                                        // Acción al tocar el POI cercano
+                                                        // AcciÃ³n al tocar el POI cercano
                                                       },
                                                     ),
                                                   ),
@@ -624,13 +688,17 @@ class _PoiScreenState extends State<PoiScreen> {
                                         ),
                                         const SizedBox(height: 8),
                                         Row(
-                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
                                           children: List.generate(
                                             cercanos.length,
                                             (i) => Container(
                                               width: 8,
                                               height: 8,
-                                              margin: const EdgeInsets.symmetric(horizontal: 3),
+                                              margin:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 3,
+                                                  ),
                                               decoration: BoxDecoration(
                                                 shape: BoxShape.circle,
                                                 color: _cercanosPage == i
@@ -644,12 +712,11 @@ class _PoiScreenState extends State<PoiScreen> {
                                     ),
                                 ],
                               ),
-                            )
+                            ),
                           ],
                         ),
                       ),
                     ],
-                    
                   );
                 } else {
                   return const Center(child: CircularProgressIndicator());
