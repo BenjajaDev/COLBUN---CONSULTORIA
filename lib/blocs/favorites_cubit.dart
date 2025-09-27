@@ -13,9 +13,7 @@ class FavoritesState {
   }
 
   FavoritesState copyWith({List<POI>? favorites}) {
-    return FavoritesState(
-      favorites: favorites ?? this.favorites,
-    );
+    return FavoritesState(favorites: favorites ?? this.favorites);
   }
 }
 
@@ -26,8 +24,9 @@ class FavoritesCubit extends Cubit<FavoritesState> {
   void toggleFavorite(POI poi) {
     final isFavorite = state.contains(poi.id);
     if (isFavorite) {
-      final updated =
-          state.favorites.where((item) => item.id != poi.id).toList();
+      final updated = state.favorites
+          .where((item) => item.id != poi.id)
+          .toList();
       emit(state.copyWith(favorites: updated));
     } else {
       final updated = List<POI>.from(state.favorites)..add(poi);
