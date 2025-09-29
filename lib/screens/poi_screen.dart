@@ -41,7 +41,9 @@ class _PoiScreenState extends State<PoiScreen> {
     },
     {
       'nombre': 'Mirador Los Andes',
-      'categorias': ['paisajes', 'fotografí­a'],
+
+      'categorias': ['paisajes', 'fotografía'],
+
       'actividades': [],
     },
   ];
@@ -254,6 +256,7 @@ class _PoiScreenState extends State<PoiScreen> {
                               ),
                             ),
                             // Icono de favorito
+
                             BlocBuilder<FavoritesCubit, FavoritesState>(
                               builder: (context, favoritesState) {
                                 final isFavorite = favoritesState.contains(
@@ -275,6 +278,7 @@ class _PoiScreenState extends State<PoiScreen> {
                                   },
                                 );
                               },
+
                             ),
                           ],
                         ),
@@ -283,7 +287,7 @@ class _PoiScreenState extends State<PoiScreen> {
                       // ==================== DROPDOWN + INFO + VISTA 360 + BOTON EMERGENCIA ====================
                       Padding(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
+                          horizontal: 8,
                           vertical: 8,
                         ),
                         child: Row(
@@ -370,7 +374,7 @@ class _PoiScreenState extends State<PoiScreen> {
                                 }
                               },
                             ),
-                            const Spacer(),
+                            Spacer(),
                             ElevatedButton.icon(
                               onPressed: () {},
                               style: ElevatedButton.styleFrom(
