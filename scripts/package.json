@@ -1,0 +1,12 @@
+{
+  "name": "faq-generator-colbun",
+  "version": "1.0.0",
+  "description": "Script temporal para generar FAQs en Firestore",
+  "main": "faq_generator.js",
+  "scripts": {
+    "start": "node faq_generator.js"
+  },
+  "dependencies": {
+    "firebase-admin": "^11.11.0"
+  }
+}

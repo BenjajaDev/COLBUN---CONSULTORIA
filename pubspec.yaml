@@ -32,7 +32,7 @@ flutter:
   assets:
     - assets/fonts/
     - .env
-
+    
   fonts:
     - family: Poppins
       fonts:

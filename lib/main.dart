@@ -13,9 +13,9 @@ void main() async {
   // Asegura que todos los bindings de Flutter estén inicializados
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Carga las variables de entorno desde el archivo .env
+  // Carga las variables de entorno desde .env
   await dotenv.load(fileName: ".env");
-  
+
   // Inicializa Firebase para la plataforma actual
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
@@ -28,6 +28,7 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+
     return MultiBlocProvider(
       //MultiBloc provider para gestion de estado de tema y mostrado de faqs
       providers: [
