@@ -61,7 +61,6 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     ));
     _loadAllFaqs();
     _initializeConversation();
-    _initializeChat();
   }
 
   @override
