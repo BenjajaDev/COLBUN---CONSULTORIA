@@ -151,7 +151,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       // Si no se encuentra en FAQ, activar consulta a IA
       print('🤖 No se encontró en FAQ, activando consulta a OpenAI...');
       return BotResponse(
-        answer: "No encontré una respuesta específica. Déjame consultar mi base de conocimiento avanzada...",
+        answer: "",
         action: "query_openai", // Esta es la clave para activar OpenAI
         source: 'ai_fallback',
         isStandardResponse: false, // No pedir feedback aquí, se hará después de la respuesta de IA
@@ -170,53 +170,55 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     _typingController.repeat();
 
     final botResponse = await _getBotResponse(text);
-    final random = math.Random();
-    int baseTime = 300;
-    int complexityTime = (text.length * 10).clamp(0, 1000);
-    int responseComplexity = (botResponse.answer.length * 3).clamp(0, 300);
-    int randomVariation = random.nextInt(300);
-    int totalTTR =
-        (baseTime + complexityTime + responseComplexity + randomVariation)
-            .clamp(800, 3000);
+    
+    if (botResponse.action == "query_openai") {
+      // Si es consulta a OpenAI, manejarla directamente sin delay
+      print('🤖 Activando consulta directa a OpenAI para: "$text"');
+      _handleOpenAIQuery(text);
+    } else {
+      // Para respuestas de FAQ, mantener el comportamiento original con delay
+      final random = math.Random();
+      int baseTime = 300;
+      int complexityTime = (text.length * 10).clamp(0, 1000);
+      int responseComplexity = (botResponse.answer.length * 3).clamp(0, 300);
+      int randomVariation = random.nextInt(300);
+      int totalTTR =
+          (baseTime + complexityTime + responseComplexity + randomVariation)
+              .clamp(800, 3000);
 
-    Future.delayed(Duration(milliseconds: totalTTR), () {
-      if (mounted) {
-        setState(() {
-          _isTyping = false;
-        });
-        _typingController.stop();
+      Future.delayed(Duration(milliseconds: totalTTR), () {
+        if (mounted) {
+          setState(() {
+            _isTyping = false;
+          });
+          _typingController.stop();
 
-        final messageId = DateTime.now().millisecondsSinceEpoch.toString();
-        addMessage(
-          sender: "bot",
-          text: botResponse.answer,
-          messageId: messageId,
-          source: botResponse.source,
-          link: botResponse.link, // Pasar el link al mensaje
-        );
+          final messageId = DateTime.now().millisecondsSinceEpoch.toString();
+          addMessage(
+            sender: "bot",
+            text: botResponse.answer,
+            messageId: messageId,
+            source: botResponse.source,
+            link: botResponse.link,
+          );
 
-        print('🔍 Procesando acción: "${botResponse.action}"');
-        
-        if (botResponse.action == "open_whatsapp") {
-          print('📱 Abriendo WhatsApp...');
-          _launchWhatsApp();
-        } else if (botResponse.action == "query_openai") {
-          print('🤖 Activando consulta a OpenAI para: "$text"');
-          _handleOpenAIQuery(text);
-        } else {
-          print('💬 Respuesta estándar de FAQ');
-          // Si es una respuesta estándar, pide feedback
-          if (botResponse.isStandardResponse) {
-            addMessage(
-              sender: "bot",
-              text: "¿Fue útil esta información?",
-              type: "feedback",
-              messageId: messageId,
-            );
+          if (botResponse.action == "open_whatsapp") {
+            print('📱 Abriendo WhatsApp...');
+            _launchWhatsApp();
+          } else {
+            print('💬 Respuesta estándar de FAQ');
+            if (botResponse.isStandardResponse) {
+              addMessage(
+                sender: "bot",
+                text: "¿Fue útil esta información?",
+                type: "feedback",
+                messageId: messageId,
+              );
+            }
           }
         }
-      }
-    });
+      });
+    }
   }
 
   void addMessage({
@@ -323,6 +325,11 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       );
 
       if (mounted) {
+        // Detener el indicador de typing
+        setState(() {
+          _isTyping = false;
+        });
+        _typingController.stop();
         if (openAIResponse.success) {
           // Respuesta exitosa de OpenAI
           final aiMessageId = DateTime.now().millisecondsSinceEpoch.toString();
@@ -358,6 +365,13 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       print('❌ Error al consultar OpenAI: $e');
       
       if (mounted) {
+
+        // Detener el indicador de typing en caso de error
+        setState(() {
+          _isTyping = false;
+        });
+        _typingController.stop();
+        
         addMessage(
           sender: "bot",
           text: "Disculpa, hay un problema técnico. Te recomiendo contactar directamente a nuestro equipo de soporte.",
