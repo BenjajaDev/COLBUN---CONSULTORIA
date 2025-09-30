@@ -1,164 +1,159 @@
+import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/foundation.dart'; // Necesario para el debugPrint
+import 'package:flutter/foundation.dart';
 
-// --- El Modelo Faq no cambia, está correcto. ---
 class Faq {
   final String id;
   final String question;
   final String answer;
-  final String? action;
+  final String? link;
   final List<String> tags;
-   final String? link; // Nuevo campo para el link
 
   Faq({
     required this.id,
     required this.question,
     required this.answer,
-    this.action,
-    this.tags = const [],
-    this.link, // Nuevo campo
+    this.link,
+    required this.tags,
   });
 
-  factory Faq.fromFirestore(Map<String, dynamic> data, String documentId) {
-    final tagsFromDb = data['tags'];
-    final List<String> tagsList =
-        tagsFromDb is List ? List<String>.from(tagsFromDb) : [];
-
+  factory Faq.fromFirestore(DocumentSnapshot doc) {
+    Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
     return Faq(
-      id: documentId,
+      id: doc.id,
       question: data['question'] ?? 'Pregunta no disponible',
       answer: data['answer'] ?? 'No se encontró respuesta.',
-      action: data['action'],
-      tags: tagsList,
-      link: data['source_url'], // Inicialización del nuevo campo
+      link: data['source_url'],
+      tags: List<String>.from(data['tags'] ?? []),
     );
   }
 }
 
-// --- La Clase de Servicio con la Lógica de Depuración Integrada ---
 class FaqService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  /// **[FUNCIÓN DE DEPURACIÓN]**
-  /// Llama a esta función desde tu UI para probar la generación de keywords de forma aislada.
-  /// Ejemplo: FaqService().testKeywordGeneration("¿Cuál es el horario de atención?");
-  void testKeywordGeneration(String testMessage) {
-    final keywords = _generateKeywordsFromText(testMessage);
-    debugPrint('--- PRUEBA DE GENERACIÓN DE KEYWORDS ---', wrapWidth: 1024);
-    debugPrint('Mensaje de entrada: "$testMessage"', wrapWidth: 1024);
-    debugPrint('Keywords generadas: $keywords', wrapWidth: 1024);
-    debugPrint('--- FIN DE LA PRUEBA ---', wrapWidth: 1024);
-  }
+  List<Faq> _faqsCache = [];
+  Map<String, double> _idfScores = {};
 
-  /// Busca la FAQ más relevante en Firestore.
-  Future<Faq?> findFaq(String userMessage) async {
-    // 1. Generar palabras clave.
-    final keywords = _generateKeywordsFromText(userMessage);
+  FaqService();
 
-    if (keywords.isEmpty) {
-      debugPrint('DEBUG: No se generaron keywords para "$userMessage"',
-          wrapWidth: 1024);
-      return null;
-    }
-    debugPrint('DEBUG: Buscando en Firestore con keywords: $keywords',
-        wrapWidth: 1024);
-
-    try {
-      // 2. Consultar documentos candidatos.
-      final querySnapshot = await _db
-          .collection('faqs')
-          .where('tags', arrayContainsAny: keywords)
-          .limit(10)
-          .get();
-
-      if (querySnapshot.docs.isEmpty) {
-        debugPrint(
-            'DEBUG: Firestore no encontró NINGÚN documento con esas keywords.',
-            wrapWidth: 1024);
-        return null;
-      }
-
-      debugPrint(
-          'DEBUG: Firestore encontró ${querySnapshot.docs.length} documentos candidatos.',
-          wrapWidth: 1024);
-
-      // 3. Sistema de Puntuación (Scoring).
-      Faq? bestMatch;
-      int maxScore = 0;
-
-      debugPrint('--- INICIO SCORING ---', wrapWidth: 1024);
-      for (var doc in querySnapshot.docs) {
-        final faq = Faq.fromFirestore(doc.data(), doc.id);
-        int currentScore = 0;
-
-        for (String keyword in keywords) {
-          if (faq.tags.contains(keyword)) {
-            currentScore++;
-          }
-        }
-
-        // Imprime el análisis de cada candidato
-        debugPrint(
-            'Candidato: "${faq.question}" | Puntaje: $currentScore | Tags en DB: ${faq.tags}',
-            wrapWidth: 1024);
-
-        if (currentScore > maxScore ||
-            (currentScore > 0 &&
-                currentScore == maxScore &&
-                (bestMatch == null ||
-                    faq.tags.length < bestMatch.tags.length))) {
-          maxScore = currentScore;
-          bestMatch = faq;
-        }
-      }
-      debugPrint('--- FIN SCORING ---', wrapWidth: 1024);
-
-      // 4. Devolver el mejor resultado.
-      if (maxScore > 0) {
-        debugPrint(
-            '✅ MEJOR RESULTADO: "${bestMatch?.question}" con puntaje $maxScore',
-            wrapWidth: 1024);
-        return bestMatch;
-      } else {
-        debugPrint(
-            '⚠️ Ningún candidato tuvo puntaje positivo. No se encontró respuesta relevante.',
-            wrapWidth: 1024);
-        return null;
-      }
-    } catch (e) {
-      debugPrint('❌ ERROR en la consulta a Firestore: $e', wrapWidth: 1024);
-      return null;
-    }
-  }
-
-  /// Obtiene todos los documentos de la colección 'faqs'.
-  Future<List<Faq>> getAllFaqs() async {
+  Future<void> loadFaqsAndCalculateScores() async {
+    if (_faqsCache.isNotEmpty) return;
     try {
       final querySnapshot = await _db.collection('faqs').get();
-      return querySnapshot.docs
-          .map((doc) => Faq.fromFirestore(doc.data(), doc.id))
-          .toList();
+      _faqsCache =
+          querySnapshot.docs.map((doc) => Faq.fromFirestore(doc)).toList();
+      _calculateIdfScores();
+      debugPrint(
+          "✅ Búsqueda Ponderada: ${_faqsCache.length} FAQs cargadas y ${_idfScores.length} scores calculados.");
     } catch (e) {
-      debugPrint('Error al obtener todas las FAQs: $e', wrapWidth: 1024);
-      return [];
+      debugPrint("❌ Error al cargar FAQs: $e");
     }
   }
 
-  // ========================================================================
-  // LÓGICA DE NORMALIZACIÓN - VERSIÓN ESPEJO DEL SCRIPT DE NODE.JS
-  // (Esta parte no se modifica, ya que asumimos que es correcta)
-  // ========================================================================
+  void _calculateIdfScores() {
+    if (_faqsCache.isEmpty) return;
+    final docFrequencies = <String, int>{};
+    final totalDocuments = _faqsCache.length;
+    for (final faq in _faqsCache) {
+      for (final tag in faq.tags.toSet()) {
+        docFrequencies[tag] = (docFrequencies[tag] ?? 0) + 1;
+      }
+    }
+    _idfScores.clear();
+    for (final entry in docFrequencies.entries) {
+      _idfScores[entry.key] = log(totalDocuments / entry.value);
+    }
+  }
 
+  Future<Faq?> findFaq(String userMessage) async {
+    if (_faqsCache.isEmpty) return null;
+
+    final keywords = _generateKeywordsFromText(userMessage);
+    if (keywords.isEmpty) return null;
+
+    // CAPA 1: BÚSQUEDA DE ALTA CONFIANZA
+    for (final faq in _faqsCache) {
+      final faqTags = faq.tags.toSet();
+      if (keywords.every((keyword) => faqTags.contains(keyword))) {
+        debugPrint(
+            "✅ Coincidencia de Alta Confianza encontrada: '${faq.question}'");
+        return faq;
+      }
+    }
+
+    // CAPA 2: BÚSQUEDA PONDERADA (TF-IDF)
+    Faq? bestMatch;
+    double highestScore = 0.0;
+    for (final faq in _faqsCache) {
+      double currentScore = 0.0;
+      for (final keyword in keywords) {
+        if (faq.tags.contains(keyword)) {
+          currentScore += _idfScores[keyword] ?? 0.0;
+        }
+      }
+      if (currentScore > highestScore) {
+        highestScore = currentScore;
+        bestMatch = faq;
+      }
+    }
+
+    // CAPA 3: UMBRAL DE CONFIANZA
+    const double CONFIDENCE_THRESHOLD = 0.8; // Volvemos a un umbral razonable
+    if (highestScore < CONFIDENCE_THRESHOLD) {
+      debugPrint(
+          "ℹ️ Puntuación baja (${highestScore.toStringAsFixed(2)}). Derivando a IA.");
+      return null;
+    }
+
+    // --- ¡NUEVO! CAPA 4: REGLA DE VETO ---
+    // Verificamos que la mejor respuesta contenga la palabra clave más importante de la pregunta.
+    if (bestMatch != null) {
+      // Encontrar la keyword más importante (la que tiene el score IDF más alto) de la pregunta del usuario.
+      String criticalKeyword = '';
+      double maxIdf = 0.0;
+      for (final keyword in keywords) {
+        final score = _idfScores[keyword] ?? 0.0;
+        if (score > maxIdf) {
+          maxIdf = score;
+          criticalKeyword = keyword;
+        }
+      }
+
+      // Si la mejor coincidencia NO contiene esta palabra crítica, la vetamos.
+      if (criticalKeyword.isNotEmpty &&
+          !bestMatch.tags.contains(criticalKeyword)) {
+        debugPrint(
+            "❌ VETO: La mejor coincidencia '${bestMatch.question}' no contiene la palabra clave crítica '${criticalKeyword}'. Derivando a IA.");
+        return null;
+      }
+    }
+
+    debugPrint(
+        "✅ Coincidencia Válida: '${bestMatch?.question}' (Score: ${highestScore.toStringAsFixed(2)})");
+    return bestMatch;
+  }
+
+  Future<List<Faq>> getAllFaqs() async {
+    if (_faqsCache.isEmpty) await loadFaqsAndCalculateScores();
+    return _faqsCache;
+  }
+
+  // El resto del código (generación de keywords, sinónimos, etc.) permanece igual.
   List<String> _generateKeywordsFromText(String text) {
-    String initialText = text.toLowerCase().trim();
-    List<String> words = initialText.split(RegExp(r'\s+'));
-    Set<String> keywords = {};
+    final keywords = <String>{};
+    final initialText = text.toLowerCase().trim();
+    final words = initialText.split(RegExp(r'[\s,\.;\?¿¡!]+'));
 
     for (String word in words) {
-      String cleanWord = word.replaceAll(RegExp(r'[^a-zA-Z0-9_]'), '');
-      if (cleanWord.length > 3 && !_excludeWords.contains(cleanWord)) {
-        String normalizedWord = _normalizeChars(cleanWord);
-        String finalWord = _synonyms[normalizedWord] ?? normalizedWord;
+      final cleanWord = word.replaceAll(RegExp(r'[^a-zA-Z0-9áéíóúñü]'), '');
+      final normalizedForFilter = _normalizeChars(cleanWord);
+
+      if (cleanWord.length > 3 &&
+          !_excludeWords.contains(normalizedForFilter)) {
+        keywords.add(cleanWord);
+        final normalizedWord = _normalizeChars(cleanWord);
+        final finalWord = _synonyms[normalizedWord] ?? normalizedWord;
         keywords.add(finalWord);
       }
     }
@@ -166,20 +161,23 @@ class FaqService {
   }
 
   String _normalizeChars(String s) {
-    const replacements = {
-      'á': 'a',
-      'é': 'e',
-      'í': 'i',
-      'ó': 'o',
-      'ú': 'u',
-      'ñ': 'n',
-      'ü': 'u'
-    };
-    String result = s;
-    replacements.forEach((from, to) {
-      result = result.replaceAll(from, to);
-    });
-    return result;
+    return s
+        .replaceAll('á', 'a')
+        .replaceAll('é', 'e')
+        .replaceAll('í', 'i')
+        .replaceAll('ó', 'o')
+        .replaceAll('ú', 'u')
+        .replaceAll('ä', 'a')
+        .replaceAll('ë', 'e')
+        .replaceAll('ï', 'i')
+        .replaceAll('ö', 'o')
+        .replaceAll('ü', 'u')
+        .replaceAll('à', 'a')
+        .replaceAll('è', 'e')
+        .replaceAll('ì', 'i')
+        .replaceAll('ò', 'o')
+        .replaceAll('ù', 'u')
+        .replaceAll('ñ', 'n');
   }
 
   static const Map<String, String> _synonyms = {
@@ -187,6 +185,7 @@ class FaqService {
     'comuna': 'municipalidad',
     'horarios': 'horario',
     'atencion': 'servicio',
+    'servicios': 'servicio',
     'oficinas': 'oficina',
     'telefono': 'contacto',
     'direccion': 'ubicacion',
@@ -224,13 +223,13 @@ class FaqService {
     'fiestas': 'eventos',
     'festivales': 'eventos',
     'celebraciones': 'eventos',
-    'alojamiento': 'hospedeje',
-    'cabañas': 'hospedeje',
-    'hoteles': 'hospedeje',
-    'camping': 'hospedeje',
+    'alojamiento': 'hospedaje',
+    'cabañas': 'hospedaje',
+    'hoteles': 'hospedaje',
+    'camping': 'hospedaje',
     'gastronomia': 'comida',
-    'comida': 'gastronomia',
     'restaurantes': 'comida',
+    'comida': 'gastronomia',
     'transporte': 'movilidad',
     'vehiculo': 'movilidad',
     'clima': 'tiempo',
@@ -247,10 +246,8 @@ class FaqService {
     'deportes': 'actividad_fisica',
     'talleres': 'actividades_culturales',
     'compras': 'artesanias',
-    'souvenirs': 'artesanias',
-    'servicios': 'servicio'
+    'souvenirs': 'artesanias'
   };
-
   static const Set<String> _excludeWords = {
     'como',
     'donde',

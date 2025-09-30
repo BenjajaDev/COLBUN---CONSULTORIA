@@ -1,26 +1,43 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart'; // <- Importa Firebase Core
-import 'package:flutter_dotenv/flutter_dotenv.dart'; // <- Importa flutter_dotenv
-import 'firebase_options.dart'; // <- Importa tus opciones de Firebase
-import 'features/home/screen/home_screen.dart';
-//Importaciones flutter_bloc
+import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:consultoria_chat_bot/services/firestore_faq_service.dart';
+import 'package:consultoria_chat_bot/services/openai_service.dart';
+import 'features/home/screen/home_screen.dart';
 import 'features/chatbot/bloc/theme_bloc.dart';
 import 'features/chatbot/bloc/faq_bloc.dart';
+import 'firebase_options.dart';
 
-// La función main ahora es async y espera la inicialización de Firebase
 void main() async {
   // Asegura que todos los bindings de Flutter estén inicializados
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // Carga las variables de entorno desde .env
+
+  // Carga las variables de entorno desde el archivo .env
   await dotenv.load(fileName: ".env");
 
   // Inicializa Firebase para la plataforma actual
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  runApp(const MyApp());
+
+  // --- INICIALIZACIÓN DE SERVICIOS ---
+  final faqService = FaqService();
+  final openAIService = OpenAIService();
+
+  // Carga las FAQs y calcula los puntajes de búsqueda al iniciar la app.
+  await faqService.loadFaqsAndCalculateScores();
+
+  runApp(
+    // Provee los servicios a toda la aplicación para que sean accesibles.
+    MultiRepositoryProvider(
+      providers: [
+        RepositoryProvider.value(value: faqService),
+        RepositoryProvider.value(value: openAIService),
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -28,16 +45,14 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-
     return MultiBlocProvider(
-      //MultiBloc provider para gestion de estado de tema y mostrado de faqs
       providers: [
         BlocProvider(create: (context) => ThemeBloc()),
         BlocProvider(create: (context) => FaqBloc())
       ],
       child: BlocBuilder<ThemeBloc, ThemeState>(builder: (context, state) {
         return MaterialApp(
-          title: 'Mi Aplicación',
+          title: 'Asistente Colbún',
           theme: ThemeData(
             colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
             fontFamily: 'Poppins',
@@ -45,10 +60,10 @@ class MyApp extends StatelessWidget {
           ),
           darkTheme: ThemeData.dark().copyWith(
               // Opcional: define un tema oscuro explícito
-              // ... tus personalizaciones para el tema oscuro
               ),
           themeMode: state.isDarkMode ? ThemeMode.dark : ThemeMode.light,
           home: const HomeScreen(),
+          debugShowCheckedModeBanner: false,
         );
       }),
     );
