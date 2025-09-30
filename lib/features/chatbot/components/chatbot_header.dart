@@ -48,6 +48,7 @@ class ChatbotHeader extends StatelessWidget implements PreferredSizeWidget {
             style: TextStyle(
               fontSize: 28,
               fontWeight: FontWeight.w600,
+              fontFamily: 'Poppins',
               color: Color(0xFFFFFFFF),
             ),
           ),
@@ -117,6 +118,7 @@ class ChatbotHeader extends StatelessWidget implements PreferredSizeWidget {
                           'Contactar por WhatsApp',
                           style: TextStyle(
                             color: Colors.white,
+                            fontFamily: 'Poppins',
                             fontWeight: FontWeight.w400,
                           ),
                         ),
@@ -143,6 +145,7 @@ class ChatbotHeader extends StatelessWidget implements PreferredSizeWidget {
                           style: TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.w400,
+                            fontFamily: 'Poppins',
                           ),
                         ),
                       ),

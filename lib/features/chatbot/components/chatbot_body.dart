@@ -109,6 +109,7 @@ class ChatbotBody extends StatelessWidget {
               child: Text(option,
               style: const TextStyle(
                 fontSize: 16,
+                fontFamily: 'Poppins',
                 fontWeight: FontWeight.w600,
               ),
               ),
@@ -142,6 +143,7 @@ class ChatbotBody extends StatelessWidget {
                   'Sí, fue útil',
                   style: TextStyle(
                     color: Colors.green,
+                    fontFamily: 'Poppins',
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -163,6 +165,7 @@ class ChatbotBody extends StatelessWidget {
                   'No, no fue útil',
                   style: TextStyle(
                     color: Colors.red,
+                    fontFamily: 'Poppins',
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -254,6 +257,7 @@ class ChatbotBody extends StatelessWidget {
                                 ? Colors.white
                                 : Colors.black87),
                         fontSize: 16,
+                        fontFamily: 'Poppins',
                         fontWeight: FontWeight.w400,
                       ),
                     ),
@@ -287,8 +291,9 @@ class ChatbotBody extends StatelessWidget {
                                   'Fuente',
                                   style: TextStyle(
                                     color: isDarkMode ? Colors.blue[200] : Colors.blue[700],
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
+                                    fontSize: 16,
+                                    fontFamily: 'Poppins',
+                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
                               ),
@@ -320,7 +325,8 @@ class ChatbotBody extends StatelessWidget {
                                   "Preguntas frecuentes",
                                   style: TextStyle(
                                     color: Color(0xff4861DB),
-                                    fontSize: 16,
+                                    fontFamily: 'Poppins',
+                                    fontSize: 18,
                                     fontWeight: FontWeight.w600, 
                                   ),
                                 ) 
