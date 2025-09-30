@@ -12,6 +12,8 @@ import '../utils/app_colors.dart';
 import '../components/chatbot_header.dart';
 import '../components/chatbot_body.dart';
 import '../components/chatbot_footer.dart';
+import '../../../services/firestore_conn.dart';
+import '../../../services/openai_service.dart';
 
 class ChatbotScreen extends StatefulWidget {
   const ChatbotScreen({super.key});
@@ -28,6 +30,14 @@ class _ChatbotScreenState extends State<ChatbotScreen>
   Animation<double>? _typingAnimation;
   Map<String, dynamic>? _faqs;
   final ScrollController _scrollController = ScrollController();
+  
+  // Servicios
+  final FirestoreConnection _firestoreService = FirestoreConnection();
+  final OpenAIService _openAIService = OpenAIService();
+  
+  // ID de conversación actual
+  String? _currentConversationId;
+  bool _isLoadingConversation = false;
 
   @override
   void initState() {
@@ -48,6 +58,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       curve: Curves.easeInOut,
     ));
     _loadFaqs();
+    _initializeConversation();
   }
 
   @override
@@ -62,15 +73,55 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     final data = await json.decode(response);
     setState(() {
       _faqs = data;
-      _initializeChat();
     });
+  }
+
+  /// Inicializa la conversación cargando mensajes existentes o creando una nueva
+  Future<void> _initializeConversation() async {
+    setState(() {
+      _isLoadingConversation = true;
+    });
+
+    try {
+      // Obtener o crear conversación
+      _currentConversationId = await _firestoreService.getOrCreateConversation();
+      print('🔗 Conversación inicializada: $_currentConversationId');
+
+      // Cargar mensajes existentes
+      if (_currentConversationId != null) {
+        final existingMessages = await _firestoreService.loadConversationMessages(_currentConversationId!);
+        
+        if (existingMessages.isNotEmpty) {
+          // Hay mensajes previos, cargarlos
+          setState(() {
+            messages.clear();
+            messages.addAll(existingMessages);
+            _messageIdCounter = messages.length;
+          });
+          print('📥 Cargados ${existingMessages.length} mensajes existentes');
+        } else {
+          // No hay mensajes previos, inicializar chat nuevo
+          _initializeChat();
+        }
+      } else {
+        // Error al obtener conversación, inicializar chat normal
+        _initializeChat();
+      }
+
+    } catch (e) {
+      print('❌ Error al inicializar conversación: $e');
+      _initializeChat();
+    } finally {
+      setState(() {
+        _isLoadingConversation = false;
+      });
+    }
   }
 
   void _initializeChat() {
     addMessage(
         sender: "bot",
-        text:
-            "¡Hola! Soy el asistente virtual de Colbún. ¿En qué puedo ayudarte?",
+        text: "¡Hola! Soy el asistente virtual de Colbún. ¿En qué puedo ayudarte?",
         type: "welcome_message");
   }
 
@@ -158,24 +209,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
         if (botResponse.action == "open_whatsapp") {
           _launchWhatsApp();
         } else if (botResponse.action == "query_openai") {
-          Future.delayed(const Duration(seconds: 2), () {
-            if (mounted) {
-              final aiMessageId =
-                  DateTime.now().millisecondsSinceEpoch.toString();
-              addMessage(
-                sender: "bot",
-                text: "Respuesta simulada de la IA para: \"$text\".",
-                messageId: aiMessageId,
-              );
-              // Pide feedback para la respuesta de la IA
-              addMessage(
-                sender: "bot",
-                text: "¿Fue útil esta información?",
-                type: "feedback",
-                messageId: aiMessageId,
-              );
-            }
-          });
+          _handleOpenAIQuery(text);
         } else {
           // Si es una respuesta estándar, pide feedback
           if (botResponse.isStandardResponse) {
@@ -197,7 +231,8 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     String? type,
     List<String>? options,
     String? messageId,
-    int? insertAtIndex, // Nuevo parámetro opcional
+    int? insertAtIndex,
+    bool saveToDatabase = true, // Nuevo parámetro para controlar si se guarda
   }) {
     setState(() {
       final newMessage = {
@@ -219,6 +254,20 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       }
     });
 
+    // Guardar en Firestore si es un mensaje de texto válido y la conversación está inicializada
+    if (saveToDatabase && 
+        _currentConversationId != null && 
+        text != null && 
+        text.isNotEmpty &&
+        (type == null || type == 'text' || type == 'welcome_message')) {
+      _saveMessageToFirestore(
+        sender: sender,
+        text: text,
+        type: type ?? 'text',
+        messageId: messageId?.toString(),
+      );
+    }
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
@@ -230,6 +279,93 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     });
   }
 
+  /// Guarda un mensaje en Firestore de forma asíncrona
+  Future<void> _saveMessageToFirestore({
+    required String sender,
+    required String text,
+    required String type,
+    String? messageId,
+  }) async {
+    if (_currentConversationId == null) return;
+
+    try {
+      await _firestoreService.saveMessage(
+        conversationId: _currentConversationId!,
+        sender: sender,
+        text: text,
+        type: type,
+        messageId: messageId,
+        metadata: {
+          'timestamp_local': DateTime.now().toIso8601String(),
+          'platform': 'flutter',
+        },
+      );
+    } catch (e) {
+      print('❌ Error al guardar mensaje en Firestore: $e');
+      // No interrumpir la experiencia del usuario por errores de guardado
+    }
+  }
+
+  /// Maneja consultas a OpenAI
+  Future<void> _handleOpenAIQuery(String userMessage) async {
+    try {
+      // Obtener historial de mensajes para contexto
+      final conversationHistory = _firestoreService.formatMessagesForOpenAI(
+        messages.where((m) => m['type'] == 'text' || m['type'] == null).toList()
+      );
+
+      print('🤖 Consultando OpenAI...');
+      
+      // Llamar a OpenAI
+      final openAIResponse = await _openAIService.sendMessage(
+        userMessage: userMessage,
+        conversationHistory: conversationHistory,
+      );
+
+      if (mounted) {
+        if (openAIResponse.success) {
+          // Respuesta exitosa de OpenAI
+          final aiMessageId = DateTime.now().millisecondsSinceEpoch.toString();
+          addMessage(
+            sender: "bot",
+            text: openAIResponse.message,
+            messageId: aiMessageId,
+          );
+          
+          // Pedir feedback para la respuesta de IA
+          addMessage(
+            sender: "bot",
+            text: "¿Fue útil esta información?",
+            type: "feedback",
+            messageId: aiMessageId,
+            saveToDatabase: false, // No guardar el mensaje de feedback
+          );
+          
+          print('✅ Respuesta de OpenAI: ${openAIResponse.message.substring(0, 50)}...');
+          print('📊 Tokens utilizados: ${openAIResponse.tokensUsed}');
+          
+        } else {
+          // Error en OpenAI, mostrar mensaje de fallback
+          addMessage(
+            sender: "bot",
+            text: "Lo siento, no pude procesar tu consulta en este momento. Por favor, contacta a nuestro equipo de soporte para ayuda personalizada.",
+          );
+          print('❌ Error en OpenAI: ${openAIResponse.error}');
+        }
+      }
+      
+    } catch (e) {
+      print('❌ Error al consultar OpenAI: $e');
+      
+      if (mounted) {
+        addMessage(
+          sender: "bot",
+          text: "Disculpa, hay un problema técnico. Te recomiendo contactar directamente a nuestro equipo de soporte.",
+        );
+      }
+    }
+  }
+
   void _handleFeedback(String messageId, bool wasUseful) {
     // Oculta los botones de feedback para que no se pueda volver a votar
     if (!mounted) return;
@@ -239,10 +375,20 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       if (feedbackIndex != -1) messages[feedbackIndex]['visible'] = false;
     });
 
+    // Guardar feedback en Firestore
+    if (_currentConversationId != null) {
+      _firestoreService.saveFeedback(
+        conversationId: _currentConversationId!,
+        messageId: messageId,
+        wasUseful: wasUseful,
+      );
+    }
+
     // Muestra un mensaje de agradecimiento
     addMessage(
       sender: "bot",
       text: "¡Gracias por tu feedback!",
+      saveToDatabase: false, // No guardar este mensaje de agradecimiento
     );
   }
 
@@ -330,6 +476,111 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     handleSendMessage(selectedFaq);
   }
 
+  /// Widget para mostrar indicador de carga durante la inicialización
+  Widget _buildLoadingIndicator(bool isDarkMode) {
+    return Container(
+      width: double.infinity,
+      color: isDarkMode ? AppColors.darkBackground : Colors.grey[50],
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(
+              isDarkMode ? AppColors.darkprimary : AppColors.lightprimary,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Cargando conversación...',
+            style: TextStyle(
+              color: isDarkMode ? Colors.white70 : Colors.black54,
+              fontSize: 16,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Conectando con Firestore',
+            style: TextStyle(
+              color: isDarkMode ? Colors.white38 : Colors.black38,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Método temporal para probar modelos de OpenAI
+  Future<void> _testOpenAIModels() async {
+    try {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Verificando modelos OpenAI...')),
+      );
+
+      // Obtener modelos disponibles
+      final models = await _openAIService.getAvailableModels();
+      
+      // Probar modelos específicos
+      final hasGPT35 = await _openAIService.testModelAvailability('gpt-3.5-turbo');
+      final hasGPT4 = await _openAIService.testModelAvailability('gpt-4');
+      
+      // Mostrar información en un diálogo
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('🤖 Modelos OpenAI'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('🔧 API Configurada: ${_openAIService.isConfigured() ? "✅ SÍ" : "❌ NO"}'),
+                const SizedBox(height: 8),
+                Text('📋 Modelos encontrados: ${models.length}'),
+                const SizedBox(height: 8),
+                Text('⚡ GPT-3.5-turbo: ${hasGPT35 ? "✅ Disponible" : "❌ No disponible"}'),
+                Text('🧠 GPT-4: ${hasGPT4 ? "✅ Disponible" : "❌ No disponible"}'),
+                const SizedBox(height: 16),
+                const Text('🔍 Todos los modelos:', style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                SizedBox(
+                  height: 100,
+                  child: SingleChildScrollView(
+                    child: Text(
+                      models.isEmpty ? 'No se pudieron obtener modelos' : models.join('\n'),
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  // Hacer una prueba real con OpenAI
+                  _handleOpenAIQuery('¿Cuáles son los servicios de Colbún?');
+                },
+                child: const Text('Probar IA'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cerrar'),
+              ),
+            ],
+          ),
+        );
+      }
+
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al verificar modelos: $e')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<ThemeBloc, ThemeState>(builder: (context, state) {
@@ -354,6 +605,12 @@ class _ChatbotScreenState extends State<ChatbotScreen>
               backgroundColor:
                   state.isDarkMode ? AppColors.darkBackground : Colors.grey[50],
               resizeToAvoidBottomInset: true,
+              floatingActionButton: FloatingActionButton.extended(
+                onPressed: _testOpenAIModels,
+                backgroundColor: state.isDarkMode ? AppColors.darkprimary : AppColors.lightprimary,
+                icon: const Icon(Icons.model_training, color: Colors.white),
+                label: const Text('Test IA', style: TextStyle(color: Colors.white)),
+              ),
               body: Column(
                 children: [
                   ChatbotHeader(
@@ -361,20 +618,22 @@ class _ChatbotScreenState extends State<ChatbotScreen>
                     onContactWhatsApp: _launchWhatsApp,
                   ),
                   Expanded(
-                    child: _typingAnimation != null
-                        ? ChatbotBody(
-                            isDarkMode: state.isDarkMode,
-                            messages: messages,
-                            scrollController: _scrollController,
-                            isTyping: _isTyping,
-                            typingAnimation: _typingAnimation!,
-                            onFeedback: _handleFeedback,
-                            onSendMessage: handleSendMessage,
-                            onShowFrequentlyAskedQuestions:
-                                _showFrequentlyAskedQuestions,
-                            onFaqSelected: _onFaqSelected,
-                          )
-                        : Container(),
+                    child: _isLoadingConversation
+                        ? _buildLoadingIndicator(state.isDarkMode)
+                        : _typingAnimation != null
+                            ? ChatbotBody(
+                                isDarkMode: state.isDarkMode,
+                                messages: messages,
+                                scrollController: _scrollController,
+                                isTyping: _isTyping,
+                                typingAnimation: _typingAnimation!,
+                                onFeedback: _handleFeedback,
+                                onSendMessage: handleSendMessage,
+                                onShowFrequentlyAskedQuestions:
+                                    _showFrequentlyAskedQuestions,
+                                onFaqSelected: _onFaqSelected,
+                              )
+                            : Container(),
                   ),
                   ChatbotFooter(
                     isDarkMode: state.isDarkMode,
