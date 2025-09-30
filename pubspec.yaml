@@ -28,6 +28,11 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-  
   assets:
-    - assets/faqs.json
+    - assets/fonts/
+
+  fonts:
+    - family: Poppins
+      fonts:
+        - asset: assets/fonts/Poppins-Regular.ttf
+        - asset: assets/fonts/Poppins-SemiBold.ttf

@@ -89,6 +89,8 @@ class _ChatbotFooterState extends State<ChatbotFooter> {
                 controller: _textController,
                 style: TextStyle(
                   color: widget.isDarkMode ? Colors.white : Colors.black,
+                  fontFamily: 'Poppins',
+                  fontWeight: FontWeight.w400,
                 ),
                 decoration: InputDecoration(
                   hintText: 'Escribe un mensaje',
@@ -97,7 +99,9 @@ class _ChatbotFooterState extends State<ChatbotFooter> {
                     color: widget.isDarkMode
                         ? Colors.grey[400]
                         : const Color(0xFF828282),
+                    fontFamily: 'Poppins',
                     fontWeight: FontWeight.w400,
+
                     fontSize: 16,
                   ),
                 ),
