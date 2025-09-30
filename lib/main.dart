@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart'; // <- Importa Firebase Core
-<<<<<<< HEAD
 import 'package:flutter_dotenv/flutter_dotenv.dart'; // <- Importa flutter_dotenv
-=======
->>>>>>> d097eb0d456fe583b90a20610951b8087f4da104
 import 'firebase_options.dart'; // <- Importa tus opciones de Firebase
 import 'features/home/screen/home_screen.dart';
 //Importaciones flutter_bloc
@@ -15,13 +12,10 @@ import 'features/chatbot/bloc/faq_bloc.dart';
 void main() async {
   // Asegura que todos los bindings de Flutter estén inicializados
   WidgetsFlutterBinding.ensureInitialized();
-<<<<<<< HEAD
   
   // Carga las variables de entorno desde el archivo .env
   await dotenv.load(fileName: ".env");
   
-=======
->>>>>>> d097eb0d456fe583b90a20610951b8087f4da104
   // Inicializa Firebase para la plataforma actual
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
