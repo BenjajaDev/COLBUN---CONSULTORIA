@@ -19,8 +19,11 @@ dependencies:
   url_launcher: ^6.3.2
   flutter_bloc: ^9.1.1
   path_provider: ^2.1.3
+<<<<<<< HEAD
   http: ^1.5.0
   flutter_dotenv: ^5.1.0
+=======
+>>>>>>> d097eb0d456fe583b90a20610951b8087f4da104
 
 dev_dependencies:
   flutter_test:
@@ -31,7 +34,10 @@ flutter:
   uses-material-design: true
   assets:
     - assets/fonts/
+<<<<<<< HEAD
     - .env
+=======
+>>>>>>> d097eb0d456fe583b90a20610951b8087f4da104
 
   fonts:
     - family: Poppins

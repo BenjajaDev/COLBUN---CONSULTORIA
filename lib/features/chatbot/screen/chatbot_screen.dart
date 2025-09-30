@@ -11,8 +11,11 @@ import '../utils/app_colors.dart';
 import '../components/chatbot_header.dart';
 import '../components/chatbot_body.dart';
 import '../components/chatbot_footer.dart';
+<<<<<<< HEAD
 import '../../../services/firestore_conn.dart';
 import '../../../services/openai_service.dart';
+=======
+>>>>>>> d097eb0d456fe583b90a20610951b8087f4da104
 import 'package:consultoria_chat_bot/services/firestore_faq_service.dart';
 
 class ChatbotScreen extends StatefulWidget {
@@ -30,6 +33,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
   late AnimationController _typingController;
   Animation<double>? _typingAnimation;
   final ScrollController _scrollController = ScrollController();
+<<<<<<< HEAD
   
   // Servicios
   final FirestoreConnection _firestoreService = FirestoreConnection();
@@ -38,6 +42,8 @@ class _ChatbotScreenState extends State<ChatbotScreen>
   // ID de conversación actual
   String? _currentConversationId;
   bool _isLoadingConversation = false;
+=======
+>>>>>>> d097eb0d456fe583b90a20610951b8087f4da104
 
   final FaqService _faqService = FaqService();
 
@@ -60,7 +66,11 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       curve: Curves.easeInOut,
     ));
     _loadAllFaqs();
+<<<<<<< HEAD
     _initializeConversation();
+=======
+    _initializeChat();
+>>>>>>> d097eb0d456fe583b90a20610951b8087f4da104
   }
 
   @override
@@ -81,6 +91,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     }
   }
 
+<<<<<<< HEAD
   /// Inicializa la conversación cargando mensajes existentes o creando una nueva
   Future<void> _initializeConversation() async {
     setState(() {
@@ -127,6 +138,13 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     addMessage(
         sender: "bot",
         text: "¡Hola! Soy el asistente virtual de Colbún. ¿En qué puedo ayudarte?",
+=======
+  void _initializeChat() {
+    addMessage(
+        sender: "bot",
+        text:
+            "¡Hola! Soy el asistente virtual de Colbún. ¿En qué puedo ayudarte?",
+>>>>>>> d097eb0d456fe583b90a20610951b8087f4da104
         type: "welcome_message");
   }
 
@@ -143,6 +161,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       // Se encontró una respuesta en Firestore
       return BotResponse(
         answer: localFaq.answer,
+<<<<<<< HEAD
         link: localFaq.link,
         source: 'firestore',
         isStandardResponse: true, // Para pedir feedback
@@ -155,6 +174,16 @@ class _ChatbotScreenState extends State<ChatbotScreen>
         action: "query_openai", // Esta es la clave para activar OpenAI
         source: 'ai_fallback',
         isStandardResponse: false, // No pedir feedback aquí, se hará después de la respuesta de IA
+=======
+        link: localFaq.link, // Pasar el link desde Firestore
+        // ...
+      );
+    } else {
+      // Si no, se procede a la lógica de fallback
+      return BotResponse(
+        answer: "No encontré una respuesta. Consultando a la IA...",
+        // ...
+>>>>>>> d097eb0d456fe583b90a20610951b8087f4da104
       );
     }
   }
@@ -195,6 +224,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
           link: botResponse.link, // Pasar el link al mensaje
         );
 
+<<<<<<< HEAD
         print('🔍 Procesando acción: "${botResponse.action}"');
         
         if (botResponse.action == "open_whatsapp") {
@@ -205,6 +235,30 @@ class _ChatbotScreenState extends State<ChatbotScreen>
           _handleOpenAIQuery(text);
         } else {
           print('💬 Respuesta estándar de FAQ');
+=======
+        if (botResponse.action == "open_whatsapp") {
+          _launchWhatsApp();
+        } else if (botResponse.action == "query_openai") {
+          Future.delayed(const Duration(seconds: 2), () {
+            if (mounted) {
+              final aiMessageId =
+                  DateTime.now().millisecondsSinceEpoch.toString();
+              addMessage(
+                sender: "bot",
+                text: "Respuesta simulada de la IA para: \"$text\".",
+                messageId: aiMessageId,
+              );
+              // Pide feedback para la respuesta de la IA
+              addMessage(
+                sender: "bot",
+                text: "¿Fue útil esta información?",
+                type: "feedback",
+                messageId: aiMessageId,
+              );
+            }
+          });
+        } else {
+>>>>>>> d097eb0d456fe583b90a20610951b8087f4da104
           // Si es una respuesta estándar, pide feedback
           if (botResponse.isStandardResponse) {
             addMessage(
@@ -226,9 +280,14 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     List<String>? options,
     String? messageId,
     int? insertAtIndex,
+<<<<<<< HEAD
     bool saveToDatabase = true, // Parámetro para controlar si se guarda
     String? source, // Parámetro opcional
     String? link, // Parámetro para el link
+=======
+    String? source, // Nuevo parámetro opcional
+    String? link, // Nuevo parámetro para el link
+>>>>>>> d097eb0d456fe583b90a20610951b8087f4da104
   }) {
     setState(() {
       final newMessage = {
@@ -252,6 +311,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       }
     });
 
+<<<<<<< HEAD
     // Guardar en Firestore si es un mensaje de texto válido y la conversación está inicializada
     if (saveToDatabase && 
         _currentConversationId != null && 
@@ -266,6 +326,8 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       );
     }
 
+=======
+>>>>>>> d097eb0d456fe583b90a20610951b8087f4da104
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
@@ -277,6 +339,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     });
   }
 
+<<<<<<< HEAD
   /// Guarda un mensaje en Firestore de forma asíncrona
   Future<void> _saveMessageToFirestore({
     required String sender,
@@ -366,6 +429,8 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     }
   }
 
+=======
+>>>>>>> d097eb0d456fe583b90a20610951b8087f4da104
   void _handleFeedback(String messageId, bool wasUseful) {
     // Oculta los botones de feedback para que no se pueda volver a votar
     if (!mounted) return;
@@ -375,6 +440,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       if (feedbackIndex != -1) messages[feedbackIndex]['visible'] = false;
     });
 
+<<<<<<< HEAD
     // Guardar feedback en Firestore
     if (_currentConversationId != null) {
       _firestoreService.saveFeedback(
@@ -384,11 +450,16 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       );
     }
 
+=======
+>>>>>>> d097eb0d456fe583b90a20610951b8087f4da104
     // Muestra un mensaje de agradecimiento
     addMessage(
       sender: "bot",
       text: "¡Gracias por tu feedback!",
+<<<<<<< HEAD
       saveToDatabase: false, // No guardar este mensaje de agradecimiento
+=======
+>>>>>>> d097eb0d456fe583b90a20610951b8087f4da104
     );
   }
 
@@ -471,6 +542,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     handleSendMessage(selectedFaq);
   }
 
+<<<<<<< HEAD
   /// Widget para mostrar indicador de carga durante la inicialización
   Widget _buildLoadingIndicator(bool isDarkMode) {
     return Container(
@@ -583,6 +655,8 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     }
   }
 
+=======
+>>>>>>> d097eb0d456fe583b90a20610951b8087f4da104
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<ThemeBloc, ThemeState>(builder: (context, state) {
@@ -607,6 +681,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
               backgroundColor:
                   state.isDarkMode ? AppColors.darkBackground : Colors.grey[50],
               resizeToAvoidBottomInset: true,
+<<<<<<< HEAD
               floatingActionButton: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -619,6 +694,8 @@ class _ChatbotScreenState extends State<ChatbotScreen>
                   ),
                 ],
               ),
+=======
+>>>>>>> d097eb0d456fe583b90a20610951b8087f4da104
               body: Column(
                 children: [
                   ChatbotHeader(
@@ -626,6 +703,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
                     onContactWhatsApp: _launchWhatsApp,
                   ),
                   Expanded(
+<<<<<<< HEAD
                     child: _isLoadingConversation
                         ? _buildLoadingIndicator(state.isDarkMode)
                         : _typingAnimation != null
@@ -642,6 +720,22 @@ class _ChatbotScreenState extends State<ChatbotScreen>
                                 onFaqSelected: _onFaqSelected,
                               )
                             : Container(),
+=======
+                    child: _typingAnimation != null
+                        ? ChatbotBody(
+                            isDarkMode: state.isDarkMode,
+                            messages: messages,
+                            scrollController: _scrollController,
+                            isTyping: _isTyping,
+                            typingAnimation: _typingAnimation!,
+                            onFeedback: _handleFeedback,
+                            onSendMessage: handleSendMessage,
+                            onShowFrequentlyAskedQuestions:
+                                _showFrequentlyAskedQuestions,
+                            onFaqSelected: _onFaqSelected,
+                          )
+                        : Container(),
+>>>>>>> d097eb0d456fe583b90a20610951b8087f4da104
                   ),
                   ChatbotFooter(
                     isDarkMode: state.isDarkMode,

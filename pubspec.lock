@@ -230,6 +230,7 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "9.1.1"
+<<<<<<< HEAD
   flutter_dotenv:
     dependency: "direct main"
     description:
@@ -238,6 +239,8 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "5.2.1"
+=======
+>>>>>>> d097eb0d456fe583b90a20610951b8087f4da104
   flutter_lints:
     dependency: "direct dev"
     description:
@@ -256,6 +259,7 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
+<<<<<<< HEAD
   http:
     dependency: "direct main"
     description:
@@ -264,6 +268,8 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.5.0"
+=======
+>>>>>>> d097eb0d456fe583b90a20610951b8087f4da104
   http_parser:
     dependency: transitive
     description:

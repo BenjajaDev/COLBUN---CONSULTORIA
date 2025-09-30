@@ -14,6 +14,7 @@ En este repositorio están albergados los equipos PCIS1 (Chatbot), PCIS2 Y PCIS3
 
 ### 🔧 Configuración de Variables de Entorno
 
+<<<<<<< HEAD
 **IMPORTANTE**: Este proyecto utiliza variables de entorno para proteger información sensible como las API keys.
 
 #### Paso 1: Crear archivo de configuración
@@ -56,3 +57,15 @@ El chatbot está especializado en la Municipalidad de Colbún y tiene limitacion
 - Solo responde consultas sobre Colbún y su comuna
 - Información turística, servicios municipales, eventos locales
 - Fuentes oficiales de visitacolbun.cl
+=======
+For help getting started with Flutter development, view the
+[online documentation](https://docs.flutter.dev/), which offers tutorials,
+samples, guidance on mobile development, and a full API reference.
+<<<<<<< HEAD
+>>>>>>> main
+=======
+
+# COLBUN---CONSULTORIA
+En este repositorio están albergados los equipos PCIS1 (Chatbot), PCIS2 Y PCIS3 (Rutas).
+>>>>>>> a1e5ef9c7910876421df87eae1962758e0bb50fe
+>>>>>>> d097eb0d456fe583b90a20610951b8087f4da104
