@@ -460,7 +460,6 @@ class _MapPageState extends State<MapPage> {
                             Marker(
                               point: state.userLocation!,
                               child: Transform.rotate(
-
                                 angle:
                                     state.heading *
                                     (3.1415926535 /
@@ -472,7 +471,6 @@ class _MapPageState extends State<MapPage> {
                                     shape: BoxShape.circle,
                                   ),
                                   child: const Icon(
-
                                     Icons.navigation, // Flecha tipo brujula
 
                                     color: Colors.white,
@@ -508,12 +506,10 @@ class _MapPageState extends State<MapPage> {
                     child: FloatingActionButton(
                       backgroundColor: const Color(0xFF4D67AE),
                       onPressed: () {
-
                         mapController.move(
                           state.userLocation!,
                           15,
                         ); // ðŸ‘ˆ Centrar
-
                       },
                       child: const Icon(Icons.my_location, color: Colors.white),
                     ),
@@ -530,7 +526,6 @@ class _MapPageState extends State<MapPage> {
                     },
 
                     child: DraggableScrollableSheet(
-
                       initialChildSize:
                           _initialSheetChildSize, // Altura inicial (25%)
                       minChildSize: 0.2, // Altura mÃ­nima
@@ -599,7 +594,6 @@ class _MapPageState extends State<MapPage> {
                                           fontSize: 18,
                                           fontWeight: FontWeight.bold,
                                         ),
-
                                       ),
                                     ),
                                     if (selectedRoute != null)
@@ -861,7 +855,7 @@ class _MapPageState extends State<MapPage> {
                             icon: const Icon(Icons.filter_list),
                           ),
 
-                          const SizedBox(width: 4.0),
+                          /* const SizedBox(width: 4.0),
                           IconButton(
                             style: buttonStyle,
                             onPressed: () {
@@ -869,7 +863,7 @@ class _MapPageState extends State<MapPage> {
                               _sendQueryUpdate(state, searchController.text);
                             },
                             icon: const Icon(Icons.search),
-                          ),
+                          ),*/
                           const SizedBox(width: 4.0),
                           IconButton(
                             style: IconButton.styleFrom(
