@@ -99,7 +99,7 @@ class FaqService {
     }
 
     // CAPA 3: UMBRAL DE CONFIANZA
-    const double CONFIDENCE_THRESHOLD = 0.8; // Volvemos a un umbral razonable
+    const double CONFIDENCE_THRESHOLD = 20.0; // Volvemos a un umbral razonable
     if (highestScore < CONFIDENCE_THRESHOLD) {
       debugPrint(
           "ℹ️ Puntuación baja (${highestScore.toStringAsFixed(2)}). Derivando a IA.");
