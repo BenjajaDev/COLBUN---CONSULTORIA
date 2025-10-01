@@ -1,4 +1,5 @@
-import 'package:consultoria_chat_bot/blocs/poi_bloc.dart';
+﻿import 'package:consultoria_chat_bot/blocs/poi_bloc.dart';
+import 'package:consultoria_chat_bot/blocs/favorites_cubit.dart';
 import 'package:consultoria_chat_bot/events/poi_event.dart';
 import 'package:consultoria_chat_bot/l10n/app_localizations.dart';
 import 'package:consultoria_chat_bot/model/poi_model.dart';
@@ -18,7 +19,6 @@ class PoiScreen extends StatefulWidget {
 class _PoiScreenState extends State<PoiScreen> {
   Color colbunBlue = const Color(0xFF4D67AE);
   int _selectedIndex = 0;
-  bool _isFavorito = false;
   String? valorSeleccionado = 'Otoño';
   final List<String> opciones = ['Otoño', 'Invierno', 'Primavera', 'Verano'];
   final Map<String, Map<String, Color>> chipsColors = {
@@ -41,7 +41,9 @@ class _PoiScreenState extends State<PoiScreen> {
     },
     {
       'nombre': 'Mirador Los Andes',
+
       'categorias': ['paisajes', 'fotografía'],
+
       'actividades': [],
     },
   ];
@@ -53,12 +55,6 @@ class _PoiScreenState extends State<PoiScreen> {
   // Overlay (info)
   OverlayEntry? _overlayEntry;
   final GlobalKey _iconKey = GlobalKey();
-
-  void _togglefavorito() {
-    setState(() {
-      _isFavorito = !_isFavorito;
-    });
-  }
 
   void _showOverlay() {
     // remove any existing
@@ -260,14 +256,29 @@ class _PoiScreenState extends State<PoiScreen> {
                               ),
                             ),
                             // Icono de favorito
-                            IconButton(
-                              icon: Icon(
-                                _isFavorito
-                                    ? Icons.favorite
-                                    : Icons.favorite_border,
-                                color: _isFavorito ? Colors.pink : Colors.grey,
-                              ),
-                              onPressed: _togglefavorito,
+
+                            BlocBuilder<FavoritesCubit, FavoritesState>(
+                              builder: (context, favoritesState) {
+                                final isFavorite = favoritesState.contains(
+                                  widget.poi.id,
+                                );
+                                return IconButton(
+                                  icon: Icon(
+                                    isFavorite
+                                        ? Icons.favorite
+                                        : Icons.favorite_border,
+                                    color: isFavorite
+                                        ? Colors.pink
+                                        : Colors.grey,
+                                  ),
+                                  onPressed: () {
+                                    context
+                                        .read<FavoritesCubit>()
+                                        .toggleFavorite(widget.poi);
+                                  },
+                                );
+                              },
+
                             ),
                           ],
                         ),
@@ -670,7 +681,7 @@ class _PoiScreenState extends State<PoiScreen> {
                                                         "${rec['distancia']} km",
                                                       ),
                                                       onTap: () {
-                                                        // Acción al tocar el POI cercano
+                                                        // AcciÃ³n al tocar el POI cercano
                                                       },
                                                     ),
                                                   ),

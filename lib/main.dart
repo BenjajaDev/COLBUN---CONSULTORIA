@@ -1,5 +1,6 @@
-import 'package:consultoria_chat_bot/blocs/map_bloc.dart';
+﻿import 'package:consultoria_chat_bot/blocs/map_bloc.dart';
 import 'package:consultoria_chat_bot/blocs/poi_bloc.dart';
+import 'package:consultoria_chat_bot/blocs/favorites_cubit.dart';
 import 'package:consultoria_chat_bot/l10n/app_localizations.dart';
 import 'package:consultoria_chat_bot/screens/map_page.dart';
 import 'package:consultoria_chat_bot/services/firestore_service.dart';
@@ -24,6 +25,7 @@ class MyApp extends StatelessWidget {
       providers: [
         BlocProvider(create: (context) => MapBloc(FireStoreService())),
         BlocProvider(create: (context) => PoiBloc()),
+        BlocProvider(create: (context) => FavoritesCubit()),
       ],
       child: MaterialApp(
         title: 'Flutter Demo',

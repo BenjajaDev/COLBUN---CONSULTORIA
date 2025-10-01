@@ -1,7 +1,8 @@
-import 'package:consultoria_chat_bot/blocs/map_bloc.dart';
+﻿import 'package:consultoria_chat_bot/blocs/map_bloc.dart';
 import 'package:consultoria_chat_bot/events/map_event.dart';
 import 'package:consultoria_chat_bot/l10n/app_localizations.dart';
 import 'package:consultoria_chat_bot/screens/poi_screen.dart';
+import 'package:consultoria_chat_bot/screens/favorites_screen.dart';
 import 'package:consultoria_chat_bot/states/map_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -459,14 +460,21 @@ class _MapPageState extends State<MapPage> {
                             Marker(
                               point: state.userLocation!,
                               child: Transform.rotate(
-                                angle: state.heading * (3.1415926535 / 180),
+
+                                angle:
+                                    state.heading *
+                                    (3.1415926535 /
+                                        180), //  Convertir a radianes
+
                                 child: Container(
                                   decoration: const BoxDecoration(
                                     color: Color(0xFF4D67AE),
                                     shape: BoxShape.circle,
                                   ),
                                   child: const Icon(
-                                    Icons.navigation,
+
+                                    Icons.navigation, // Flecha tipo brujula
+
                                     color: Colors.white,
                                     size: 24,
                                   ),
@@ -500,9 +508,12 @@ class _MapPageState extends State<MapPage> {
                     child: FloatingActionButton(
                       backgroundColor: const Color(0xFF4D67AE),
                       onPressed: () {
-                        if (state.userLocation != null) {
-                          mapController.move(state.userLocation!, 15);
-                        }
+
+                        mapController.move(
+                          state.userLocation!,
+                          15,
+                        ); // ðŸ‘ˆ Centrar
+
                       },
                       child: const Icon(Icons.my_location, color: Colors.white),
                     ),
@@ -519,9 +530,12 @@ class _MapPageState extends State<MapPage> {
                     },
 
                     child: DraggableScrollableSheet(
-                      initialChildSize: _initialSheetChildSize,
-                      minChildSize: 0.2,
-                      maxChildSize: 0.6,
+
+                      initialChildSize:
+                          _initialSheetChildSize, // Altura inicial (25%)
+                      minChildSize: 0.2, // Altura mÃ­nima
+                      maxChildSize: 0.6, // Altura mÃ¡xima
+
                       snap: true,
                       builder: (context, scrollController) {
                         return Container(
@@ -573,6 +587,7 @@ class _MapPageState extends State<MapPage> {
                                       ),
                                     if (selectedRoute != null)
                                       const SizedBox(width: 8),
+
                                     Expanded(
                                       child: Text(
                                         selectedRoute == null
@@ -584,6 +599,7 @@ class _MapPageState extends State<MapPage> {
                                           fontSize: 18,
                                           fontWeight: FontWeight.bold,
                                         ),
+
                                       ),
                                     ),
                                     if (selectedRoute != null)
@@ -853,6 +869,23 @@ class _MapPageState extends State<MapPage> {
                               _sendQueryUpdate(state, searchController.text);
                             },
                             icon: const Icon(Icons.search),
+                          ),
+                          const SizedBox(width: 4.0),
+                          IconButton(
+                            style: IconButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              foregroundColor: Colors.pink,
+                              shape: const CircleBorder(),
+                            ),
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const FavoritesScreen(),
+                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.favorite),
                           ),
                         ],
                       ),
