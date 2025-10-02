@@ -9,6 +9,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
+// Página principal que muestra el mapa, lista de rutas y POIs, con búsqueda y selección.
 class MapPage extends StatefulWidget {
   const MapPage({super.key});
 
@@ -17,22 +18,30 @@ class MapPage extends StatefulWidget {
 }
 
 class _MapPageState extends State<MapPage> {
-  final String apiKey = 'vuobOOmhVcspXRuOBRRs';
-  final MapController mapController = MapController();
-  final TextEditingController searchController = TextEditingController();
-  int? selectedRouteIndex;
-  final double _initialSheetChildSize = 0.25;
-  double _dragScrollSheetExtent = 0;
-  double _widgetHeight = 0;
-  double _fabPosition = 0;
-  final double _fabPositionPadding = 10;
+  final String apiKey = 'vuobOOmhVcspXRuOBRRs'; // API Key para capas de mapa.
+  final MapController mapController =
+      MapController(); // Controlador del mapa para centrar y mover.
+  final TextEditingController searchController =
+      TextEditingController(); // Controlador del campo búsqueda.
+  int? selectedRouteIndex; // Índice de ruta seleccionada o null si ninguna.
+  final double _initialSheetChildSize =
+      0.25; // Tamaño inicial del panel inferior (draggable sheet).
+  double _dragScrollSheetExtent =
+      0; // Proporción actual del panel inferior desplegado.
+  double _widgetHeight = 0; // Altura total para cálculo del FAB.
+  double _fabPosition =
+      0; // Posición vertical del botón flotante para centrar ubicación.
+  final double _fabPositionPadding = 10; // Padding para el botón flotante.
 
-  String searchQuery = "";
+  String searchQuery = ""; // Cadena actual para filtrar rutas y POIs.
 
   @override
   void initState() {
+    // Al iniciar el widget, se dispara evento para cargar las rutas.
     BlocProvider.of<MapBloc>(context).add(LoadRoute());
     super.initState();
+
+    // Después de construir se calcula la posición inicial del FAB en función del tamaño.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       setState(() {
         _fabPosition = _initialSheetChildSize * context.size!.height;
@@ -42,6 +51,7 @@ class _MapPageState extends State<MapPage> {
 
   @override
   void dispose() {
+    // Liberar recursos controladores para evitar fugas.
     mapController.dispose();
     searchController.dispose();
     super.dispose();
@@ -51,14 +61,16 @@ class _MapPageState extends State<MapPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
+        // Escucha cambios del estado MapBloc para construir la UI reactiva.
         child: BlocBuilder<MapBloc, MapState>(
           builder: (context, state) {
             if (state is MapLoaded) {
+              // Extrae todos los POIs de todas las rutas para búsquedas y listado.
               final allPois = state.route
                   .expand((route) => route.pois)
                   .toList();
 
-              // 🔍 Filtrado de rutas
+              // Filtra rutas según búsqueda y si no hay ruta seleccionada.
               final filteredRoutes =
                   (searchQuery.isNotEmpty && selectedRouteIndex == null)
                   ? state.route
@@ -70,7 +82,7 @@ class _MapPageState extends State<MapPage> {
                         .toList()
                   : (selectedRouteIndex == null ? state.route : []);
 
-              // 🔍 Filtrado de POIs
+              // Filtra POIs según búsqueda y si hay una ruta seleccionada o no.
               final filteredPois = searchQuery.isEmpty
                   ? (selectedRouteIndex == null
                         ? allPois
@@ -93,6 +105,7 @@ class _MapPageState extends State<MapPage> {
 
               return Stack(
                 children: [
+                  // Mapa principal con tiles y marcadores.
                   FlutterMap(
                     mapController: mapController,
                     options: MapOptions(
@@ -100,11 +113,13 @@ class _MapPageState extends State<MapPage> {
                       initialZoom: 15,
                     ),
                     children: [
+                      // Capa base de mapas con MapTiler.
                       TileLayer(
                         urlTemplate:
                             'https://api.maptiler.com/maps/streets/{z}/{x}/{y}.png?key=$apiKey',
                         userAgentPackageName: 'com.example.app',
                       ),
+                      // Marcadores para POIs filtrados.
                       MarkerLayer(
                         markers: [
                           ...filteredPois.map(
@@ -114,6 +129,7 @@ class _MapPageState extends State<MapPage> {
                               height: 60,
                               child: GestureDetector(
                                 onTap: () {
+                                  // Al tocar marcador, navega a detalle del POI.
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
@@ -143,25 +159,19 @@ class _MapPageState extends State<MapPage> {
                               ),
                             ),
                           ),
+                          // Marcador para ubicación del usuario con orientación.
                           if (state.userLocation != null)
                             Marker(
                               point: state.userLocation!,
                               child: Transform.rotate(
-
-                                angle:
-                                    state.heading *
-                                    (3.1415926535 /
-                                        180), //  Convertir a radianes
-
+                                angle: state.heading * (3.1415926535 / 180),
                                 child: Container(
                                   decoration: const BoxDecoration(
                                     color: Color(0xFF4D67AE),
                                     shape: BoxShape.circle,
                                   ),
                                   child: const Icon(
-
-                                    Icons.navigation, // Flecha tipo brujula
-
+                                    Icons.navigation,
                                     color: Colors.white,
                                     size: 24,
                                   ),
@@ -170,6 +180,7 @@ class _MapPageState extends State<MapPage> {
                             ),
                         ],
                       ),
+                      // Capa de polígonos para las rutas dibujadas en el mapa.
                       PolylineLayer(
                         polylines: state.route.map((route) {
                           return Polyline(
@@ -188,27 +199,24 @@ class _MapPageState extends State<MapPage> {
                     ],
                   ),
 
-                  // FAB centrar usuario
+                  // Botón flotante para centrar el mapa en la ubicación del usuario.
                   Positioned(
                     bottom: _fabPosition + _fabPositionPadding,
                     right: 16,
                     child: FloatingActionButton(
                       backgroundColor: const Color(0xFF4D67AE),
                       onPressed: () {
-
-                        mapController.move(
-                          state.userLocation!,
-                          15,
-                        ); // ðŸ‘ˆ Centrar
-
+                        // Mueve el mapa a la ubicación actual con zoom 15.
+                        mapController.move(state.userLocation!, 15);
                       },
                       child: const Icon(Icons.my_location, color: Colors.white),
                     ),
                   ),
 
-                  // Drawer inferior
+                  // Panel inferior deslizable que contiene listado y controles.
                   NotificationListener<DraggableScrollableNotification>(
                     onNotification: (notification) {
+                      // Actualiza posiciones y tamaño para animar el FAB al deslizar.
                       setState(() {
                         _widgetHeight = context.size!.height;
                         _dragScrollSheetExtent = notification.extent;
@@ -217,12 +225,9 @@ class _MapPageState extends State<MapPage> {
                       return true;
                     },
                     child: DraggableScrollableSheet(
-
-                      initialChildSize:
-                          _initialSheetChildSize, // Altura inicial (25%)
-                      minChildSize: 0.2, // Altura mÃ­nima
-                      maxChildSize: 0.6, // Altura mÃ¡xima
-
+                      initialChildSize: _initialSheetChildSize,
+                      minChildSize: 0.2,
+                      maxChildSize: 0.6,
                       snap: true,
                       builder: (context, scrollController) {
                         return Container(
@@ -238,6 +243,7 @@ class _MapPageState extends State<MapPage> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              // Indicador visual para el panel deslizable.
                               Center(
                                 child: Container(
                                   margin: const EdgeInsets.only(top: 8),
@@ -251,13 +257,14 @@ class _MapPageState extends State<MapPage> {
                               ),
                               const SizedBox(height: 10),
 
-                              // Header
+                              // Encabezado con botón volver y título de ruta o general.
                               Padding(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 16.0,
                                 ),
                                 child: Row(
                                   children: [
+                                    // Mostrar botón volver si hay ruta seleccionada.
                                     if (selectedRouteIndex != null)
                                       GestureDetector(
                                         onTap: () {
@@ -273,6 +280,7 @@ class _MapPageState extends State<MapPage> {
                                     if (selectedRouteIndex != null)
                                       const SizedBox(width: 8),
 
+                                    // Título dinámico: rutas disponibles o nombre de ruta.
                                     Expanded(
                                       child: Text(
                                         selectedRouteIndex == null
@@ -286,9 +294,10 @@ class _MapPageState extends State<MapPage> {
                                           fontSize: 18,
                                           fontWeight: FontWeight.bold,
                                         ),
-
                                       ),
                                     ),
+
+                                    // Botón para ver lista general de rutas si está en vista ruta.
                                     if (selectedRouteIndex != null)
                                       TextButton.icon(
                                         onPressed: () {
@@ -312,12 +321,13 @@ class _MapPageState extends State<MapPage> {
 
                               const SizedBox(height: 10),
 
-                              // Contenido
+                              // Contenido principal: listas dependiendo de búsqueda y selección.
                               Expanded(
                                 child: searchQuery.isNotEmpty
                                     ? ListView(
                                         controller: scrollController,
                                         children: [
+                                          // Listado de rutas filtradas por búsqueda.
                                           ...filteredRoutes.map(
                                             (route) => ListTile(
                                               leading: const Icon(
@@ -326,6 +336,7 @@ class _MapPageState extends State<MapPage> {
                                               ),
                                               title: Text("Ruta ${route.name}"),
                                               onTap: () {
+                                                // Centra el mapa en la ruta seleccionada.
                                                 final center = LatLng(
                                                   (route.initialLatitude +
                                                           route.finalLatitude) /
@@ -344,6 +355,7 @@ class _MapPageState extends State<MapPage> {
                                               },
                                             ),
                                           ),
+                                          // Listado de POIs filtrados por búsqueda.
                                           ...filteredPois.map(
                                             (poi) => ListTile(
                                               leading: const Icon(
@@ -358,6 +370,7 @@ class _MapPageState extends State<MapPage> {
                                                     : '',
                                               ),
                                               onTap: () {
+                                                // Centra el mapa en el POI seleccionado.
                                                 mapController.move(
                                                   LatLng(
                                                     poi.latitud,
@@ -368,6 +381,7 @@ class _MapPageState extends State<MapPage> {
                                               },
                                               trailing: GestureDetector(
                                                 onTap: () {
+                                                  // Navega a detalle del POI.
                                                   Navigator.push(
                                                     context,
                                                     MaterialPageRoute(
@@ -444,7 +458,7 @@ class _MapPageState extends State<MapPage> {
                                               .pois[index];
                                           return ListTile(
                                             leading: const Icon(
-                                              Icons.location_on, // 📍
+                                              Icons.location_on,
                                               color: Colors.red,
                                               size: 28,
                                             ),
@@ -486,7 +500,7 @@ class _MapPageState extends State<MapPage> {
                     ),
                   ),
 
-                  // 🔍 Barra de búsqueda
+                  // Barra superior con campo búsqueda y botones.
                   Positioned(
                     top: 0,
                     right: 0,
@@ -511,9 +525,9 @@ class _MapPageState extends State<MapPage> {
                               onChanged: (value) {
                                 setState(() {
                                   searchQuery = value;
+                                  // No resetear selectedRouteIndex cuando hay búsqueda.
                                   if (value.isNotEmpty) {
-                                    selectedRouteIndex =
-                                        selectedRouteIndex; // 👈 no resetear ruta seleccionada
+                                    selectedRouteIndex = selectedRouteIndex;
                                   }
                                 });
                               },
@@ -555,6 +569,7 @@ class _MapPageState extends State<MapPage> {
                               shape: const CircleBorder(),
                             ),
                             onPressed: () {
+                              // Navega a la pantalla de favoritos.
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
@@ -571,6 +586,7 @@ class _MapPageState extends State<MapPage> {
                 ],
               );
             } else {
+              // Mientras las rutas se cargan, muestra indicador de progreso.
               return const Center(child: CircularProgressIndicator());
             }
           },

@@ -5,11 +5,11 @@ import 'package:consultoria_chat_bot/l10n/app_localizations.dart';
 import 'package:consultoria_chat_bot/model/poi_model.dart';
 import 'package:consultoria_chat_bot/states/poi_state.dart';
 import 'package:flutter/material.dart';
-
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+// Pantalla que muestra detalles de un Punto de Interés (POI) con secciones dinámicas y controles.
 class PoiScreen extends StatefulWidget {
-  final POI poi;
+  final POI poi; // POI cuyos detalles se mostrarán.
   const PoiScreen(this.poi, {super.key});
 
   @override
@@ -17,10 +17,19 @@ class PoiScreen extends StatefulWidget {
 }
 
 class _PoiScreenState extends State<PoiScreen> {
+  // Color personalizado para la UI.
   Color colbunBlue = const Color(0xFF4D67AE);
+
+  // Índice para controlar selección de pestañas recomendados/cercanos.
   int _selectedIndex = 0;
+
+  // Valor seleccionado del dropdown de temporada.
   String? valorSeleccionado = 'Otoño';
+
+  // Opciones disponibles en el dropdown de temporada.
   final List<String> opciones = ['Otoño', 'Invierno', 'Primavera', 'Verano'];
+
+  // Colores específicos para algunos chips según categoría.
   final Map<String, Map<String, Color>> chipsColors = {
     'naturaleza': {
       'background': Colors.green.shade100,
@@ -32,7 +41,7 @@ class _PoiScreenState extends State<PoiScreen> {
     },
   };
 
-  // datos de ejemplo para recomendados y cercanos cambiar cuando se implemente la logica
+  // Datos de ejemplo para secciones recomendados y cercanos (a reemplazar por lógica real).
   List<Map<String, dynamic>> recomendados = [
     {
       'nombre': 'Cascada El Salto',
@@ -41,9 +50,7 @@ class _PoiScreenState extends State<PoiScreen> {
     },
     {
       'nombre': 'Mirador Los Andes',
-
       'categorias': ['paisajes', 'fotografía'],
-
       'actividades': [],
     },
   ];
@@ -52,12 +59,12 @@ class _PoiScreenState extends State<PoiScreen> {
     {'nombre': 'Mirador Los Andes', 'distancia': 4.2},
   ];
 
-  // Overlay (info)
+  // Overlay que muestra información extra al pulsar icono info.
   OverlayEntry? _overlayEntry;
   final GlobalKey _iconKey = GlobalKey();
 
+  // Método que crea y muestra el overlay explicativo.
   void _showOverlay() {
-    // remove any existing
     _overlayEntry?.remove();
     _overlayEntry = null;
 
@@ -68,8 +75,8 @@ class _PoiScreenState extends State<PoiScreen> {
     final offset = renderBox.localToGlobal(Offset.zero);
     final screenWidth = MediaQuery.of(context).size.width;
 
-    // Compute left but clamp to screen edges
-    double left = offset.dx - 110; // center-ish to the left of the icon
+    // Calcula la posición horizontal para centrar el overlay respecto al icono, con límites.
+    double left = offset.dx - 110;
     if (left < 8) left = 8;
     if (left + 220 > screenWidth - 8) {
       left = screenWidth - 8 - 220;
@@ -107,14 +114,14 @@ class _PoiScreenState extends State<PoiScreen> {
 
     Overlay.of(context).insert(_overlayEntry!);
 
-    // auto-dismiss after 3 seconds
+    // Remueve automáticamente el overlay después de 3 segundos.
     Future.delayed(const Duration(seconds: 3), () {
       _overlayEntry?.remove();
       _overlayEntry = null;
     });
   }
 
-  // Add controllers and page state for pagination
+  // Controladores para paginación en listas horizontales recomendados/cercanos.
   final PageController _recomendadosController = PageController();
   final PageController _cercanosController = PageController();
   int _recomendadosPage = 0;
@@ -123,9 +130,11 @@ class _PoiScreenState extends State<PoiScreen> {
   @override
   void initState() {
     super.initState();
-    // Cargar datos del POI al iniciar la pantalla
+
+    // Solicita cargar datos relacionados al POI al iniciarse la pantalla.
     context.read<PoiBloc>().add(LoadPoi());
-    context.read<PoiBloc>().add(LoadPoi());
+
+    // Escucha cambios de página en recomendados para actualizar indicador.
     _recomendadosController.addListener(() {
       final page = _recomendadosController.page?.round() ?? 0;
       if (page != _recomendadosPage) {
@@ -134,6 +143,8 @@ class _PoiScreenState extends State<PoiScreen> {
         });
       }
     });
+
+    // Escucha cambios de página en cercanos para actualizar indicador.
     _cercanosController.addListener(() {
       final page = _cercanosController.page?.round() ?? 0;
       if (page != _cercanosPage) {
@@ -146,6 +157,7 @@ class _PoiScreenState extends State<PoiScreen> {
 
   @override
   void dispose() {
+    // Liberar controladores para evitar fugas.
     _recomendadosController.dispose();
     _cercanosController.dispose();
     super.dispose();
@@ -160,7 +172,9 @@ class _PoiScreenState extends State<PoiScreen> {
           builder: (context, constraints) {
             return BlocBuilder<PoiBloc, PoiState>(
               builder: (context, state) {
+                // Al cargar correctamente los datos del POI.
                 if (state is PoiLoaded) {
+                  // Combina categorías y actividades para mostrar con chips.
                   final List<String> items = [
                     ...List<String>.from(widget.poi.categorias),
                     ...List<String>.from(widget.poi.actividades),
@@ -169,7 +183,7 @@ class _PoiScreenState extends State<PoiScreen> {
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // ==================== TITULO + BOTON X ====================
+                      // ----- TITULO del POI y botón para cerrar la pantalla -----
                       Row(
                         children: [
                           Expanded(
@@ -193,7 +207,7 @@ class _PoiScreenState extends State<PoiScreen> {
                         ],
                       ),
 
-                      // ==================== IMAGEN PRINCIPAL ====================
+                      // ----- Imagen principal con posibilidad de ampliarla en diálogo -----
                       GestureDetector(
                         onTap: () {
                           showDialog(
@@ -217,7 +231,7 @@ class _PoiScreenState extends State<PoiScreen> {
                         ),
                       ),
 
-                      // ==================== Categorias y actividades ====================
+                      // ----- Chips con categorías y actividades -----
                       Padding(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 16,
@@ -225,7 +239,6 @@ class _PoiScreenState extends State<PoiScreen> {
                         ),
                         child: Row(
                           children: [
-                            // Lista de chips horizontal
                             Expanded(
                               child: SizedBox(
                                 height: 40,
@@ -248,15 +261,14 @@ class _PoiScreenState extends State<PoiScreen> {
                                           chipsColors[items[index]]?['background'] ??
                                           Colors.grey.shade200,
                                       side: BorderSide.none,
-
                                       onPressed: () {},
                                     );
                                   },
                                 ),
                               ),
                             ),
-                            // Icono de favorito
 
+                            // ----- Botón favorito que refleja si el POI está marcado -----
                             BlocBuilder<FavoritesCubit, FavoritesState>(
                               builder: (context, favoritesState) {
                                 final isFavorite = favoritesState.contains(
@@ -278,13 +290,12 @@ class _PoiScreenState extends State<PoiScreen> {
                                   },
                                 );
                               },
-
                             ),
                           ],
                         ),
                       ),
 
-                      // ==================== DROPDOWN + INFO + VISTA 360 + BOTON EMERGENCIA ====================
+                      // ----- Fila con dropdown para temporada, botón vista 360, info y botón emergencia -----
                       Padding(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 8,
@@ -292,7 +303,7 @@ class _PoiScreenState extends State<PoiScreen> {
                         ),
                         child: Row(
                           children: [
-                            // Dropdown with rounded black border
+                            // Dropdown con las estaciones con íconos y borde redondeado.
                             Container(
                               decoration: BoxDecoration(
                                 border: Border.all(
@@ -349,6 +360,8 @@ class _PoiScreenState extends State<PoiScreen> {
                               ),
                             ),
                             const SizedBox(width: 8),
+
+                            // Botón para vista 360 del POI.
                             ElevatedButton(
                               onPressed: () {},
                               style: ElevatedButton.styleFrom(
@@ -356,9 +369,11 @@ class _PoiScreenState extends State<PoiScreen> {
                               ),
                               child: Text(
                                 AppLocalizations.of(context)!.vista360,
-                                style: TextStyle(color: Colors.white),
+                                style: const TextStyle(color: Colors.white),
                               ),
                             ),
+
+                            // Icono de información (i) que muestra overlay explicativo.
                             IconButton(
                               key: _iconKey,
                               icon: const Icon(
@@ -374,7 +389,10 @@ class _PoiScreenState extends State<PoiScreen> {
                                 }
                               },
                             ),
+
                             Spacer(),
+
+                            // Botón circular rojo de llamada de emergencia.
                             ElevatedButton.icon(
                               onPressed: () {},
                               style: ElevatedButton.styleFrom(
@@ -390,10 +408,11 @@ class _PoiScreenState extends State<PoiScreen> {
                         ),
                       ),
 
+                      // ----- Sección expandible con descripción, recomendados y cercanos -----
                       Expanded(
                         child: ListView(
                           children: [
-                            //=================Estacion actual========================
+                            // Información de estación actual con texto explicativo.
                             Padding(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 16,
@@ -413,7 +432,8 @@ class _PoiScreenState extends State<PoiScreen> {
                                 ),
                               ),
                             ),
-                            // ==================== DESCRIPCION ====================
+
+                            // Título descriptivo para la sección de descripción.
                             Padding(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 16,
@@ -427,6 +447,8 @@ class _PoiScreenState extends State<PoiScreen> {
                                 ),
                               ),
                             ),
+
+                            // Texto descriptivo localizado del POI.
                             Padding(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 15,
@@ -441,7 +463,7 @@ class _PoiScreenState extends State<PoiScreen> {
                               ),
                             ),
 
-                            // ==================== RECOMENDADOS ====================
+                            // ----- Pestañas de recomendados / cercanos -----
                             Padding(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 16,
@@ -450,6 +472,7 @@ class _PoiScreenState extends State<PoiScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
+                                  // Botones para alternar pestañas recomendados / cercanos.
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
@@ -469,10 +492,6 @@ class _PoiScreenState extends State<PoiScreen> {
                                         child: TextButton(
                                           style: TextButton.styleFrom(
                                             padding: EdgeInsets.zero,
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(0),
-                                            ),
                                           ),
                                           onPressed: () {
                                             setState(() {
@@ -506,12 +525,6 @@ class _PoiScreenState extends State<PoiScreen> {
                                           ),
                                         ),
                                         child: TextButton(
-                                          style: TextButton.styleFrom(
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(0),
-                                            ),
-                                          ),
                                           onPressed: () {
                                             setState(() {
                                               _selectedIndex = 1;
@@ -533,7 +546,9 @@ class _PoiScreenState extends State<PoiScreen> {
                                     ],
                                   ),
                                   const SizedBox(height: 8),
-                                  if (_selectedIndex == 0) //recomendados
+
+                                  // Contenido de recomendados o cercanos con paginación y indicador.
+                                  if (_selectedIndex == 0) // Recomendados
                                     Column(
                                       children: [
                                         SizedBox(
@@ -647,7 +662,7 @@ class _PoiScreenState extends State<PoiScreen> {
                                         ),
                                       ],
                                     )
-                                  else //cercanos
+                                  else // Cercanos
                                     Column(
                                       children: [
                                         SizedBox(
@@ -681,7 +696,7 @@ class _PoiScreenState extends State<PoiScreen> {
                                                         "${rec['distancia']} km",
                                                       ),
                                                       onTap: () {
-                                                        // AcciÃ³n al tocar el POI cercano
+                                                        // Acción al tocar POI cercano (pendiente).
                                                       },
                                                     ),
                                                   ),
@@ -723,6 +738,7 @@ class _PoiScreenState extends State<PoiScreen> {
                     ],
                   );
                 } else {
+                  // Mostrar loader mientras se cargan datos.
                   return const Center(child: CircularProgressIndicator());
                 }
               },
