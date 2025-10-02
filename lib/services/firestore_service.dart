@@ -3,13 +3,26 @@ import 'package:consultoria_chat_bot/model/poi_model.dart';
 import 'package:consultoria_chat_bot/model/route_model.dart';
 
 class FireStoreService {
-  final CollectionReference _routesCollection =
-      FirebaseFirestore.instance.collection('ruta');
+  final CollectionReference _routesCollection = FirebaseFirestore.instance
+      .collection('ruta');
+
+  double? _toDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is num) return value.toDouble();
+    if (value is String) {
+      final sanitized = value.replaceAll(',', '.');
+      return double.tryParse(sanitized);
+    }
+    return null;
+  }
 
   Future<List<POI>> fetchAllPOIs(String routeId) async {
     try {
-      final querySnapshot =
-          await _routesCollection.doc(routeId).collection('poi').get();
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('ruta')
+          .doc(routeId)
+          .collection('poi')
+          .get();
 
       return querySnapshot.docs.map((doc) {
         final data = doc.data();
@@ -33,6 +46,7 @@ class FireStoreService {
   Future<List<MapRoute>> fetchRoutes() async {
     try {
       final querySnapshot = await _routesCollection.get();
+
       final List<MapRoute> routes = [];
 
       for (final doc in querySnapshot.docs) {
@@ -47,6 +61,12 @@ class FireStoreService {
             finalLatitude: (data['latitud_fin'] ?? 0).toDouble(),
             finalLongitude: (data['longitud_fin'] ?? 0).toDouble(),
             name: data['nombre']?.toString() ?? '',
+            category: data['categoria']?.toString(),
+            distanceKm:
+                _toDouble(data['distancia_km']) ??
+                _toDouble(data['distancia']) ??
+                _toDouble(data['distance_km']),
+            season: data['temporada']?.toString(),
             pois: pois,
           ),
         );
