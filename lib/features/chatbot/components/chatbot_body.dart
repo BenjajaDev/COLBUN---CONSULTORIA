@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../bloc/faq_bloc.dart';
 import '../utils/app_colors.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 class ChatbotBody extends StatelessWidget {
   final bool isDarkMode;
@@ -46,33 +47,48 @@ class ChatbotBody extends StatelessWidget {
     return Container(
       width: double.infinity,
       color: isDarkMode ? AppColors.darkBackground : Colors.grey[50],
-      padding: const EdgeInsets.symmetric(horizontal: 16.0),// quite padding vertical
+      padding: const EdgeInsets.symmetric(
+          horizontal: 16.0), // quite padding vertical
       child: ListView.builder(
         controller: scrollController,
         reverse: true,
         itemCount: messages.length + (isTyping ? 1 : 0),
         itemBuilder: (context, index) {
           if (isTyping && index == 0) {
-            return _buildTypingIndicator();
+            return _buildTypingIndicator().animate().fadeIn(duration: 300.ms);
           }
 
           final messageIndex = isTyping ? index - 1 : index;
           final reversedIndex = messages.length - 1 - messageIndex;
           final message = messages[reversedIndex];
-          
+
           // Si el mensaje no es visible, muestra un widget vacío
           if (!(message['visible'] as bool? ?? true)) {
             return const SizedBox.shrink();
           }
+          Widget messageWidget;
 
-          // Renderiza diferentes widgets según el tipo de mensaje
+          // 2. El switch ahora ASIGNA el widget a la variable, en lugar de retornarlo directamente.
           switch (message['type']) {
             case 'faq_options':
-              return _buildFaqOptions(context, message['options']);
-            case 'feedback':
-              return _buildFeedbackOptions(context, message['id'], message['text']);
+              messageWidget =
+                  _buildFaqOptions(context, message['options'] as List<String>);
+              break;
             default: // 'text' (mensaje de texto normal)
-              return _buildTextMessage(context, message);
+              messageWidget = _buildTextMessage(context, message);
+              break;
+          }
+
+          // 3. Aplicamos la animación al widget guardado y retornamos el resultado final.
+          if (index == 0) {
+            // Es el mensaje más reciente, ¡anímalo!
+            return messageWidget
+                .animate()
+                .fadeIn(duration: 500.ms)
+                .slideY(begin: 0.5, end: 0.0, curve: Curves.easeOutCubic);
+          } else {
+            // Es un mensaje antiguo, muéstralo sin animación.
+            return messageWidget;
           }
         },
       ),
@@ -92,26 +108,27 @@ class ChatbotBody extends StatelessWidget {
                 onFaqSelected(option);
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: isDarkMode 
-                    ? AppColors.darkprimary 
-                    : AppColors.lightprimary,
+                backgroundColor:
+                    isDarkMode ? AppColors.darkprimary : AppColors.lightprimary,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20.0),
-                  side: BorderSide(color:
-                  isDarkMode ? AppColors.lightbackgroundBody: AppColors.darkBackground)
-                ),
+                    borderRadius: BorderRadius.circular(20.0),
+                    side: BorderSide(
+                        color: isDarkMode
+                            ? AppColors.lightbackgroundBody
+                            : AppColors.darkBackground)),
                 padding: const EdgeInsets.symmetric(
-                  vertical: 12.0, 
+                  vertical: 12.0,
                   horizontal: 16.0,
                 ),
               ),
-              child: Text(option,
-              style: const TextStyle(
-                fontSize: 16,
-                fontFamily: 'Poppins',
-                fontWeight: FontWeight.w600,
-              ),
+              child: Text(
+                option,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontFamily: 'Poppins',
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           );
@@ -120,241 +137,242 @@ class ChatbotBody extends StatelessWidget {
     );
   }
 
-  Widget _buildFeedbackOptions(BuildContext context, String messageId, String text) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Muestra la pregunta de feedback como un mensaje normal
-        _buildTextMessage(context, {'sender': 'bot', 'text': text}),
-        
-        // Muestra los botones de opciones de feedback
-        Padding(
-          padding: const EdgeInsets.only(left: 48.0, top: 8.0, bottom: 8.0),
-          child: Row(
-            children: [
-              // Botón de feedback positivo (pulgar arriba)
-              ActionChip(
-                avatar: const Icon(
-                  Icons.thumb_up_alt_outlined,
-                  size: 16, 
-                  color: Colors.green,
-                ),
-                label: const Text(
-                  'Sí, fue útil',
-                  style: TextStyle(
-                    color: Colors.green,
-                    fontFamily: 'Poppins',
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                onPressed: () => onFeedback(messageId, true),
-                backgroundColor: Colors.white,
-                side: const BorderSide(color: Colors.green),
-              ),
-              
-              const SizedBox(width: 8),
-              
-              // Botón de feedback negativo (pulgar abajo)
-              ActionChip(
-                avatar: const Icon(
-                  Icons.thumb_down_alt_outlined,
-                  size: 16, 
-                  color: Colors.red,
-                ),
-                label: const Text(
-                  'No, no fue útil',
-                  style: TextStyle(
-                    color: Colors.red,
-                    fontFamily: 'Poppins',
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                onPressed: () => onFeedback(messageId, false),
-                backgroundColor: Colors.white,
-                side: const BorderSide(color: Colors.red),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildTextMessage(BuildContext context, Map<String, dynamic> message) {
     final isUser = message['sender'] == 'user';
     final hasLink = message['link'] != null && message['link'].isNotEmpty;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
-      
-      child: Row(
-        mainAxisAlignment: isUser 
-            ? MainAxisAlignment.end 
-            : MainAxisAlignment.start,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          // Avatar del bot (solo para mensajes del bot)
-          if (!isUser) ...[
-            CircleAvatar(
-              radius: 16,
-              backgroundColor: isDarkMode ? AppColors.darkprimary : AppColors.lightprimary,
-              
-              child: const Icon(
-                Icons.smart_toy,
-                color: Colors.white,
-                size: 18,
-                
-              ),
-            ),
-            const SizedBox(width: 8),
-          ],
-          // Contenedor del mensaje de texto
-          if (message['text'] != null && message['text'].isNotEmpty)
-            Flexible(
-              child: Container(
-                constraints: BoxConstraints(
-                  maxWidth: MediaQuery.of(context).size.width * 0.7,
-                ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16.0,
-                  vertical: 12.0,
-                ),
-                decoration: BoxDecoration(
-                  
-                  color: isUser
-                      ? (isDarkMode
-                          ? AppColors.darkprimary
-                          : AppColors.lightprimary)
-                      : (isDarkMode
-                          ?  Colors.grey[800]
-                          : Colors.white),
-                          
-                  borderRadius: BorderRadius.only(
-                    topLeft: const Radius.circular(16.0),
-                    topRight: const Radius.circular(16.0),
-                    bottomLeft: Radius.circular(isUser ? 16.0 : 0.0),
-                    bottomRight: Radius.circular(isUser ? 0.0 : 16.0),
+    // Lógica para el feedback
+    final bool shouldShowFeedback =
+        message['extras']?['showFeedback'] as bool? ?? false;
+    final String? messageId = message['id'];
+
+    // Columna principal que permite apilar la burbuja del mensaje y los botones de feedback
+    return Column(
+      crossAxisAlignment:
+          isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      children: [
+        // Contenedor de la burbuja del mensaje
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4.0),
+          child: Row(
+            mainAxisAlignment:
+                isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              // Avatar del bot (solo para mensajes del bot)
+              if (!isUser) ...[
+                CircleAvatar(
+                  radius: 16,
+                  backgroundColor: isDarkMode
+                      ? AppColors.darkprimary
+                      : AppColors.lightprimary,
+                  child: const Icon(
+                    Icons.smart_toy,
+                    color: Colors.white,
+                    size: 18,
                   ),
-                  
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.grey.withValues(alpha: 0.2),
-                      spreadRadius: 1,
-                      blurRadius: 3,
-                      offset: const Offset(0, 1),
-                    ),
-                  ],
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      message['text'] ?? '',
-                      style: TextStyle(
-                        color: isUser
-                            ? Colors.white
-                            : (isDarkMode
-                                ? Colors.white
-                                : Colors.black87),
-                        fontSize: 16,
-                        fontFamily: 'Poppins',
-                        fontWeight: FontWeight.w400,
+                const SizedBox(width: 8),
+              ],
+              // Contenedor principal del mensaje
+              if (message['text'] != null && message['text'].isNotEmpty)
+                Flexible(
+                  child: Container(
+                      constraints: BoxConstraints(
+                        maxWidth: MediaQuery.of(context).size.width * 0.7,
                       ),
-                    ),
-                    // Mostrar link si existe
-                    if (hasLink) ...[
-                      const SizedBox(height: 8),
-                      GestureDetector(
-                        onTap: () {
-                          _launchUrl(message['link'], context);
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.all(8.0),
-                          decoration: BoxDecoration(
-                            color: isDarkMode ? Colors.blue[900] : Colors.blue[50],
-                            borderRadius: BorderRadius.circular(8.0),
-                            border: Border.all(
-                              color: isDarkMode ? Colors.blue[700]! : Colors.blue[200]!,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16.0,
+                        vertical: 12.0,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isUser
+                            ? (isDarkMode
+                                ? AppColors.darkprimary
+                                : AppColors.lightprimary)
+                            : (isDarkMode ? Colors.grey[800] : Colors.white),
+                        borderRadius: BorderRadius.only(
+                          topLeft: const Radius.circular(16.0),
+                          topRight: const Radius.circular(16.0),
+                          bottomLeft: Radius.circular(isUser ? 16.0 : 0.0),
+                          bottomRight: Radius.circular(isUser ? 0.0 : 16.0),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.grey.withAlpha(50),
+                            spreadRadius: 1,
+                            blurRadius: 3,
+                            offset: const Offset(0, 1),
+                          ),
+                        ],
+                      ),
+                      // Columna interna para apilar texto, links y botones
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // 1. Texto del mensaje
+                          Text(
+                            message['text'] ?? '',
+                            style: TextStyle(
+                              color: isUser
+                                  ? Colors.white
+                                  : (isDarkMode
+                                      ? Colors.white
+                                      : Colors.black87),
+                              fontSize: 16,
+                              fontFamily: 'Poppins',
+                              fontWeight: FontWeight.w400,
                             ),
                           ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.link,
-                                size: 16,
-                                color: isDarkMode ? Colors.blue[200] : Colors.blue[700],
-                              ),
-                              const SizedBox(width: 4),
-                              Flexible(
-                                child: Text(
-                                  'Fuente',
-                                  style: TextStyle(
-                                    color: isDarkMode ? Colors.blue[200] : Colors.blue[700],
-                                    fontSize: 16,
-                                    fontFamily: 'Poppins',
-                                    fontWeight: FontWeight.w600,
+                          // 2. LÓGICA DEL LINK (COMPLETA Y RESTAURADA)
+                          if (hasLink) ...[
+                            const SizedBox(height: 8),
+                            GestureDetector(
+                              onTap: () {
+                                _launchUrl(message['link'], context);
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.all(8.0),
+                                decoration: BoxDecoration(
+                                  color: isDarkMode
+                                      ? Colors.blue[900]
+                                      : Colors.blue[50],
+                                  borderRadius: BorderRadius.circular(8.0),
+                                  border: Border.all(
+                                    color: isDarkMode
+                                        ? Colors.blue[700]!
+                                        : Colors.blue[200]!,
                                   ),
                                 ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.link,
+                                      size: 16,
+                                      color: isDarkMode
+                                          ? Colors.blue[200]
+                                          : Colors.blue[700],
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Flexible(
+                                      child: Text(
+                                        'Fuente',
+                                        style: TextStyle(
+                                          color: isDarkMode
+                                              ? Colors.blue[200]
+                                              : Colors.blue[700],
+                                          fontSize: 16,
+                                          fontFamily: 'Poppins',
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                    // Si el mensaje es de bienvenida, muestra el botón de FAQs
-                    if (message['type'] == 'welcome_message')
-                      Column(
-                        children: [
-                          const SizedBox(height: 12),
-                          Container(
-                            height: 1,
-                            color:isDarkMode? Colors.grey[300] : Colors.black,
-                          ),
-                          const SizedBox(height: 8),
-                          BlocBuilder<FaqBloc, FaqState>(
-                            builder: (context, faqState) {
-                              return TextButton(
-                                onPressed: () => onShowFrequentlyAskedQuestions(),
-                                style: TextButton.styleFrom(
-                                  padding: EdgeInsets.zero,
-                                  minimumSize: const Size(48, 48),
-                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap
-                                ), 
-                                child: const Text(
-                                  "Preguntas frecuentes",
-                                  style: TextStyle(
-                                    color: Color(0xff4861DB),
-                                    fontFamily: 'Poppins',
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w600, 
-                                  ),
-                                ) 
-                              );
-                            }
-                          )
+                            ),
+                          ],
+                          // 3. LÓGICA DEL MENSAJE DE BIENVENIDA (REINTEGRADA)
+                          if (message['type'] == 'welcome_message')
+                            Column(
+                              children: [
+                                const SizedBox(height: 12),
+                                Container(
+                                  height: 1,
+                                  color: isDarkMode
+                                      ? Colors.grey[700]
+                                      : Colors.grey[300],
+                                ),
+                                const SizedBox(height: 8),
+                                BlocBuilder<FaqBloc, FaqState>(
+                                    builder: (context, faqState) {
+                                  return TextButton(
+                                      onPressed: () =>
+                                          onShowFrequentlyAskedQuestions(),
+                                      child: const Text(
+                                        "Preguntas frecuentes",
+                                        style: TextStyle(
+                                          color: Color(0xff4861DB),
+                                          fontFamily: 'Poppins',
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ));
+                                })
+                              ],
+                            )
                         ],
-                      )  
-                  ],
-                )
+                      )),
+                ),
+
+              // Avatar del usuario (solo para mensajes del usuario)
+              if (isUser) ...[
+                const SizedBox(width: 8),
+                const CircleAvatar(
+                  radius: 16,
+                  backgroundColor: Colors.grey,
+                  child: Icon(
+                    Icons.person,
+                    color: Colors.white,
+                    size: 18,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+
+        // 4. LÓGICA DE LOS BOTONES DE FEEDBACK (CONDICIONAL)
+        if (shouldShowFeedback && messageId != null)
+          // Opción 1: Muestra los botones si se debe pedir feedback
+          Padding(
+            padding: const EdgeInsets.only(
+                left: 56.0, top: 4.0, bottom: 8.0, right: 16.0),
+            child: Row(
+              children: [
+                ActionChip(
+                  avatar: const Icon(Icons.thumb_up_alt_outlined,
+                      size: 16, color: Colors.green),
+                  label: const Text('Sí, fue útil',
+                      style: TextStyle(
+                          color: Colors.green,
+                          fontFamily: 'Poppins',
+                          fontWeight: FontWeight.w600)),
+                  onPressed: () => onFeedback(messageId, true),
+                  backgroundColor: isDarkMode ? Colors.grey[800] : Colors.white,
+                  side: const BorderSide(color: Colors.green),
+                ),
+                const SizedBox(width: 8),
+                ActionChip(
+                  avatar: const Icon(Icons.thumb_down_alt_outlined,
+                      size: 16, color: Colors.red),
+                  label: const Text('No, no fue útil',
+                      style: TextStyle(
+                          color: Colors.red,
+                          fontFamily: 'Poppins',
+                          fontWeight: FontWeight.w600)),
+                  onPressed: () => onFeedback(messageId, false),
+                  backgroundColor: isDarkMode ? Colors.grey[800] : Colors.white,
+                  side: const BorderSide(color: Colors.red),
+                ),
+              ],
+            ),
+          )
+        else if (message['extras']?['feedbackMessage'] != null)
+          // Opción 2: Muestra el mensaje de agradecimiento si ya se dio feedback
+          Padding(
+            padding: const EdgeInsets.only(left: 56.0, top: 8.0, bottom: 8.0),
+            child: Text(
+              message['extras']['feedbackMessage'],
+              style: TextStyle(
+                color: isDarkMode ? Colors.green[300] : Colors.green[700],
+                fontFamily: 'Poppins',
+                fontStyle: FontStyle.italic,
               ),
             ),
-          
-          // Avatar del usuario (solo para mensajes del usuario)
-          if (isUser) ...[
-            const SizedBox(width: 8),
-            const CircleAvatar(
-              radius: 16,
-              backgroundColor: Colors.grey,
-              child: Icon(
-                Icons.person,
-                color: Colors.white,
-                size: 18,
-              ),
-            ),
-          ],
-        ],
-      ),
+          ),
+      ],
     );
   }
 
@@ -371,11 +389,11 @@ class ChatbotBody extends StatelessWidget {
             child: Icon(Icons.smart_toy, color: Colors.white, size: 18),
           ),
           const SizedBox(width: 8),
-          
+
           // Contenedor con los puntos de animación
           Container(
             padding: const EdgeInsets.symmetric(
-              horizontal: 16.0, 
+              horizontal: 16.0,
               vertical: 12.0,
             ),
             decoration: BoxDecoration(
@@ -420,10 +438,11 @@ class ChatbotBody extends StatelessWidget {
     // Calcula el retraso y valor de animación para cada punto
     double delay = index * 0.2;
     double animationValue = (typingAnimation.value - delay).clamp(0.0, 1.0);
-    
+
     // Calcula la escala basada en una función coseno para efecto de rebote
-    double scale = 0.5 + (0.5 * (1 + math.cos(animationValue * 2 * math.pi)) / 2);
-    
+    double scale =
+        0.5 + (0.5 * (1 + math.cos(animationValue * 2 * math.pi)) / 2);
+
     return Transform.scale(
       scale: scale,
       child: Container(

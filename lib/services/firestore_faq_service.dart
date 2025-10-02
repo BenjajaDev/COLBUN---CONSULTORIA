@@ -2,12 +2,14 @@ import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 
+// --- MODELO FAQ MODIFICADO PARA INCLUIR ETIQUETAS ---
 class Faq {
   final String id;
   final String question;
   final String answer;
   final String? link;
   final List<String> tags;
+  final String category;
 
   Faq({
     required this.id,
@@ -15,8 +17,9 @@ class Faq {
     required this.answer,
     this.link,
     required this.tags,
+    required this.category,
   });
-
+  // Constructor desde Firestore
   factory Faq.fromFirestore(DocumentSnapshot doc) {
     Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
     return Faq(
@@ -25,10 +28,37 @@ class Faq {
       answer: data['answer'] ?? 'No se encontró respuesta.',
       link: data['source_url'],
       tags: List<String>.from(data['tags'] ?? []),
+      category: data['category'] ?? 'general',
     );
   }
 }
 
+// --- MODELO CATEGORÍA  ---
+class Category {
+  final String id;
+  final String name;
+  final String icon;
+  final int priority;
+
+  Category({
+    required this.id,
+    required this.name,
+    required this.icon,
+    required this.priority,
+  });
+  // Constructor desde Firestore
+  factory Category.fromFirestore(DocumentSnapshot doc) {
+    Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+    return Category(
+      id: doc.id,
+      name: data['name'] ?? '',
+      icon: data['icon'] ?? 'ℹ️',
+      priority: data['priority'] ?? 99,
+    );
+  }
+}
+
+// --- SERVICIO FAQ MODIFICADO PARA USAR TF-IDF Y DEVOLVER MÚLTIPLES RESPUESTAS ---
 class FaqService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
@@ -37,17 +67,19 @@ class FaqService {
 
   FaqService();
 
+  // Carga las FAQs y calcula los puntajes IDF.
   Future<void> loadFaqsAndCalculateScores() async {
     if (_faqsCache.isNotEmpty) return;
     try {
-      final querySnapshot = await _db.collection('faqs').get();
+      // Carga todas las FAQs desde Firestore
+      final querySnapshot = await _db.collection('faqs_curadas').get();
       _faqsCache =
           querySnapshot.docs.map((doc) => Faq.fromFirestore(doc)).toList();
       _calculateIdfScores();
       debugPrint(
-          "✅ Búsqueda Ponderada: ${_faqsCache.length} FAQs cargadas y ${_idfScores.length} scores calculados.");
+          "✅ Context Finder: ${_faqsCache.length} FAQs cargadas y listas para buscar contexto.");
     } catch (e) {
-      debugPrint("❌ Error al cargar FAQs: $e");
+      debugPrint("❌ Error al cargar FAQs para contexto: $e");
     }
   }
 
@@ -66,89 +98,72 @@ class FaqService {
     }
   }
 
-  Future<Faq?> findFaq(String userMessage) async {
-    if (_faqsCache.isEmpty) return null;
+  // Encuentra las FAQs más relevantes basadas en TF-IDF.
+  Future<List<Faq>> findContextFaqs(String userMessage) async {
+    if (_faqsCache.isEmpty) return [];
 
     final keywords = _generateKeywordsFromText(userMessage);
-    if (keywords.isEmpty) return null;
+    if (keywords.isEmpty) return [];
 
-    // CAPA 1: BÚSQUEDA DE ALTA CONFIANZA
-    for (final faq in _faqsCache) {
-      final faqTags = faq.tags.toSet();
-      if (keywords.every((keyword) => faqTags.contains(keyword))) {
-        debugPrint(
-            "✅ Coincidencia de Alta Confianza encontrada: '${faq.question}'");
-        return faq;
-      }
-    }
-
-    // CAPA 2: BÚSQUEDA PONDERADA (TF-IDF)
-    Faq? bestMatch;
-    double highestScore = 0.0;
-    for (final faq in _faqsCache) {
-      double currentScore = 0.0;
+    // Calcula el puntaje TF-IDF para todas las FAQs en la caché.
+    final scoredFaqs = _faqsCache.map((faq) {
+      double score = 0.0;
       for (final keyword in keywords) {
         if (faq.tags.contains(keyword)) {
-          currentScore += _idfScores[keyword] ?? 0.0;
+          score += _idfScores[keyword] ?? 0.0;
         }
       }
-      if (currentScore > highestScore) {
-        highestScore = currentScore;
-        bestMatch = faq;
-      }
-    }
+      return MapEntry(faq, score);
+    }).toList();
 
-    // CAPA 3: UMBRAL DE CONFIANZA
-    const double CONFIDENCE_THRESHOLD = 20.0; // Volvemos a un umbral razonable
-    if (highestScore < CONFIDENCE_THRESHOLD) {
+    // Ordena las FAQs de mayor a menor puntaje.
+    scoredFaqs.sort((a, b) => b.value.compareTo(a.value));
+
+    // Filtra y devuelve solo las mejores, si tienen un puntaje mínimo.
+    final relevantFaqs = scoredFaqs
+        .where((entry) =>
+            entry.value > 0.5) // Umbral bajo para no descartar contexto útil
+        .map((entry) => entry.key)
+        .take(1) // Tomamos la mejor como contexto
+        .toList();
+
+    if (relevantFaqs.isNotEmpty) {
       debugPrint(
-          "ℹ️ Puntuación baja (${highestScore.toStringAsFixed(2)}). Derivando a IA.");
-      return null;
+          "📚 Contexto encontrado para IA: ${relevantFaqs.map((f) => f.question).join(' | ')}");
+    } else {
+      debugPrint(
+          "ℹ️ No se encontró contexto local relevante para la pregunta.");
     }
 
-    // --- ¡NUEVO! CAPA 4: REGLA DE VETO ---
-    // Verificamos que la mejor respuesta contenga la palabra clave más importante de la pregunta.
-    if (bestMatch != null) {
-      // Encontrar la keyword más importante (la que tiene el score IDF más alto) de la pregunta del usuario.
-      String criticalKeyword = '';
-      double maxIdf = 0.0;
-      for (final keyword in keywords) {
-        final score = _idfScores[keyword] ?? 0.0;
-        if (score > maxIdf) {
-          maxIdf = score;
-          criticalKeyword = keyword;
-        }
-      }
-
-      // Si la mejor coincidencia NO contiene esta palabra crítica, la vetamos.
-      if (criticalKeyword.isNotEmpty &&
-          !bestMatch.tags.contains(criticalKeyword)) {
-        debugPrint(
-            "❌ VETO: La mejor coincidencia '${bestMatch.question}' no contiene la palabra clave crítica '${criticalKeyword}'. Derivando a IA.");
-        return null;
-      }
-    }
-
-    debugPrint(
-        "✅ Coincidencia Válida: '${bestMatch?.question}' (Score: ${highestScore.toStringAsFixed(2)})");
-    return bestMatch;
+    return relevantFaqs;
   }
 
+  // Devuelve todas las FAQs (usado para administración o debugging).
   Future<List<Faq>> getAllFaqs() async {
     if (_faqsCache.isEmpty) await loadFaqsAndCalculateScores();
     return _faqsCache;
   }
 
-  // El resto del código (generación de keywords, sinónimos, etc.) permanece igual.
+  Future<List<Category>> getCategories() async {
+    try {
+      final querySnapshot =
+          await _db.collection('categories_v2').orderBy('priority').get();
+      return querySnapshot.docs
+          .map((doc) => Category.fromFirestore(doc))
+          .toList();
+    } catch (e) {
+      debugPrint('Error al obtener las categorías: $e');
+      return [];
+    }
+  }
+
   List<String> _generateKeywordsFromText(String text) {
     final keywords = <String>{};
     final initialText = text.toLowerCase().trim();
     final words = initialText.split(RegExp(r'[\s,\.;\?¿¡!]+'));
-
     for (String word in words) {
       final cleanWord = word.replaceAll(RegExp(r'[^a-zA-Z0-9áéíóúñü]'), '');
       final normalizedForFilter = _normalizeChars(cleanWord);
-
       if (cleanWord.length > 3 &&
           !_excludeWords.contains(normalizedForFilter)) {
         keywords.add(cleanWord);
