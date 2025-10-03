@@ -4,6 +4,7 @@ class BotResponse {
   final bool isStandardResponse;
   final String? link; // Nuevo campo para el link/fuente
   final String? source; // Indica si es una respuesta estándar que requiere feedback
+  final String language; // Nuevo campo para el idioma detectado
 
   BotResponse({
     required this.answer,
@@ -11,5 +12,6 @@ class BotResponse {
     this.isStandardResponse = true,
     this.link, // Nuevo parámetro opcional
     this.source,
+    required this.language, // Nuevo parámetro requerido
   });
 }

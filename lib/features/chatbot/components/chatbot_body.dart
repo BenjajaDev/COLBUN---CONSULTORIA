@@ -74,10 +74,10 @@ class ChatbotBody extends StatelessWidget {
               messageWidget =
                   _buildFaqOptions(context, message['options'] as List<String>);
               break;
-            default: // 'text' (mensaje de texto normal)
-              messageWidget = _buildTextMessage(context, message);
-              break;
-          }
+            default: // 'text' y 'feedback' (mensajes de texto normales)
+            messageWidget = _buildTextMessage(context, message);
+            break;
+        }
 
           // 3. Aplicamos la animación al widget guardado y retornamos el resultado final.
           if (index == 0) {
@@ -137,14 +137,24 @@ class ChatbotBody extends StatelessWidget {
     );
   }
 
+
   Widget _buildTextMessage(BuildContext context, Map<String, dynamic> message) {
     final isUser = message['sender'] == 'user';
     final hasLink = message['link'] != null && message['link'].isNotEmpty;
+
+    //Obtener el idioma del mensaje para textos dinámicos**
+    final messageLanguage = message['language'] ?? 'es';
+    final sourceText = messageLanguage == 'en' ? 'Source' : 'Fuente';
 
     // Lógica para el feedback
     final bool shouldShowFeedback =
         message['extras']?['showFeedback'] as bool? ?? false;
     final String? messageId = message['id'];
+
+    //Textos dinámicos para feedback según idioma**
+    final yesText = messageLanguage == 'en' ? 'Yes, helpful' : 'Sí, fue útil';
+    final noText = messageLanguage == 'en' ? 'No, Not helpful' : 'No, no fue útil';
+    final thankYouText = messageLanguage == 'en' ? 'Thank you for your feedback!' : '¡Gracias por tu feedback!';
 
     // Columna principal que permite apilar la burbuja del mensaje y los botones de feedback
     return Column(
@@ -224,7 +234,7 @@ class ChatbotBody extends StatelessWidget {
                               fontWeight: FontWeight.w400,
                             ),
                           ),
-                          // 2. LÓGICA DEL LINK (COMPLETA Y RESTAURADA)
+                          // 2. LÓGICA DEL LINK dinamicos listos
                           if (hasLink) ...[
                             const SizedBox(height: 8),
                             GestureDetector(
@@ -257,7 +267,7 @@ class ChatbotBody extends StatelessWidget {
                                     const SizedBox(width: 4),
                                     Flexible(
                                       child: Text(
-                                        'Fuente',
+                                        sourceText, // **TEXTO DINÁMICO SEGÚN IDIOMA**
                                         style: TextStyle(
                                           color: isDarkMode
                                               ? Colors.blue[200]
@@ -273,7 +283,7 @@ class ChatbotBody extends StatelessWidget {
                               ),
                             ),
                           ],
-                          // 3. LÓGICA DEL MENSAJE DE BIENVENIDA (REINTEGRADA)
+                          // 3. LÓGICA DEL MENSAJE DE BIENVENIDA (CON TEXTO DINÁMICO)
                           if (message['type'] == 'welcome_message')
                             Column(
                               children: [
@@ -287,12 +297,16 @@ class ChatbotBody extends StatelessWidget {
                                 const SizedBox(height: 8),
                                 BlocBuilder<FaqBloc, FaqState>(
                                     builder: (context, faqState) {
+                                      // **Texto dinámico para FAQs según idioma**
+                                      final faqText = messageLanguage == 'en' 
+                                          ? "Frequently asked questions" 
+                                          : "Preguntas frecuentes";
                                   return TextButton(
                                       onPressed: () =>
                                           onShowFrequentlyAskedQuestions(),
-                                      child: const Text(
-                                        "Preguntas frecuentes",
-                                        style: TextStyle(
+                                      child: Text(
+                                        faqText,// **TEXTO DINÁMICO**
+                                        style: const TextStyle(
                                           color: Color(0xff4861DB),
                                           fontFamily: 'Poppins',
                                           fontSize: 16,
@@ -323,19 +337,18 @@ class ChatbotBody extends StatelessWidget {
           ),
         ),
 
-        // 4. LÓGICA DE LOS BOTONES DE FEEDBACK (CONDICIONAL)
+        // 4. LÓGICA DE LOS BOTONES DE FEEDBACK idioma dinamico listo
         if (shouldShowFeedback && messageId != null)
           // Opción 1: Muestra los botones si se debe pedir feedback
           Padding(
-            padding: const EdgeInsets.only(
-                left: 56.0, top: 4.0, bottom: 8.0, right: 16.0),
+            padding: const EdgeInsets.only(left:48.0, top: 4.0, bottom: 8.0),
             child: Row(
               children: [
                 ActionChip(
                   avatar: const Icon(Icons.thumb_up_alt_outlined,
                       size: 16, color: Colors.green),
-                  label: const Text('Sí, fue útil',
-                      style: TextStyle(
+                  label: Text(yesText, // **TEXTO DINÁMICO**
+                      style: const TextStyle(
                           color: Colors.green,
                           fontFamily: 'Poppins',
                           fontWeight: FontWeight.w600)),
@@ -347,8 +360,8 @@ class ChatbotBody extends StatelessWidget {
                 ActionChip(
                   avatar: const Icon(Icons.thumb_down_alt_outlined,
                       size: 16, color: Colors.red),
-                  label: const Text('No, no fue útil',
-                      style: TextStyle(
+                  label: Text(noText, // **TEXTO DINÁMICO**
+                      style: const TextStyle(
                           color: Colors.red,
                           fontFamily: 'Poppins',
                           fontWeight: FontWeight.w600)),
@@ -364,7 +377,7 @@ class ChatbotBody extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(left: 56.0, top: 8.0, bottom: 8.0),
             child: Text(
-              message['extras']['feedbackMessage'],
+              thankYouText, // **TEXTO DINÁMICO**
               style: TextStyle(
                 color: isDarkMode ? Colors.green[300] : Colors.green[700],
                 fontFamily: 'Poppins',

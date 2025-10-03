@@ -12,6 +12,7 @@ import '../components/chatbot_body.dart';
 import '../components/chatbot_footer.dart';
 import '../../../services/openai_service.dart';
 import 'package:consultoria_chat_bot/services/firestore_faq_service.dart';
+import '../../../services/language_service.dart';
 
 class ChatbotScreen extends StatefulWidget {
   const ChatbotScreen({super.key});
@@ -37,6 +38,11 @@ class _ChatbotScreenState extends State<ChatbotScreen>
   // ID de conversación actual
   String? _currentConversationId;
   bool _isLoadingConversation = false;
+
+  final LanguageService _languageService = LanguageService();
+  String _currentLanguage = 'es'; // Idioma actual por defecto
+  // Agregar un mapa para guardar el idioma de cada mensaje
+  final Map<String, String> _messageLanguages = {};
 
   // Palabras clave para detectar preguntas de seguimiento
   final Set<String> _contextualTriggers = const {
@@ -77,6 +83,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
   void dispose() {
     _scrollController.dispose();
     _typingController.dispose();
+    _languageService.close(); // Cerrar el servicio de idioma
     super.dispose();
   }
 
@@ -141,21 +148,39 @@ class _ChatbotScreenState extends State<ChatbotScreen>
   }
 
   void _initializeChat() {
+    final welcomeMessage = _currentLanguage == 'en'
+      ? "Hello! I am the virtual assistant of Colbún. How can I help you?"
+      : "¡Hola! Soy el asistente virtual de Colbún. ¿En qué puedo ayudarte?";
     addMessage(
       sender: "bot",
-      text:
-          "¡Hola! Soy el asistente virtual de Colbún. ¿En qué puedo ayudarte?",
+      text: welcomeMessage,
       type: "welcome_message",
+      language: _currentLanguage, // Pasar el idioma
       saveToDatabase: true, // Guardamos el mensaje de bienvenida
     );
   }
 
   void handleSendMessage(String text) async {
+
+    // **AGREGAR LOGS DE DEBUG COMPLETOS**
+  print("🎯🎯🎯 INICIANDO handleSendMessage 🎯🎯🎯");
+  print("📝 Mensaje recibido: '$text'");
+  
+  // **DETECTAR IDIOMA CON MÁS LOGS**
+  try {
+    _currentLanguage = await _languageService.detectLanguage(text);
+    print("🌐🌐🌐 IDIOMA DETECTADO: $_currentLanguage para mensaje: $text");
+  } catch (e) {
+    print("❌ ERROR en detección de idioma: $e");
+    _currentLanguage = 'es'; // Fallback a español
+  }
+  
+
     setState(() => messages.removeWhere((m) => m['type'] == 'faq_options'));
 
     final conversationHistory =
         _openAIService.formatMessagesForOpenAI(messages);
-    addMessage(sender: "user", text: text);
+    addMessage(sender: "user", text: text,language: _currentLanguage,);
 
     setState(() {
       _isTyping = true;
@@ -165,31 +190,67 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     try {
       // PLAN A: Intentar obtener una respuesta de la IA (Lógica online)
       print("🌐 Intentando conectar con el servicio de IA...");
+      print("🤖 BUSCANDO FAQs PARA: '$text'");
 
       List<Faq> contextFaqs = [];
       final cleanText =
           text.toLowerCase().trim().replaceAll(RegExp(r'[?¿]'), '');
 
       if (!_contextualTriggers.contains(cleanText)) {
-        contextFaqs = await _faqService.findContextFaqs(text);
+      contextFaqs = await _faqService.findContextFaqs(text);
+      print("📚 FAQs encontradas: ${contextFaqs.length}");
+      
+      // **DEBUG DETALLADO DE LAS FAQs CON IDIOMA**
+      for (var i = 0; i < contextFaqs.length; i++) {
+        var faq = contextFaqs[i];
+        print('📖 FAQ $i - ID: ${faq.id}');
+        print('📖 FAQ $i - Pregunta ES: ${faq.question}');
+        print('📖 FAQ $i - Pregunta EN: ${faq.questionEn}');
+        print('📖 FAQ $i - Respuesta ES: ${faq.answer}');
+        print('📖 FAQ $i - Respuesta EN: ${faq.answerEn}');
+        print('📖 FAQ $i - Categoría: ${faq.category}');
+        print('📖 FAQ $i - Tags: ${faq.tags}');
+        print('📖 FAQ $i - Link: ${faq.link}');
+      }
+    }
+      // **OBTENER LA URL REAL ANTES DE LLAMAR A OPENAI**
+      String? realUrl;
+      if (contextFaqs.isNotEmpty) {
+        realUrl = contextFaqs.first.link;
+        print('🔗 URL real obtenida de la base de datos: $realUrl');
       }
 
+      print("🚀 LLAMANDO A OPENAI CON IDIOMA: $_currentLanguage");
       final openAIResponse = await _openAIService.generateRAGResponse(
         userMessage: text,
         contextFaqs: contextFaqs,
         conversationHistory: conversationHistory,
+        language: _currentLanguage, // **PASAR EL IDIOMA A OPENAI**
       );
 
       if (mounted) {
         if (openAIResponse.success) {
           final aiMessageId = DateTime.now().millisecondsSinceEpoch.toString();
+
+          // **PRIORIDAD: URL REAL > URL EXTRAÍDA**
+          String? finalUrl = realUrl;
+          if (finalUrl == null || finalUrl.isEmpty) {
+            finalUrl = openAIResponse.extractedUrls.isNotEmpty 
+                ? openAIResponse.extractedUrls.first 
+                : null;
+            print('🔗 Usando URL extraída como fallback: $finalUrl');
+          }
+          print("✅ RESPUESTA OPENAI: ${openAIResponse.message.substring(0, 100)}...");
           addMessage(
             sender: "bot",
             text: openAIResponse.message,
             messageId: aiMessageId,
             source: 'openai_rag',
+            link: finalUrl,
+            language: _currentLanguage, 
             extras: {'showFeedback': true},
           );
+          print('✅ Respuesta procesada con URL: $realUrl');
         } else {
           // La IA devolvió un error controlado, aquí también podríamos activar el fallback
           throw Exception(openAIResponse.message);
@@ -206,30 +267,38 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       if (mounted) {
         if (localResults.isNotEmpty) {
           // ¡Éxito! Encontramos una respuesta local.
-          final bestMatch =
-              localResults.first; // Tomamos el resultado más relevante
-          final offlineAnswer =
-              "No tengo conexión en este momento, pero encontré esto que podría ayudarte:\n\n${bestMatch.answer}";
-          final offlineMessageId =
-              DateTime.now().millisecondsSinceEpoch.toString();
+          final bestMatch = localResults.first; // Tomamos el resultado más relevante
+
+          // **USAR LA RESPUESTA EN EL IDIOMA CORRECTO**
+          String offlineAnswer;
+          if (_currentLanguage == 'en' && bestMatch.answerEn.isNotEmpty) {
+            offlineAnswer = "I don't have connection right now, but I found this that might help you:\n\n${bestMatch.answerEn}";
+          } else {
+            offlineAnswer = "No tengo conexión en este momento, pero encontré esto que podría ayudarte:\n\n${bestMatch.answer}";
+          }
+          final offlineMessageId = DateTime.now().millisecondsSinceEpoch.toString();
           addMessage(
             sender: "bot",
             text: offlineAnswer,
             messageId: offlineMessageId,
-            source:
-                'offline_faq', // Un nuevo source para identificar la respuesta
-            link: bestMatch.link,
+            source: 'offline_faq', // Un nuevo source para identificar la respuesta
+            link: bestMatch.link, // ← URL real de la FAQ
+            language: _currentLanguage,
             extras: {
               'showFeedback': true
             }, // También podemos mostrar el link si existe
           );
         } else {
+          String errorMessage = _currentLanguage == 'en'
+            ? "Sorry, I couldn't connect and didn't find a local answer for your question. Please check your internet connection."
+            : "Lo siento, no pude conectarme y no encontré una respuesta local para tu pregunta. Por favor, revisa tu conexión a internet.";
           // Falló la conexión Y no encontramos nada en la base de datos local.
           addMessage(
               sender: "bot",
-              text:
-                  "Lo siento, no pude conectarme y no encontré una respuesta local para tu pregunta. Por favor, revisa tu conexión a internet.",
-              source: 'error');
+              text: errorMessage,
+              source: 'error',
+              language: _currentLanguage,
+              );
         }
       }
     } finally {
@@ -240,6 +309,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
         _typingController.stop();
       }
     }
+    print("🏁🏁🏁 FINALIZANDO handleSendMessage 🏁🏁🏁");
   }
 
   Future<String?> addMessage({
@@ -253,12 +323,13 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     String? source,
     String? link,
     Map<String, dynamic>? extras,
+    String? language, // parametro nuevo
   }) async {
     final newMessage = {
       "id": messageId, // El ID ahora vendrá de Firestore
       "sender": sender, "text": text, "type": type, "options": options,
       "feedback": null, "visible": true, "source": source, "link": link,
-      "extras": extras,
+      "extras": extras, "language": language, //parametro nuevo
     };
 
     String? generatedMessageId;
@@ -281,6 +352,10 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       } catch (e) {
         debugPrint("❌ Error al guardar mensaje con el nuevo servicio: $e");
       }
+    }
+    // Guardar en el mapa de idiomas si se proporcionó
+    if (messageId != null && language != null) {
+      _messageLanguages[messageId] = language;
     }
 
     if (mounted) {
@@ -374,12 +449,13 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     print('Se presionó el botón de Preguntas Frecuentes.');
     print(
         'Número de FAQs disponibles en la lista local: ${_allLoadedFaqs.length}');
+    print('🌐 Idioma actual para FAQs: $_currentLanguage');
 
     final faqBloc = context.read<FaqBloc>();
     final currentState = faqBloc.state;
 
     if (!currentState.showFaqs || currentState.currentFaqs.isEmpty) {
-      final List<String> randomFaqs = _getRandomFaqs(count: 3);
+      final List<String> randomFaqs = _faqService.getRandomFaqsByLanguage(_currentLanguage, count: 3);
 
       if (randomFaqs.isNotEmpty) {
         // Encontrar la posición del mensaje de bienvenida
@@ -390,13 +466,19 @@ class _ChatbotScreenState extends State<ChatbotScreen>
           //Enviar evento a FAQS
           faqBloc.add(ToggleFaqsEvent(newFaqs: randomFaqs));
 
+          // Texto dinámico según idioma para la introducción de FAQs
+          final introText = _currentLanguage == 'en' 
+              ? "Here are some frequently asked questions:" 
+              : "Aquí tienes algunas preguntas frecuentes:";
+
           // Insertar las FAQs justo después del mensaje de bienvenida
           addMessage(
             sender: "bot",
-            text: "Aquí tienes algunas preguntas frecuentes:",
+            text: introText,
             type: "faq_options",
             options: randomFaqs,
             insertAtIndex: welcomeIndex + 1, // Insertar después del welcome
+            language: _currentLanguage, // ← IMPORTANTE: pasar el idioma
           );
         }
       }
@@ -484,7 +566,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
               backgroundColor:
                   state.isDarkMode ? AppColors.darkBackground : Colors.grey[50],
               resizeToAvoidBottomInset: true,
-              floatingActionButton: Column(
+              floatingActionButton: const Column(
                 mainAxisSize: MainAxisSize.min,
               ),
               body: Column(
