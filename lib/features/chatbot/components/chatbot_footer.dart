@@ -73,6 +73,10 @@ class _ChatbotFooterState extends State<ChatbotFooter> {
           // Campo de texto expandido para escribir mensajes
           Expanded(
             child: Container(
+              constraints: const BoxConstraints(
+                minHeight: 44,  // Altura mínima para el campo de texto
+                maxHeight: 120, // Altura máxima para el campo de texto
+              ),
               decoration: BoxDecoration(
                 color: widget.isDarkMode
                     ? AppColors.darkBackground
@@ -92,9 +96,15 @@ class _ChatbotFooterState extends State<ChatbotFooter> {
                   fontFamily: 'Poppins',
                   fontWeight: FontWeight.w400,
                 ),
+                maxLines: null, // Permite múltiples líneas,
+                minLines: 1,
+                keyboardType: TextInputType.multiline, // Teclado para múltiples líneas
+                textInputAction: TextInputAction.newline, // Acción de nueva línea
                 decoration: InputDecoration(
                   hintText: 'Escribe un mensaje',
                   border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 8.0),
+                  isDense: true, //Compacta el campo de texto
                   hintStyle: TextStyle(
                     color: widget.isDarkMode
                         ? Colors.grey[400]

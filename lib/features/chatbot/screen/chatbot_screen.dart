@@ -13,6 +13,7 @@ import '../components/chatbot_footer.dart';
 import '../../../services/openai_service.dart';
 import 'package:consultoria_chat_bot/services/firestore_faq_service.dart';
 import '../../../services/language_service.dart';
+import '../../../services/chat_history_service.dart';
 
 class ChatbotScreen extends StatefulWidget {
   const ChatbotScreen({super.key});
@@ -34,6 +35,10 @@ class _ChatbotScreenState extends State<ChatbotScreen>
   final FirestoreConnection _firestoreConnection = FirestoreConnection();
   late FaqService _faqService;
   late OpenAIService _openAIService;
+  late final ChatHistoryService _chatHistoryService; // Servicio de historial local (shared_preferences)
+  bool _hasRestoredLocalHistory = false;
+
+    
 
   // ID de conversación actual
   String? _currentConversationId;
@@ -60,6 +65,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     super.initState();
     _faqService = context.read<FaqService>();
     _openAIService = context.read<OpenAIService>();
+    _chatHistoryService = ChatHistoryService(); // Inicializa el servicio de caché local
     _typingController = AnimationController(
       duration: const Duration(milliseconds: 1500),
       vsync: this,
@@ -76,7 +82,8 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       curve: Curves.easeInOut,
     ));
     _loadAllFaqs();
-    _initializeConversation();
+  // Restaura historial local y luego inicializa conversación en Firestore
+  _restoreCachedHistory().whenComplete(_initializeConversation);
   }
 
   @override
@@ -85,6 +92,43 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     _typingController.dispose();
     _languageService.close(); // Cerrar el servicio de idioma
     super.dispose();
+  }
+
+  Future<void> _restoreCachedHistory() async {
+    final cached = await _chatHistoryService.loadLastConversation();
+    if (!mounted || cached == null) return;
+
+    setState(() {
+      messages
+        ..clear()
+        ..addAll(cached.messages);
+      _currentConversationId = cached.conversationId;
+    });
+
+    _currentLanguage = cached.lastLanguage ?? 'es';
+    _rebuildMessageLanguageIndex(messages);
+    _hasRestoredLocalHistory = true;
+    // Historial local restaurado
+  }
+
+  void _rebuildMessageLanguageIndex(List<Map<String, dynamic>> source) {
+    _messageLanguages.clear();
+    for (final message in source) {
+      final id = message['id'] as String?;
+      final language = message['language'] as String?;
+      if (id != null && language != null) {
+        _messageLanguages[id] = language;
+      }
+    }
+  }
+
+  Future<void> _persistMessages() async {
+    await _chatHistoryService.saveHistory(
+      conversationId: _currentConversationId,
+      messages: List<Map<String, dynamic>>.from(messages),
+      language: _currentLanguage,
+    );
+    // Guarda el historial localmente
   }
 
   Future<void> _loadAllFaqs() async {
@@ -105,45 +149,50 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     });
 
     try {
-      // Obtener o crear conversación
-      _currentConversationId = await _firestoreConnection.createConversation(
-          userId: _firestoreConnection.currentUserId!, language: 'es');
-      print('🔗 Conversación inicializada: $_currentConversationId');
+      if (_currentConversationId == null) {
+        _currentConversationId =
+            await _firestoreConnection.createConversation(
+          userId: _firestoreConnection.currentUserId!,
+          language: _currentLanguage,
+        );
+        print('🔗 Conversación inicializada: $_currentConversationId');
+        // Conversación creada en Firestore
+      }
 
-      // Cargar mensajes existentes
-      if (_currentConversationId != null) {
-        final conversationData = await _firestoreConnection
-            .getCompleteConversation(_currentConversationId!);
-        final existingMessages =
-            conversationData?['messageDetails'] as List<dynamic>? ?? [];
+      final conversationId = _currentConversationId!;
+      final conversationData =
+          await _firestoreConnection.getCompleteConversation(conversationId);
+      final existingMessages =
+          conversationData?['messageDetails'] as List<dynamic>? ?? [];
 
-        if (existingMessages.isNotEmpty) {
-          // Convertimos cada item de la lista al tipo correcto (Map<String, dynamic>)
-          final correctlyTypedMessages = existingMessages
-              .map((msg) => Map<String, dynamic>.from(msg))
-              .toList();
+      if (existingMessages.isNotEmpty) {
+        final correctlyTypedMessages = existingMessages
+            .map((msg) => Map<String, dynamic>.from(msg))
+            .toList();
 
-          setState(() {
-            messages.clear();
-            messages.addAll(correctlyTypedMessages);
-            // La variable _messageIdCounter ya no es necesaria y se puede eliminar de la clase.
-          });
-          print('📥 Cargados ${existingMessages.length} mensajes existentes');
-        } else {
-          // No hay mensajes previos, inicializar chat nuevo
-          _initializeChat();
-        }
-      } else {
-        // Error al obtener conversación, inicializar chat normal
+        setState(() {
+          messages
+            ..clear()
+            ..addAll(correctlyTypedMessages);
+        });
+        _rebuildMessageLanguageIndex(messages);
+        await _persistMessages(); // Cachea la última versión
+        // Cache actualizado con mensajes de Firestore
+        print('📥 Cargados ${existingMessages.length} mensajes existentes');
+      } else if (!_hasRestoredLocalHistory && messages.isEmpty) {
         _initializeChat();
       }
     } catch (e) {
       print('❌ Error al inicializar conversación: $e');
-      _initializeChat();
+      if (!_hasRestoredLocalHistory && messages.isEmpty) {
+        _initializeChat();
+      }
     } finally {
-      setState(() {
-        _isLoadingConversation = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoadingConversation = false;
+        });
+      }
     }
   }
 
@@ -157,7 +206,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       type: "welcome_message",
       language: _currentLanguage, // Pasar el idioma
       saveToDatabase: true, // Guardamos el mensaje de bienvenida
-    );
+    ).then((_) => _persistMessages()); // Cachea el mensaje de bienvenida
   }
 
   void handleSendMessage(String text) async {
@@ -353,20 +402,24 @@ class _ChatbotScreenState extends State<ChatbotScreen>
         debugPrint("❌ Error al guardar mensaje con el nuevo servicio: $e");
       }
     }
-    // Guardar en el mapa de idiomas si se proporcionó
-    if (messageId != null && language != null) {
-      _messageLanguages[messageId] = language;
-    }
+     
+  // Usar el ID generado o el original para el índice de idiomas
+  final effectiveId = generatedMessageId ?? messageId;
+  if (effectiveId != null && language != null) {
+    _messageLanguages[effectiveId] = language;
+  }
 
-    if (mounted) {
-      setState(() {
-        if (insertAtIndex != null) {
-          messages.insert(insertAtIndex, newMessage);
-        } else {
-          messages.add(newMessage);
-        }
-      });
-    }
+  if (mounted) {
+    setState(() {
+      if (insertAtIndex != null) {
+        messages.insert(insertAtIndex, newMessage);
+      } else {
+        messages.add(newMessage);
+      }
+    });
+      // Persistir historial local después de cada cambio
+      await _persistMessages();
+  }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
@@ -415,6 +468,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       messages.clear();
       _initializeChat();
     });
+    _chatHistoryService.clearHistory(conversationId: _currentConversationId); // Borra historial local
   }
 
   void _launchWhatsApp() async {
