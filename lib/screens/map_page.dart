@@ -83,19 +83,17 @@ class _MapPageState extends State<MapPage> {
                   : (selectedRouteIndex == null ? state.route : []);
 
               // Filtra POIs según búsqueda y si hay una ruta seleccionada o no.
-              final filteredPois = searchQuery.isEmpty
-                  ? (selectedRouteIndex == null
+              final filteredPois = selectedRouteIndex != null
+                  ? state.route[selectedRouteIndex!].pois
+                        .where(
+                          (p) => p.nombre.toLowerCase().contains(
+                            searchQuery.toLowerCase(),
+                          ),
+                        )
+                        .toList()
+                  : (searchQuery.isEmpty
                         ? allPois
-                        : state.route[selectedRouteIndex!].pois)
-                  : (selectedRouteIndex == null
-                        ? allPois
-                              .where(
-                                (p) => p.nombre.toLowerCase().contains(
-                                  searchQuery.toLowerCase(),
-                                ),
-                              )
-                              .toList()
-                        : state.route[selectedRouteIndex!].pois
+                        : allPois
                               .where(
                                 (p) => p.nombre.toLowerCase().contains(
                                   searchQuery.toLowerCase(),
