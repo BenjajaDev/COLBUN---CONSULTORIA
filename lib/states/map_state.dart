@@ -1,54 +1,79 @@
+import 'package:consultoria_chat_bot/model/poi_model.dart';
 import 'package:consultoria_chat_bot/model/route_model.dart';
 import 'package:latlong2/latlong.dart';
 
-// Clase base abstracta para representar los diferentes estados del mapa.
 abstract class MapState {}
 
-// Estado inicial del mapa, antes de cualquier carga o acción.
 class MapInitial extends MapState {}
 
-// Estado que indica que el mapa o los datos se están cargando.
 class MapLoading extends MapState {}
 
-// Estado que representa cuando el mapa está cargado con los datos necesarios.
 class MapLoaded extends MapState {
-  final LatLng center; // Centro actual del mapa.
-  final List<LatLng>
-  markers; // Lista de marcadores mostrados en el mapa (coordenadas).
-  final LatLng? userLocation; // Ubicación actual del usuario (puede ser nula).
-  final double heading; // Orientación o heading del dispositivo.
-  final List<MapRoute> route; // Lista de rutas cargadas con sus detalles.
+  final LatLng center;
+  final List<LatLng> markers;
+  final LatLng? userLocation;
+  final double heading;
+  final List<MapRoute> allRoutes;
+  final List<MapRoute> filteredRoutes;
+  final List<POI> filteredPois;
+  final String? selectedCategory;
+  final double? selectedDistanceKm;
+  final String? selectedSeason;
+  final String query;
 
-  // Constructor con todos los campos requeridos.
   MapLoaded({
     required this.center,
     required this.markers,
     required this.userLocation,
     required this.heading,
-    required this.route,
+    required this.allRoutes,
+    required this.filteredRoutes,
+    required this.filteredPois,
+    this.selectedCategory,
+    this.selectedDistanceKm,
+    this.selectedSeason,
+    this.query = '',
   });
 
-  // Método para copiar el estado con actualizaciones opcionales manteniendo inmutabilidad.
   MapLoaded copyWith({
     LatLng? center,
     List<LatLng>? markers,
     LatLng? userLocation,
     double? heading,
-    List<MapRoute>? route,
+    List<MapRoute>? allRoutes,
+    List<MapRoute>? filteredRoutes,
+    List<POI>? filteredPois,
+    String? selectedCategory,
+    bool clearSelectedCategory = false,
+    double? selectedDistanceKm,
+    bool clearSelectedDistanceKm = false,
+    String? selectedSeason,
+    bool clearSelectedSeason = false,
+    String? query,
   }) {
     return MapLoaded(
       center: center ?? this.center,
       markers: markers ?? this.markers,
       userLocation: userLocation ?? this.userLocation,
       heading: heading ?? this.heading,
-      route: route ?? this.route,
+      allRoutes: allRoutes ?? this.allRoutes,
+      filteredRoutes: filteredRoutes ?? this.filteredRoutes,
+      filteredPois: filteredPois ?? this.filteredPois,
+      selectedCategory: clearSelectedCategory
+          ? null
+          : (selectedCategory ?? this.selectedCategory),
+      selectedDistanceKm: clearSelectedDistanceKm
+          ? null
+          : (selectedDistanceKm ?? this.selectedDistanceKm),
+      selectedSeason: clearSelectedSeason
+          ? null
+          : (selectedSeason ?? this.selectedSeason),
+      query: query ?? this.query,
     );
   }
 }
 
-// Estado que representa un error con un mensaje descriptivo al usuario.
 class MapError extends MapState {
   final String message;
-
   MapError(this.message);
 }

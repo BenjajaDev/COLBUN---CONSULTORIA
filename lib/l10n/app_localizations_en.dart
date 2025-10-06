@@ -40,4 +40,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get rutas_disponibles => 'Available routes';
+
+  @override
+  String get resultado_busqueda => 'Search result';
+
+  @override
+  String get sin_resultado => 'No results found';
 }

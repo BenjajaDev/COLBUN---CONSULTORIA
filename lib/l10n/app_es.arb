@@ -43,6 +43,14 @@
   "rutas_disponibles": "Rutas disponibles",
   "@rutas_disponibles":{
     "description": "Título para la sección de rutas disponibles"
+  },
+  "resultado_busqueda": "Resultado de búsqueda",
+  "@resultado_busqueda":{
+    "description": "Título para la sección de rutas cuando se escribe"
+  },
+  "sin_resultado": "No se encontraron resultados",
+  "@sin_resultado":{
+    "description": "Texto que aparece cuando no hay resultados"
   }
   
 }

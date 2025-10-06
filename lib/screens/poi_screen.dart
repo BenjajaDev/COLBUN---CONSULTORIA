@@ -5,11 +5,13 @@ import 'package:consultoria_chat_bot/l10n/app_localizations.dart';
 import 'package:consultoria_chat_bot/model/poi_model.dart';
 import 'package:consultoria_chat_bot/states/poi_state.dart';
 import 'package:flutter/material.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:consultoria_chat_bot/states/map_state.dart';
+import 'package:consultoria_chat_bot/blocs/map_bloc.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-// Pantalla que muestra detalles de un Punto de Interés (POI) con secciones dinámicas y controles.
 class PoiScreen extends StatefulWidget {
-  final POI poi; // POI cuyos detalles se mostrarán.
+  final POI poi;
   const PoiScreen(this.poi, {super.key});
 
   @override
@@ -17,19 +19,10 @@ class PoiScreen extends StatefulWidget {
 }
 
 class _PoiScreenState extends State<PoiScreen> {
-  // Color personalizado para la UI.
   Color colbunBlue = const Color(0xFF4D67AE);
-
-  // Índice para controlar selección de pestañas recomendados/cercanos.
   int _selectedIndex = 0;
-
-  // Valor seleccionado del dropdown de temporada.
   String? valorSeleccionado = 'Otoño';
-
-  // Opciones disponibles en el dropdown de temporada.
   final List<String> opciones = ['Otoño', 'Invierno', 'Primavera', 'Verano'];
-
-  // Colores específicos para algunos chips según categoría.
   final Map<String, Map<String, Color>> chipsColors = {
     'naturaleza': {
       'background': Colors.green.shade100,
@@ -41,30 +34,12 @@ class _PoiScreenState extends State<PoiScreen> {
     },
   };
 
-  // Datos de ejemplo para secciones recomendados y cercanos (a reemplazar por lógica real).
-  List<Map<String, dynamic>> recomendados = [
-    {
-      'nombre': 'Cascada El Salto',
-      'categorias': ['naturaleza', 'aventura'],
-      'actividades': [],
-    },
-    {
-      'nombre': 'Mirador Los Andes',
-      'categorias': ['paisajes', 'fotografía'],
-      'actividades': [],
-    },
-  ];
-  List<Map<String, dynamic>> cercanos = [
-    {'nombre': 'Cascada El Salto', 'distancia': 2.5},
-    {'nombre': 'Mirador Los Andes', 'distancia': 4.2},
-  ];
-
-  // Overlay que muestra información extra al pulsar icono info.
+  // Overlay (info)
   OverlayEntry? _overlayEntry;
   final GlobalKey _iconKey = GlobalKey();
 
-  // Método que crea y muestra el overlay explicativo.
   void _showOverlay() {
+    // remove any existing
     _overlayEntry?.remove();
     _overlayEntry = null;
 
@@ -75,8 +50,8 @@ class _PoiScreenState extends State<PoiScreen> {
     final offset = renderBox.localToGlobal(Offset.zero);
     final screenWidth = MediaQuery.of(context).size.width;
 
-    // Calcula la posición horizontal para centrar el overlay respecto al icono, con límites.
-    double left = offset.dx - 110;
+    // Compute left but clamp to screen edges
+    double left = offset.dx - 110; // center-ish to the left of the icon
     if (left < 8) left = 8;
     if (left + 220 > screenWidth - 8) {
       left = screenWidth - 8 - 220;
@@ -114,50 +89,74 @@ class _PoiScreenState extends State<PoiScreen> {
 
     Overlay.of(context).insert(_overlayEntry!);
 
-    // Remueve automáticamente el overlay después de 3 segundos.
+    // auto-dismiss after 3 seconds
     Future.delayed(const Duration(seconds: 3), () {
       _overlayEntry?.remove();
       _overlayEntry = null;
     });
   }
 
-  // Controladores para paginación en listas horizontales recomendados/cercanos.
+  // Add controllers and page state for pagination
   final PageController _recomendadosController = PageController();
   final PageController _cercanosController = PageController();
   int _recomendadosPage = 0;
   int _cercanosPage = 0;
+  //Helper para tabs de recomendados y cerca de ti
+  Widget _buildTabButton({required String label, required int index}) {
+    final bool isSelected = _selectedIndex == index;
+    return TextButton(
+      onPressed: () {
+        if (_selectedIndex != index) {
+          setState(() {
+            _selectedIndex = index;
+          });
+        }
+      },
+      style: TextButton.styleFrom(
+        backgroundColor: isSelected ? colbunBlue : Colors.transparent,
+        foregroundColor: isSelected ? Colors.white : colbunBlue,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+          side: BorderSide(color: colbunBlue),
+        ),
+      ),
+      child: Text(label),
+    );
+  }
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final mapState = context.read<MapBloc>().state;
 
-    // Solicita cargar datos relacionados al POI al iniciarse la pantalla.
-    context.read<PoiBloc>().add(LoadPoi());
+      List<POI> allPois = [];
+      LatLng? userLoc;
 
-    // Escucha cambios de página en recomendados para actualizar indicador.
-    _recomendadosController.addListener(() {
-      final page = _recomendadosController.page?.round() ?? 0;
-      if (page != _recomendadosPage) {
-        setState(() {
-          _recomendadosPage = page;
-        });
+      if (mapState is MapLoaded) {
+        for (final r in mapState.allRoutes) {
+          allPois.addAll(r.pois);
+        }
+        userLoc = mapState.userLocation;
       }
+
+      context.read<PoiBloc>().add(
+        LoadPoi(current: widget.poi, all: allPois, userLocation: userLoc),
+      );
     });
 
-    // Escucha cambios de página en cercanos para actualizar indicador.
+    _recomendadosController.addListener(() {
+      final page = _recomendadosController.page?.round() ?? 0;
+      if (page != _recomendadosPage) setState(() => _recomendadosPage = page);
+    });
     _cercanosController.addListener(() {
       final page = _cercanosController.page?.round() ?? 0;
-      if (page != _cercanosPage) {
-        setState(() {
-          _cercanosPage = page;
-        });
-      }
+      if (page != _cercanosPage) setState(() => _cercanosPage = page);
     });
   }
 
   @override
   void dispose() {
-    // Liberar controladores para evitar fugas.
     _recomendadosController.dispose();
     _cercanosController.dispose();
     super.dispose();
@@ -165,26 +164,41 @@ class _PoiScreenState extends State<PoiScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            return BlocBuilder<PoiBloc, PoiState>(
-              builder: (context, state) {
-                // Al cargar correctamente los datos del POI.
-                if (state is PoiLoaded) {
-                  // Combina categorías y actividades para mostrar con chips.
-                  final List<String> items = [
-                    ...List<String>.from(widget.poi.categorias),
-                    ...List<String>.from(widget.poi.actividades),
-                  ];
+    return BlocListener<MapBloc, MapState>(
+      listenWhen: (prev, curr) => curr is MapLoaded,
+      listener: (context, state) {
+        final m = state as MapLoaded;
+        final allPois = m.allRoutes.expand((r) => r.pois).toList();
 
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // ----- TITULO del POI y botón para cerrar la pantalla -----
-                      Row(
+        context.read<PoiBloc>().add(
+          LoadPoi(
+            current: widget.poi,
+            all: allPois,
+            userLocation: m.userLocation,
+          ),
+        );
+      },
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        body: SafeArea(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return BlocBuilder<PoiBloc, PoiState>(
+                builder: (context, state) {
+                  if (state is PoiLoaded) {
+                    final recList = state.recommended;
+                    final nearList = state.nearby;
+                    final dkm = state.distancesKm;
+                    final List<String> items = [
+                      ...List<String>.from(widget.poi.categorias),
+                      ...List<String>.from(widget.poi.actividades),
+                    ];
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // ==================== TITULO + BOTON X ====================
+                        Row(
                         children: [
                           Expanded(
                             child: Container(
@@ -207,7 +221,7 @@ class _PoiScreenState extends State<PoiScreen> {
                         ],
                       ),
 
-                      // ----- Imagen principal con posibilidad de ampliarla en diálogo -----
+                      // ==================== IMAGEN PRINCIPAL ====================
                       GestureDetector(
                         onTap: () {
                           showDialog(
@@ -231,7 +245,7 @@ class _PoiScreenState extends State<PoiScreen> {
                         ),
                       ),
 
-                      // ----- Chips con categorías y actividades -----
+                      // ==================== Categorias y actividades ====================
                       Padding(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 16,
@@ -239,6 +253,7 @@ class _PoiScreenState extends State<PoiScreen> {
                         ),
                         child: Row(
                           children: [
+                            // Lista de chips horizontal
                             Expanded(
                               child: SizedBox(
                                 height: 40,
@@ -261,14 +276,15 @@ class _PoiScreenState extends State<PoiScreen> {
                                           chipsColors[items[index]]?['background'] ??
                                           Colors.grey.shade200,
                                       side: BorderSide.none,
+
                                       onPressed: () {},
                                     );
                                   },
                                 ),
                               ),
                             ),
+                            // Icono de favorito
 
-                            // ----- Botón favorito que refleja si el POI está marcado -----
                             BlocBuilder<FavoritesCubit, FavoritesState>(
                               builder: (context, favoritesState) {
                                 final isFavorite = favoritesState.contains(
@@ -290,12 +306,13 @@ class _PoiScreenState extends State<PoiScreen> {
                                   },
                                 );
                               },
+
                             ),
                           ],
                         ),
                       ),
 
-                      // ----- Fila con dropdown para temporada, botón vista 360, info y botón emergencia -----
+                      // ==================== DROPDOWN + INFO + VISTA 360 + BOTON EMERGENCIA ====================
                       Padding(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 8,
@@ -303,7 +320,7 @@ class _PoiScreenState extends State<PoiScreen> {
                         ),
                         child: Row(
                           children: [
-                            // Dropdown con las estaciones con íconos y borde redondeado.
+                            // Dropdown with rounded black border
                             Container(
                               decoration: BoxDecoration(
                                 border: Border.all(
@@ -360,8 +377,6 @@ class _PoiScreenState extends State<PoiScreen> {
                               ),
                             ),
                             const SizedBox(width: 8),
-
-                            // Botón para vista 360 del POI.
                             ElevatedButton(
                               onPressed: () {},
                               style: ElevatedButton.styleFrom(
@@ -369,11 +384,9 @@ class _PoiScreenState extends State<PoiScreen> {
                               ),
                               child: Text(
                                 AppLocalizations.of(context)!.vista360,
-                                style: const TextStyle(color: Colors.white),
+                                style: TextStyle(color: Colors.white),
                               ),
                             ),
-
-                            // Icono de información (i) que muestra overlay explicativo.
                             IconButton(
                               key: _iconKey,
                               icon: const Icon(
@@ -389,10 +402,7 @@ class _PoiScreenState extends State<PoiScreen> {
                                 }
                               },
                             ),
-
                             Spacer(),
-
-                            // Botón circular rojo de llamada de emergencia.
                             ElevatedButton.icon(
                               onPressed: () {},
                               style: ElevatedButton.styleFrom(
@@ -408,11 +418,10 @@ class _PoiScreenState extends State<PoiScreen> {
                         ),
                       ),
 
-                      // ----- Sección expandible con descripción, recomendados y cercanos -----
                       Expanded(
                         child: ListView(
                           children: [
-                            // Información de estación actual con texto explicativo.
+                            //=================Estacion actual========================
                             Padding(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 16,
@@ -432,8 +441,7 @@ class _PoiScreenState extends State<PoiScreen> {
                                 ),
                               ),
                             ),
-
-                            // Título descriptivo para la sección de descripción.
+                            // ==================== DESCRIPCION ====================
                             Padding(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 16,
@@ -447,8 +455,6 @@ class _PoiScreenState extends State<PoiScreen> {
                                 ),
                               ),
                             ),
-
-                            // Texto descriptivo localizado del POI.
                             Padding(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 15,
@@ -463,288 +469,292 @@ class _PoiScreenState extends State<PoiScreen> {
                               ),
                             ),
 
-                            // ----- Pestañas de recomendados / cercanos -----
+                            //Tabs Recomendados / Cerca de ti
                             Padding(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 16,
-                                vertical: 8,
+                                vertical: 12,
                               ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                              child: Row(
                                 children: [
-                                  // Botones para alternar pestañas recomendados / cercanos.
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Container(
-                                        decoration: BoxDecoration(
-                                          border: Border(
-                                            bottom: BorderSide(
-                                              color: _selectedIndex == 0
-                                                  ? colbunBlue
-                                                  : Colors.black,
-                                              width: _selectedIndex == 0
-                                                  ? 3
-                                                  : 1,
-                                            ),
-                                          ),
-                                        ),
-                                        child: TextButton(
-                                          style: TextButton.styleFrom(
-                                            padding: EdgeInsets.zero,
-                                          ),
-                                          onPressed: () {
-                                            setState(() {
-                                              _selectedIndex = 0;
-                                            });
-                                          },
-                                          child: Text(
-                                            AppLocalizations.of(
-                                              context,
-                                            )!.recomendados,
-                                            style: TextStyle(
-                                              color: _selectedIndex == 0
-                                                  ? colbunBlue
-                                                  : Colors.black,
-                                              fontSize: 18,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      Container(
-                                        decoration: BoxDecoration(
-                                          border: Border(
-                                            bottom: BorderSide(
-                                              color: _selectedIndex == 1
-                                                  ? colbunBlue
-                                                  : Colors.black,
-                                              width: _selectedIndex == 1
-                                                  ? 3
-                                                  : 1,
-                                            ),
-                                          ),
-                                        ),
-                                        child: TextButton(
-                                          onPressed: () {
-                                            setState(() {
-                                              _selectedIndex = 1;
-                                            });
-                                          },
-                                          child: Text(
-                                            AppLocalizations.of(
-                                              context,
-                                            )!.cercanos,
-                                            style: TextStyle(
-                                              color: _selectedIndex == 1
-                                                  ? colbunBlue
-                                                  : Colors.black,
-                                              fontSize: 18,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 8),
-
-                                  // Contenido de recomendados o cercanos con paginación y indicador.
-                                  if (_selectedIndex == 0) // Recomendados
-                                    Column(
-                                      children: [
-                                        SizedBox(
-                                          height: 100,
-                                          child: PageView.builder(
-                                            controller: _recomendadosController,
-                                            itemCount: recomendados.length,
-                                            itemBuilder: (context, index) {
-                                              final rec = recomendados[index];
-                                              return Padding(
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                      horizontal: 8,
-                                                    ),
-                                                child: SizedBox(
-                                                  width:
-                                                      MediaQuery.of(
-                                                        context,
-                                                      ).size.width -
-                                                      48,
-                                                  child: Card(
-                                                    margin: EdgeInsets.zero,
-                                                    color: const Color(
-                                                      0xFFF4F4F4,
-                                                    ),
-                                                    child: Padding(
-                                                      padding:
-                                                          const EdgeInsets.symmetric(
-                                                            horizontal: 16,
-                                                            vertical: 8,
-                                                          ),
-                                                      child: Column(
-                                                        crossAxisAlignment:
-                                                            CrossAxisAlignment
-                                                                .start,
-                                                        mainAxisAlignment:
-                                                            MainAxisAlignment
-                                                                .center,
-                                                        children: [
-                                                          Text(
-                                                            rec['nombre']!,
-                                                            style:
-                                                                const TextStyle(
-                                                                  fontSize: 16,
-                                                                ),
-                                                          ),
-                                                          const SizedBox(
-                                                            height: 4,
-                                                          ),
-                                                          Wrap(
-                                                            spacing: 6,
-                                                            children: List<Widget>.from(
-                                                              (rec['categorias']
-                                                                      as List)
-                                                                  .map(
-                                                                    (
-                                                                      cat,
-                                                                    ) => Chip(
-                                                                      label:
-                                                                          Text(
-                                                                            cat,
-                                                                          ),
-                                                                      backgroundColor:
-                                                                          Colors
-                                                                              .white,
-                                                                      shape: RoundedRectangleBorder(
-                                                                        borderRadius:
-                                                                            BorderRadius.circular(
-                                                                              16,
-                                                                            ),
-                                                                        side: BorderSide(
-                                                                          color: Colors
-                                                                              .grey
-                                                                              .shade300,
-                                                                        ),
-                                                                      ),
-                                                                    ),
-                                                                  ),
-                                                            ),
-                                                          ),
-                                                        ],
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ),
-                                              );
-                                            },
-                                          ),
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: List.generate(
-                                            recomendados.length,
-                                            (i) => Container(
-                                              width: 8,
-                                              height: 8,
-                                              margin:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 3,
-                                                  ),
-                                              decoration: BoxDecoration(
-                                                shape: BoxShape.circle,
-                                                color: _recomendadosPage == i
-                                                    ? colbunBlue
-                                                    : Colors.grey.shade400,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    )
-                                  else // Cercanos
-                                    Column(
-                                      children: [
-                                        SizedBox(
-                                          height: 100,
-                                          child: PageView.builder(
-                                            controller: _cercanosController,
-                                            itemCount: cercanos.length,
-                                            itemBuilder: (context, index) {
-                                              final rec = cercanos[index];
-                                              return Padding(
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                      horizontal: 8,
-                                                    ),
-                                                child: SizedBox(
-                                                  width:
-                                                      MediaQuery.of(
-                                                        context,
-                                                      ).size.width -
-                                                      48,
-                                                  child: Card(
-                                                    margin: EdgeInsets.zero,
-                                                    color: const Color(
-                                                      0xFFF4F4F4,
-                                                    ),
-                                                    child: ListTile(
-                                                      title: Text(
-                                                        rec['nombre']!,
-                                                      ),
-                                                      subtitle: Text(
-                                                        "${rec['distancia']} km",
-                                                      ),
-                                                      onTap: () {
-                                                        // Acción al tocar POI cercano (pendiente).
-                                                      },
-                                                    ),
-                                                  ),
-                                                ),
-                                              );
-                                            },
-                                          ),
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: List.generate(
-                                            cercanos.length,
-                                            (i) => Container(
-                                              width: 8,
-                                              height: 8,
-                                              margin:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 3,
-                                                  ),
-                                              decoration: BoxDecoration(
-                                                shape: BoxShape.circle,
-                                                color: _cercanosPage == i
-                                                    ? colbunBlue
-                                                    : Colors.grey.shade400,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ],
+                                  Expanded(
+                                    child: _buildTabButton(
+                                      label: 'Recomendados',
+                                      index: 0,
                                     ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: _buildTabButton(
+                                      label: 'Cerca de ti',
+                                      index: 1,
+                                    ),
+                                  ),
                                 ],
                               ),
                             ),
+                            // ==================== RECOMENDADOS ====================
+                            if (_selectedIndex == 0)
+                              Column(
+                                children: [
+                                  if (recList.isEmpty)
+                                    const Padding(
+                                      padding: EdgeInsets.all(12),
+                                      child: Text(
+                                        'Sin recomendados para este POI',
+                                      ),
+                                    )
+                                  else
+                                    SizedBox(
+                                      height: 140, 
+                                      child: PageView.builder(
+                                        controller: _recomendadosController,
+                                        itemCount: state.recommended.length, //vinculado al estado
+                                        itemBuilder: (context, index) {
+                                          final rec = state.recommended[index]; //usa datos del estado
+                                          return Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                            ),
+                                            child: SizedBox(
+                                              width:
+                                                  MediaQuery.of(
+                                                    context,
+                                                  ).size.width -
+                                                  48,
+                                              child: InkWell(
+                                                onTap: () {
+                                                  // 1) Traer todos los POIs + ubicacion desde MapBloc
+                                                  final mapState = context
+                                                      .read<MapBloc>()
+                                                      .state;
+                                                  List<POI> allPois = [];
+                                                  LatLng? userLoc;
+
+                                                  if (mapState is MapLoaded) {
+
+                                                    for (final r
+                                                        in mapState.allRoutes) {
+                                                      allPois.addAll(r.pois);
+                                                    }
+                                                    userLoc =
+                                                        mapState.userLocation;
+                                                  }
+
+                                                  // 2) Despachar el evento al PoiBloc
+                                                  context.read<PoiBloc>().add(
+                                                    LoadPoi(
+                                                      current: rec,
+                                                      all: allPois,
+                                                      userLocation: userLoc,
+                                                    ),
+                                                  );
+
+                                                  // 3) Navegar a la ficha del POI
+                                                  Navigator.pushReplacement(
+                                                    context,
+                                                    MaterialPageRoute(
+                                                      builder: (_) =>
+                                                          PoiScreen(rec),
+                                                    ),
+                                                  );
+                                                },
+                                                child: Card(
+                                                  margin: EdgeInsets.zero,
+                                                  color: const Color(
+                                                    0xFFF4F4F4,
+                                                  ),
+                                                  child: Padding(
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          horizontal: 16,
+                                                          vertical: 8,
+                                                        ),
+                                                    child: Column(
+                                                      crossAxisAlignment:
+                                                          CrossAxisAlignment
+                                                              .start,
+                                                      mainAxisAlignment:
+                                                          MainAxisAlignment
+                                                              .center,
+                                                      children: [
+                                                        Text(
+                                                          rec.nombre,
+                                                          style:
+                                                              const TextStyle(
+                                                                fontSize: 16,
+                                                              ),
+                                                        ),
+                                                        const SizedBox(
+                                                          height: 4,
+                                                        ),
+                                                        Wrap(
+                                                          spacing: 6,
+                                                          children: rec.categorias.map((
+                                                            cat,
+                                                          ) {
+                                                            return Chip(
+                                                              label: Text(cat),
+                                                              backgroundColor:
+                                                                  Colors.white,
+                                                              shape: RoundedRectangleBorder(
+                                                                borderRadius:
+                                                                    BorderRadius.circular(
+                                                                      16,
+                                                                    ),
+                                                                side: BorderSide(
+                                                                  color: Colors
+                                                                      .grey
+                                                                      .shade300,
+                                                                ),
+                                                              ),
+                                                            );
+                                                          }).toList(),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: List.generate(
+                                      state.recommended.length, //  indicadores ligados al estado
+                                      (i) => Container(
+                                        width: 8,
+                                        height: 8,
+                                        margin: const EdgeInsets.symmetric(
+                                          horizontal: 3,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: _recomendadosPage == i
+                                              ? colbunBlue
+                                              : Colors.grey.shade400,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              )
+                            else // ---------------- CERCA DE TI ----------------
+                              Column(
+                                children: [
+                                  if (nearList.isEmpty)
+                                    const Padding(
+                                      padding: EdgeInsets.all(12),
+                                      child: Text(
+                                        'Sin lugares cerca de tu ubicacion.',
+                                      ),
+                                    )
+                                  else
+                                    SizedBox(
+                                      height: 140,
+                                      child: PageView.builder(
+                                        controller: _cercanosController,
+                                        itemCount: state.nearby.length, //vinculado al estado
+                                        itemBuilder: (context, index) {
+                                          final p = state.nearby[index]; //usa datos del estado
+                                          final double? km = dkm[p.id]; //  distancia para subtitulo
+                                          final String? subtitleText =
+                                              km == null ? null : "${km.toStringAsFixed(1)} km"; // formato texto km
+                                          return Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                            ),
+                                            child: SizedBox(
+                                              width:
+                                                  MediaQuery.of(
+                                                    context,
+                                                  ).size.width -
+                                                  48,
+                                              child: Card(
+                                                margin: EdgeInsets.zero,
+                                                color: const Color(0xFFF4F4F4),
+                                                child: ListTile(
+                                                  title: Text(p.nombre),
+                                                  subtitle: subtitleText == null
+                                                      ? null
+                                                      : Text(subtitleText),
+                                                  onTap: () {
+                                                    final mapState = context
+                                                        .read<MapBloc>()
+                                                        .state;
+                                                    List<POI> allPois = [];
+                                                    LatLng? userLoc;
+
+                                                    if (mapState is MapLoaded) {
+                                                      for (final r
+                                                          in mapState.allRoutes) {
+                                                        allPois.addAll(r.pois);
+                                                      }
+                                                      userLoc =
+                                                          mapState.userLocation;
+                                                    }
+
+                                                    context.read<PoiBloc>().add(
+                                                      LoadPoi(
+                                                        current: p,
+                                                        all: allPois,
+                                                        userLocation: userLoc,
+                                                      ),
+                                                    );
+                                                    Navigator.pushReplacement(
+                                                      context,
+                                                      MaterialPageRoute(
+                                                        builder: (_) =>
+                                                            PoiScreen(p),
+                                                      ),
+                                                    );
+                                                  },
+                                                ),
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: List.generate(
+                                      state.nearby.length, // indicadores ligados al estado
+                                      (i) => Container(
+                                        width: 8,
+                                        height: 8,
+                                        margin: const EdgeInsets.symmetric(
+                                          horizontal: 3,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: _cercanosPage == i
+                                              ? colbunBlue
+                                              : Colors.grey.shade400,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
                           ],
                         ),
                       ),
                     ],
                   );
                 } else {
-                  // Mostrar loader mientras se cargan datos.
                   return const Center(child: CircularProgressIndicator());
                 }
               },
             );
           },
         ),
+      ),
       ),
     );
   }

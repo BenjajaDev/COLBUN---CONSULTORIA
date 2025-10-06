@@ -1,5 +1,18 @@
-// Clase base abstracta para eventos relacionados con los POIs (Puntos de Interés).
+import 'package:consultoria_chat_bot/model/poi_model.dart';
+import 'package:latlong2/latlong.dart';
+
 abstract class PoiEvent {}
 
-// Evento para cargar los POIs.
-class LoadPoi extends PoiEvent {}
+class LoadPoi extends PoiEvent {
+  final POI current;
+  final List<POI> all;
+  final LatLng? userLocation;
+
+
+  LoadPoi({
+    required this.current,
+    required this.all,
+    this.userLocation,
+  });
+
+}

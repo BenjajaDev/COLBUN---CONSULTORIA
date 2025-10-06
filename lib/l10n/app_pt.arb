@@ -10,5 +10,7 @@
     "recomendados": "Recomendados",
     "cercanos":"Perto de você",
     "ruta": "Rota",
-    "rutas_disponibles": "Rotas disponíveis"
+    "rutas_disponibles": "Rotas disponíveis",
+    "resultado_busqueda": "Resultado de busca",
+    "sin_resultado": "Nenhum resultado encontrado"
 }

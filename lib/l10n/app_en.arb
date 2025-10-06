@@ -10,6 +10,8 @@
     "recomendados": "Recommended",
     "cercanos":"Near you",
     "ruta": "Route",
-    "rutas_disponibles": "Available routes"
+    "rutas_disponibles": "Available routes",
+    "resultado_busqueda": "Search result",
+    "sin_resultado": "No results found"
     
 }

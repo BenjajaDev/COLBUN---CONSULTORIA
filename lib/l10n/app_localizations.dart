@@ -165,6 +165,18 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Rutas disponibles'**
   String get rutas_disponibles;
+
+  /// Título para la sección de rutas cuando se escribe
+  ///
+  /// In es, this message translates to:
+  /// **'Resultado de búsqueda'**
+  String get resultado_busqueda;
+
+  /// Texto que aparece cuando no hay resultados
+  ///
+  /// In es, this message translates to:
+  /// **'No se encontraron resultados'**
+  String get sin_resultado;
 }
 
 class _AppLocalizationsDelegate

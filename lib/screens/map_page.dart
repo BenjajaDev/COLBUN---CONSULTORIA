@@ -9,7 +9,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
-// Página principal que muestra el mapa, lista de rutas y POIs, con búsqueda y selección.
 class MapPage extends StatefulWidget {
   const MapPage({super.key});
 
@@ -18,30 +17,21 @@ class MapPage extends StatefulWidget {
 }
 
 class _MapPageState extends State<MapPage> {
-  final String apiKey = 'vuobOOmhVcspXRuOBRRs'; // API Key para capas de mapa.
-  final MapController mapController =
-      MapController(); // Controlador del mapa para centrar y mover.
-  final TextEditingController searchController =
-      TextEditingController(); // Controlador del campo búsqueda.
-  int? selectedRouteIndex; // Índice de ruta seleccionada o null si ninguna.
-  final double _initialSheetChildSize =
-      0.25; // Tamaño inicial del panel inferior (draggable sheet).
-  double _dragScrollSheetExtent =
-      0; // Proporción actual del panel inferior desplegado.
-  double _widgetHeight = 0; // Altura total para cálculo del FAB.
-  double _fabPosition =
-      0; // Posición vertical del botón flotante para centrar ubicación.
-  final double _fabPositionPadding = 10; // Padding para el botón flotante.
+  static const Color _primaryColor = Color(0xFF4D67AE);
+  final String apiKey = 'vuobOOmhVcspXRuOBRRs';
+  final MapController mapController = MapController();
+  final TextEditingController searchController = TextEditingController();
+  int? selectedRouteIndex;
+  final double _initialSheetChildSize = 0.25;
+  double _dragScrollSheetExtent = 0;
+  double _widgetHeight = 0;
+  double _fabPosition = 0;
 
-  String searchQuery = ""; // Cadena actual para filtrar rutas y POIs.
-
+  final double _fabPositionPadding = 10;
   @override
   void initState() {
-    // Al iniciar el widget, se dispara evento para cargar las rutas.
     BlocProvider.of<MapBloc>(context).add(LoadRoute());
     super.initState();
-
-    // Después de construir se calcula la posición inicial del FAB en función del tamaño.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       setState(() {
         _fabPosition = _initialSheetChildSize * context.size!.height;
@@ -51,125 +41,438 @@ class _MapPageState extends State<MapPage> {
 
   @override
   void dispose() {
-    // Liberar recursos controladores para evitar fugas.
     mapController.dispose();
     searchController.dispose();
     super.dispose();
+  }
+
+  void _openFilterSheet(MapLoaded state) {
+    FocusScope.of(context).unfocus();
+
+    final categoryLookup = <String, String>{};
+    for (final route in state.allRoutes) {
+      if (route.category != null && route.category!.trim().isNotEmpty) {
+        final key = route.category!.trim();
+        categoryLookup.putIfAbsent(key.toLowerCase(), () => key);
+      }
+      for (final poi in route.pois) {
+        for (final category in poi.categorias) {
+          final trimmed = category.trim();
+          if (trimmed.isEmpty) {
+            continue;
+          }
+          categoryLookup.putIfAbsent(trimmed.toLowerCase(), () => trimmed);
+        }
+      }
+    }
+    final categories = categoryLookup.values.toList()..sort();
+
+    final seasonLookup = <String, String>{};
+    for (final route in state.allRoutes) {
+      if (route.season != null && route.season!.trim().isNotEmpty) {
+        final key = route.season!.trim();
+        seasonLookup.putIfAbsent(key.toLowerCase(), () => key);
+      }
+    }
+    final seasons = seasonLookup.values.toList()..sort();
+
+    double computedMaxDistance = state.allRoutes.fold<double>(0, (
+      previousValue,
+      route,
+    ) {
+      if (route.distanceKm != null && route.distanceKm! > previousValue) {
+        return route.distanceKm!;
+      }
+      return previousValue;
+    });
+    if (computedMaxDistance <= 0) {
+      computedMaxDistance = 100;
+    } else if (computedMaxDistance < 10) {
+      computedMaxDistance = 10;
+    } else if (computedMaxDistance > 200) {
+      computedMaxDistance = 200;
+    }
+    final int sliderDivisions = computedMaxDistance.round();
+
+    String? tempCategory = state.selectedCategory;
+    double tempDistance = state.selectedDistanceKm ?? 0;
+    String? tempSeason = state.selectedSeason;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, modalSetState) {
+            Widget buildDropdown({
+              required String? currentValue,
+              required List<String> values,
+              required ValueChanged<String?> onChanged,
+            }) {
+              return InputDecorator(
+                decoration: InputDecoration(
+                  hintText: 'Todas',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: _primaryColor),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 4,
+                  ),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String?>(
+                    value: currentValue,
+                    hint: const Text('Todas'),
+                    isExpanded: true,
+                    items: [
+                      const DropdownMenuItem<String?>(
+                        value: null,
+                        child: Text('Todas'),
+                      ),
+                      ...values.map(
+                        (value) => DropdownMenuItem<String?>(
+                          value: value,
+                          child: Text(value),
+                        ),
+                      ),
+                    ],
+                    onChanged: onChanged,
+                  ),
+                ),
+              );
+            }
+
+            final labelStyle = Theme.of(context).textTheme.titleMedium
+                ?.copyWith(fontWeight: FontWeight.w600, color: _primaryColor);
+
+            final distanceLabel = tempDistance <= 0
+                ? 'Todas'
+                : tempDistance >= 10
+                ? '${tempDistance.toStringAsFixed(0)} km'
+                : '${tempDistance.toStringAsFixed(1)} km';
+
+            return Padding(
+              padding: MediaQuery.of(context).viewInsets,
+              child: SafeArea(
+                top: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            'Filtros',
+                            style:
+                                (Theme.of(context).textTheme.titleLarge ??
+                                        const TextStyle(
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.w600,
+                                        ))
+                                    .copyWith(color: _primaryColor),
+                          ),
+                          const Spacer(),
+                          IconButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            icon: const Icon(Icons.close),
+                            color: _primaryColor,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Categoría',
+                        style:
+                            labelStyle ??
+                            const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF4D67AE),
+                            ),
+                      ),
+                      const SizedBox(height: 8),
+                      buildDropdown(
+                        currentValue: tempCategory,
+                        values: categories,
+                        onChanged: (value) {
+                          modalSetState(() {
+                            tempCategory = value;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Distancia (km)',
+                        style:
+                            labelStyle ??
+                            const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF4D67AE),
+                            ),
+                      ),
+                      const SizedBox(height: 8),
+                      SliderTheme(
+                        data: SliderTheme.of(context).copyWith(
+                          activeTrackColor: _primaryColor,
+                          inactiveTrackColor: _primaryColor.withValues(
+                            alpha: 0.2,
+                          ),
+                          thumbColor: _primaryColor,
+                          overlayColor: _primaryColor.withValues(alpha: 0.1),
+                          valueIndicatorColor: _primaryColor,
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Slider(
+                                value: tempDistance.clamp(
+                                  0,
+                                  computedMaxDistance,
+                                ),
+                                min: 0,
+                                max: computedMaxDistance,
+                                divisions: sliderDivisions > 0
+                                    ? sliderDivisions
+                                    : null,
+                                label: distanceLabel,
+                                onChanged: (value) {
+                                  modalSetState(() {
+                                    tempDistance = value;
+                                  });
+                                },
+                              ),
+                            ),
+                            Text(
+                              distanceLabel,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF4D67AE),
+                              ),
+                            ),
+                            IconButton(
+                              tooltip: 'Limpiar',
+                              onPressed: () {
+                                modalSetState(() {
+                                  tempDistance = 0;
+                                });
+                              },
+                              icon: const Icon(Icons.clear),
+                              color: _primaryColor,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Temporada',
+                        style:
+                            labelStyle ??
+                            const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF4D67AE),
+                            ),
+                      ),
+                      const SizedBox(height: 8),
+                      buildDropdown(
+                        currentValue: tempSeason,
+                        values: seasons,
+                        onChanged: (value) {
+                          modalSetState(() {
+                            tempSeason = value;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 24),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _primaryColor,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                            context.read<MapBloc>().add(
+                              ApplyFilters(
+                                category: tempCategory,
+                                distanceKm: tempDistance > 0
+                                    ? tempDistance
+                                    : null,
+                                season: tempSeason,
+                                query: searchController.text.trim(),
+                              ),
+                            );
+                            if (selectedRouteIndex != null && mounted) {
+                              setState(() {
+                                selectedRouteIndex = null;
+                              });
+                            }
+                          },
+                          child: const Text('Aplicar filtros'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _sendQueryUpdate(MapLoaded state, String query) {
+    final trimmedQuery = query.trim();
+    context.read<MapBloc>().add(
+      ApplyFilters(
+        category: state.selectedCategory,
+        distanceKm: state.selectedDistanceKm,
+        season: state.selectedSeason,
+        query: trimmedQuery,
+      ),
+    );
+    if (selectedRouteIndex != null && mounted) {
+      setState(() {
+        selectedRouteIndex = null;
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        // Escucha cambios del estado MapBloc para construir la UI reactiva.
         child: BlocBuilder<MapBloc, MapState>(
           builder: (context, state) {
             if (state is MapLoaded) {
-              // Extrae todos los POIs de todas las rutas para búsquedas y listado.
-              final allPois = state.route
-                  .expand((route) => route.pois)
-                  .toList();
+              if (searchController.text != state.query) {
+                searchController.value = TextEditingValue(
+                  text: state.query,
 
-              // Filtra rutas según búsqueda y si no hay ruta seleccionada.
-              final filteredRoutes =
-                  (searchQuery.isNotEmpty && selectedRouteIndex == null)
-                  ? state.route
-                        .where(
-                          (r) => r.name.toLowerCase().contains(
-                            searchQuery.toLowerCase(),
-                          ),
-                        )
-                        .toList()
-                  : (selectedRouteIndex == null ? state.route : []);
+                  selection: TextSelection.collapsed(
+                    offset: state.query.length,
+                  ),
+                );
+              }
 
-              // Filtra POIs según búsqueda y si hay una ruta seleccionada o no.
-              final filteredPois = selectedRouteIndex != null
-                  ? state.route[selectedRouteIndex!].pois
-                        .where(
-                          (p) => p.nombre.toLowerCase().contains(
-                            searchQuery.toLowerCase(),
-                          ),
-                        )
-                        .toList()
-                  : (searchQuery.isEmpty
-                        ? allPois
-                        : allPois
-                              .where(
-                                (p) => p.nombre.toLowerCase().contains(
-                                  searchQuery.toLowerCase(),
-                                ),
-                              )
-                              .toList());
+              final filteredRoutes = state.filteredRoutes;
 
+              final filteredPois = state.filteredPois;
+
+              final hasSearch = state.query.trim().isNotEmpty;
+
+              final buttonStyle = IconButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: _primaryColor,
+                shape: const CircleBorder(),
+              );
+
+              if (selectedRouteIndex != null &&
+                  (selectedRouteIndex! < 0 ||
+                      selectedRouteIndex! >= filteredRoutes.length)) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) {
+                    setState(() {
+                      selectedRouteIndex = null;
+                    });
+                  }
+                });
+              }
+
+              final selectedRoute =
+                  (selectedRouteIndex != null &&
+                      selectedRouteIndex! >= 0 &&
+                      selectedRouteIndex! < filteredRoutes.length)
+                  ? filteredRoutes[selectedRouteIndex!]
+                  : null;
               return Stack(
                 children: [
-                  // Mapa principal con tiles y marcadores.
                   FlutterMap(
                     mapController: mapController,
+
                     options: MapOptions(
                       initialCenter: state.center,
+
                       initialZoom: 15,
                     ),
                     children: [
-                      // Capa base de mapas con MapTiler.
                       TileLayer(
                         urlTemplate:
                             'https://api.maptiler.com/maps/streets/{z}/{x}/{y}.png?key=$apiKey',
+
                         userAgentPackageName: 'com.example.app',
                       ),
-                      // Marcadores para POIs filtrados.
                       MarkerLayer(
                         markers: [
                           ...filteredPois.map(
-                            (marker) => Marker(
-                              point: LatLng(marker.latitud, marker.longitud),
+                            (poi) => Marker(
+                              point: LatLng(poi.latitud, poi.longitud),
                               width: 80,
                               height: 60,
                               child: GestureDetector(
                                 onTap: () {
-                                  // Al tocar marcador, navega a detalle del POI.
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
-                                      builder: (context) => PoiScreen(marker),
+                                      builder: (context) => PoiScreen(poi),
                                     ),
                                   );
                                 },
+
                                 child: Column(
                                   mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Icon(
+                                  children: const [
+                                    Icon(
                                       Icons.location_pin,
                                       color: Colors.red,
                                       size: 40,
-                                    ),
-                                    Text(
-                                      marker.nombre,
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.black,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
                                     ),
                                   ],
                                 ),
                               ),
                             ),
                           ),
-                          // Marcador para ubicación del usuario con orientación.
+
                           if (state.userLocation != null)
                             Marker(
                               point: state.userLocation!,
                               child: Transform.rotate(
-                                angle: state.heading * (3.1415926535 / 180),
+                                angle:
+                                    state.heading *
+                                    (3.1415926535 /
+                                        180), //  Convertir a radianes
+
                                 child: Container(
                                   decoration: const BoxDecoration(
                                     color: Color(0xFF4D67AE),
                                     shape: BoxShape.circle,
                                   ),
                                   child: const Icon(
-                                    Icons.navigation,
+                                    Icons.navigation, // Flecha tipo brujula
+
                                     color: Colors.white,
                                     size: 24,
                                   ),
@@ -178,9 +481,9 @@ class _MapPageState extends State<MapPage> {
                             ),
                         ],
                       ),
-                      // Capa de polígonos para las rutas dibujadas en el mapa.
+
                       PolylineLayer(
-                        polylines: state.route.map((route) {
+                        polylines: filteredRoutes.map((route) {
                           return Polyline(
                             points: [
                               LatLng(
@@ -197,24 +500,23 @@ class _MapPageState extends State<MapPage> {
                     ],
                   ),
 
-                  // Botón flotante para centrar el mapa en la ubicación del usuario.
                   Positioned(
                     bottom: _fabPosition + _fabPositionPadding,
                     right: 16,
                     child: FloatingActionButton(
                       backgroundColor: const Color(0xFF4D67AE),
                       onPressed: () {
-                        // Mueve el mapa a la ubicación actual con zoom 15.
-                        mapController.move(state.userLocation!, 15);
+                        mapController.move(
+                          state.userLocation!,
+                          15,
+                        ); // ðŸ‘ˆ Centrar
                       },
                       child: const Icon(Icons.my_location, color: Colors.white),
                     ),
                   ),
 
-                  // Panel inferior deslizable que contiene listado y controles.
                   NotificationListener<DraggableScrollableNotification>(
                     onNotification: (notification) {
-                      // Actualiza posiciones y tamaño para animar el FAB al deslizar.
                       setState(() {
                         _widgetHeight = context.size!.height;
                         _dragScrollSheetExtent = notification.extent;
@@ -222,10 +524,13 @@ class _MapPageState extends State<MapPage> {
                       });
                       return true;
                     },
+
                     child: DraggableScrollableSheet(
-                      initialChildSize: _initialSheetChildSize,
-                      minChildSize: 0.2,
-                      maxChildSize: 0.6,
+                      initialChildSize:
+                          _initialSheetChildSize, // Altura inicial (25%)
+                      minChildSize: 0.2, // Altura mÃ­nima
+                      maxChildSize: 0.6, // Altura mÃ¡xima
+
                       snap: true,
                       builder: (context, scrollController) {
                         return Container(
@@ -238,10 +543,10 @@ class _MapPageState extends State<MapPage> {
                               BoxShadow(color: Colors.black26, blurRadius: 8),
                             ],
                           ),
+
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // Indicador visual para el panel deslizable.
                               Center(
                                 child: Container(
                                   margin: const EdgeInsets.only(top: 8),
@@ -253,17 +558,16 @@ class _MapPageState extends State<MapPage> {
                                   ),
                                 ),
                               ),
+
                               const SizedBox(height: 10),
 
-                              // Encabezado con botón volver y título de ruta o general.
                               Padding(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 16.0,
                                 ),
                                 child: Row(
                                   children: [
-                                    // Mostrar botón volver si hay ruta seleccionada.
-                                    if (selectedRouteIndex != null)
+                                    if (selectedRoute != null)
                                       GestureDetector(
                                         onTap: () {
                                           setState(() {
@@ -272,225 +576,166 @@ class _MapPageState extends State<MapPage> {
                                         },
                                         child: const Icon(
                                           Icons.arrow_back,
+
                                           size: 22,
                                         ),
                                       ),
-                                    if (selectedRouteIndex != null)
+                                    if (selectedRoute != null)
                                       const SizedBox(width: 8),
-
-                                    // Título dinámico: rutas disponibles o nombre de ruta.
-                                    Expanded(
-                                      child: Text(
-                                        selectedRouteIndex == null
-                                            ? AppLocalizations.of(
-                                                context,
-                                              )!.rutas_disponibles
-                                            : state
-                                                  .route[selectedRouteIndex!]
-                                                  .name,
-                                        style: const TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.bold,
+                                      Expanded(
+                                        child: Text(
+                                            hasSearch
+                                                ? AppLocalizations.of(context)!.resultado_busqueda
+                                                : selectedRoute == null
+                                                    ? AppLocalizations.of(context)!.rutas_disponibles
+                                                    : selectedRoute.name,
+                                            style: const TextStyle(
+                                                fontSize: 18,
+                                                fontWeight: FontWeight.bold,
+                                            ),
                                         ),
-                                      ),
                                     ),
-
-                                    // Botón para ver lista general de rutas si está en vista ruta.
-                                    if (selectedRouteIndex != null)
-                                      TextButton.icon(
-                                        onPressed: () {
-                                          setState(() {
-                                            selectedRouteIndex = null;
-                                          });
-                                        },
-                                        icon: const Icon(
-                                          Icons.list,
-                                          size: 18,
-                                          color: Colors.blue,
+                                      if (selectedRoute != null)
+                                        TextButton.icon(
+                                          onPressed: () {
+                                            setState(() {
+                                              selectedRouteIndex = null;
+                                            });
+                                          },
+                                          icon: const Icon(
+                                            Icons.list,
+                                            size: 18,
+                                            color: Color(0xFF4D67AE),
+                                          ),
+                                          label: const Text(
+                                            'Ver rutas',
+                                            style: TextStyle(
+                                              color: Color(0xFF4D67AE),
+                                            ),
+                                          ),
                                         ),
-                                        label: const Text(
-                                          "Ver rutas",
-                                          style: TextStyle(color: Colors.blue),
-                                        ),
-                                      ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
-                              ),
-
-                              const SizedBox(height: 10),
-
-                              // Contenido principal: listas dependiendo de búsqueda y selección.
-                              Expanded(
-                                child: searchQuery.isNotEmpty
-                                    ? ListView(
-                                        controller: scrollController,
-                                        children: [
-                                          // Listado de rutas filtradas por búsqueda.
-                                          ...filteredRoutes.map(
-                                            (route) => ListTile(
-                                              leading: const Icon(
-                                                Icons.alt_route,
-                                                color: Colors.blue,
+                                const SizedBox(height: 10),
+                                                        Expanded(
+                              child: hasSearch
+                                  ? (filteredRoutes.isEmpty && filteredPois.isEmpty)
+                                      ? Center(
+                                          child: Text(
+                                              AppLocalizations.of(context)!.sin_resultado,
+                                              style: const TextStyle(
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.w500,
+                                                  color: Colors.grey,
                                               ),
-                                              title: Text("Ruta ${route.name}"),
-                                              onTap: () {
-                                                // Centra el mapa en la ruta seleccionada.
-                                                final center = LatLng(
-                                                  (route.initialLatitude +
-                                                          route.finalLatitude) /
-                                                      2,
-                                                  (route.initialLongitude +
-                                                          route
-                                                              .finalLongitude) /
-                                                      2,
-                                                );
-                                                setState(() {
-                                                  selectedRouteIndex = state
-                                                      .route
-                                                      .indexOf(route);
-                                                });
-                                                mapController.move(center, 14);
-                                              },
-                                            ),
                                           ),
-                                          // Listado de POIs filtrados por búsqueda.
-                                          ...filteredPois.map(
-                                            (poi) => ListTile(
-                                              leading: const Icon(
-                                                Icons.location_on,
-                                                color: Colors.red,
-                                                size: 28,
-                                              ),
-                                              title: Text(poi.nombre),
-                                              subtitle: Text(
-                                                poi.categorias.isNotEmpty
-                                                    ? poi.categorias[0]
-                                                    : '',
-                                              ),
-                                              onTap: () {
-                                                // Centra el mapa en el POI seleccionado.
-                                                mapController.move(
-                                                  LatLng(
-                                                    poi.latitud,
-                                                    poi.longitud,
-                                                  ),
-                                                  16,
-                                                );
-                                              },
-                                              trailing: GestureDetector(
-                                                onTap: () {
-                                                  // Navega a detalle del POI.
-                                                  Navigator.push(
-                                                    context,
-                                                    MaterialPageRoute(
-                                                      builder: (context) =>
-                                                          PoiScreen(poi),
-                                                    ),
+                                      )
+                                      : ListView(
+                                          controller: scrollController,
+                                          children: [
+                                              ...filteredRoutes.asMap().entries.map((entry) {
+                                                  final index = entry.key;
+                                                  final route = entry.value;
+                                                  return ListTile(
+                                                      leading: const Icon(Icons.alt_route, color: Color(0xFF4D67AE)),
+                                                      title: Text('${AppLocalizations.of(context)!.ruta} ${route.name}'),
+                                                      selected: selectedRouteIndex == index,
+                                                      selectedTileColor: _primaryColor.withOpacity(0.12),
+                                                      onTap: () {
+                                                          final center = LatLng(
+                                                              (route.initialLatitude + route.finalLatitude) / 2,
+                                                              (route.initialLongitude + route.finalLongitude) / 2,
+                                                          );
+                                                          setState(() {
+                                                              selectedRouteIndex = index;
+                                                          });
+                                                          mapController.move(center, 14);
+                                                      },
                                                   );
-                                                },
-                                                child: const Icon(Icons.add),
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      )
-                                    : selectedRouteIndex == null
-                                    ? ListView.builder(
-                                        controller: scrollController,
-                                        itemCount: state.route.length,
-                                        itemBuilder: (context, index) {
-                                          final route = state.route[index];
-                                          return Container(
-                                            decoration: BoxDecoration(
-                                              border: Border(
-                                                bottom: BorderSide(
-                                                  color: Colors.grey.shade300,
-                                                ),
-                                              ),
-                                            ),
-                                            child: ListTile(
-                                              leading: const Icon(
-                                                Icons.alt_route,
-                                                color: Colors.blue,
-                                              ),
-                                              title: Text(
-                                                "${AppLocalizations.of(context)!.ruta} ${route.name}",
-                                              ),
-                                              trailing: const Icon(
-                                                Icons.arrow_forward_ios,
-                                                color: Colors.grey,
-                                                size: 18,
-                                              ),
-                                              selected:
-                                                  selectedRouteIndex == index,
-                                              selectedTileColor:
-                                                  Colors.blue.shade50,
-                                              onTap: () {
-                                                final center = LatLng(
-                                                  (route.initialLatitude +
-                                                          route.finalLatitude) /
-                                                      2,
-                                                  (route.initialLongitude +
-                                                          route
-                                                              .finalLongitude) /
-                                                      2,
-                                                );
-                                                setState(() {
-                                                  selectedRouteIndex = index;
-                                                });
-                                                mapController.move(center, 14);
-                                              },
-                                            ),
-                                          );
-                                        },
-                                      )
-                                    : ListView.builder(
-                                        controller: scrollController,
-                                        itemCount: state
-                                            .route[selectedRouteIndex!]
-                                            .pois
-                                            .length,
-                                        itemBuilder: (context, index) {
-                                          final poi = state
-                                              .route[selectedRouteIndex!]
-                                              .pois[index];
-                                          return ListTile(
-                                            leading: const Icon(
-                                              Icons.location_on,
-                                              color: Colors.red,
-                                              size: 28,
-                                            ),
-                                            title: Text(poi.nombre),
-                                            subtitle: Text(
-                                              poi.categorias.isNotEmpty
-                                                  ? poi.categorias[0]
-                                                  : '',
-                                            ),
-                                            onTap: () {
-                                              mapController.move(
-                                                LatLng(
-                                                  poi.latitud,
-                                                  poi.longitud,
-                                                ),
-                                                16,
-                                              );
-                                            },
-                                            trailing: GestureDetector(
-                                              onTap: () {
-                                                Navigator.push(
-                                                  context,
-                                                  MaterialPageRoute(
-                                                    builder: (context) =>
-                                                        PoiScreen(poi),
+                                              }),
+                                              ...filteredPois.map(
+                                                  (poi) => ListTile(
+                                                      leading: const Icon(Icons.location_on, color: Colors.red, size: 28),
+                                                      title: Text(poi.nombre),
+                                                      subtitle: poi.categorias.isNotEmpty ? Text(poi.categorias.first) : null,
+                                                      onTap: () {
+                                                          mapController.move(LatLng(poi.latitud, poi.longitud), 16);
+                                                      },
+                                                      trailing: GestureDetector(
+                                                          onTap: () {
+                                                              Navigator.push(
+                                                                  context,
+                                                                  MaterialPageRoute(builder: (context) => PoiScreen(poi)),
+                                                              );
+                                                          },
+                                                          child: const Icon(Icons.add),
+                                                      ),
                                                   ),
-                                                );
-                                              },
-                                              child: const Icon(Icons.add),
-                                            ),
-                                          );
-                                        },
+                                              ),
+                                          ],
+                                      )
+                                  : selectedRoute == null
+                                      ? ListView.builder(
+                                          controller: scrollController,
+                                          itemCount: filteredRoutes.length,
+                                          itemBuilder: (context, index) {
+                                              final route = filteredRoutes[index];
+                                              return ListTile(
+                                                  leading: const Icon(Icons.alt_route, color: Color(0xFF4D67AE)),
+                                                  title: Text('${AppLocalizations.of(context)!.ruta} ${route.name}'),
+                                                  trailing: const Icon(Icons.arrow_forward_ios, color: Colors.grey, size: 18),
+                                                  selected: selectedRouteIndex == index,
+                                                  selectedTileColor: _primaryColor.withOpacity(0.12),
+                                                  onTap: () {
+                                                      final center = LatLng(
+                                                          (route.initialLatitude + route.finalLatitude) / 2,
+                                                          (route.initialLongitude + route.finalLongitude) / 2,
+                                                      );
+                                                      setState(() {
+                                                          selectedRouteIndex = index;
+                                                      });
+                                                      mapController.move(center, 14);
+                                                  },
+                                              );
+                                          },
+                                      )
+                                      : selectedRoute.pois.isEmpty
+                                          ? Center(
+                                              child: Text(
+                                                  AppLocalizations.of(context)!.sin_resultado,
+                                                  style: const TextStyle(
+                                                      fontSize: 16,
+                                                      fontWeight: FontWeight.w500,
+                                                      color: Colors.grey,
+                                                  ),
+                                              ),
+                                          )
+                                      : ListView.builder(
+                                          controller: scrollController,
+                                          itemCount: selectedRoute.pois.length,
+                                          itemBuilder: (context, index) {
+                                              final poi = selectedRoute.pois[index];
+                                              return ListTile(
+                                                  leading: const Icon(Icons.location_on, color: Colors.red, size: 28),
+                                                  title: Text(poi.nombre),
+                                                  subtitle: poi.categorias.isNotEmpty ? Text(poi.categorias.first) : null,
+                                                  onTap: () {
+                                                      mapController.move(LatLng(poi.latitud, poi.longitud), 16);
+                                                  },
+                                                  trailing: GestureDetector(
+                                                      onTap: () {
+                                                          Navigator.push(
+                                                              context,
+                                                              MaterialPageRoute(builder: (context) => PoiScreen(poi)),
+                                                          );
+                                                      },
+                                                      child: const Icon(Icons.add),
+                                                  ),
+                                              );
+                                          },
                                       ),
-                              ),
+                          )
                             ],
                           ),
                         );
@@ -498,7 +743,6 @@ class _MapPageState extends State<MapPage> {
                     ),
                   ),
 
-                  // Barra superior con campo búsqueda y botones.
                   Positioned(
                     top: 0,
                     right: 0,
@@ -508,26 +752,17 @@ class _MapPageState extends State<MapPage> {
                       child: Row(
                         children: [
                           IconButton(
-                            style: IconButton.styleFrom(
-                              backgroundColor: Colors.white,
-                              foregroundColor: Colors.black,
-                              shape: const CircleBorder(),
-                            ),
+                            style: buttonStyle,
                             onPressed: () {},
                             icon: const Icon(Icons.arrow_back_rounded),
                           ),
+
                           const SizedBox(width: 4.0),
                           Expanded(
                             child: TextField(
                               controller: searchController,
                               onChanged: (value) {
-                                setState(() {
-                                  searchQuery = value;
-                                  // No resetear selectedRouteIndex cuando hay búsqueda.
-                                  if (value.isNotEmpty) {
-                                    selectedRouteIndex = selectedRouteIndex;
-                                  }
-                                });
+                                _sendQueryUpdate(state, value);
                               },
                               decoration: InputDecoration(
                                 hintText:
@@ -535,30 +770,56 @@ class _MapPageState extends State<MapPage> {
                                       context,
                                       MaterialLocalizations,
                                     )!.searchFieldLabel,
-                                border: const OutlineInputBorder(
+                                border: OutlineInputBorder(
+                                  borderRadius: const BorderRadius.all(
+                                    Radius.circular(32.0),
+                                  ),
+                                  borderSide: BorderSide(
+                                    color: Colors.grey.shade300,
+                                  ),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: const BorderRadius.all(
+                                    Radius.circular(32.0),
+                                  ),
+                                  borderSide: BorderSide(
+                                    color: Colors.grey.shade300,
+                                  ),
+                                ),
+                                focusedBorder: const OutlineInputBorder(
                                   borderRadius: BorderRadius.all(
                                     Radius.circular(32.0),
                                   ),
-                                  borderSide: BorderSide.none,
+                                  borderSide: BorderSide(
+                                    color: Color(0xFF4D67AE),
+                                  ),
                                 ),
                                 filled: true,
                                 fillColor: Colors.white,
                                 contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 8.0,
+                                  horizontal: 12.0,
+                                  vertical: 10.0,
                                 ),
                               ),
                             ),
                           ),
+
                           const SizedBox(width: 4.0),
                           IconButton(
-                            style: IconButton.styleFrom(
-                              backgroundColor: Colors.white,
-                              foregroundColor: Colors.black,
-                              shape: const CircleBorder(),
-                            ),
-                            onPressed: () {},
-                            icon: const Icon(Icons.search),
+                            style: buttonStyle,
+                            onPressed: () => _openFilterSheet(state),
+                            icon: const Icon(Icons.filter_list),
                           ),
+
+                          /* const SizedBox(width: 4.0),
+                          IconButton(
+                            style: buttonStyle,
+                            onPressed: () {
+                              FocusScope.of(context).unfocus();
+                              _sendQueryUpdate(state, searchController.text);
+                            },
+                            icon: const Icon(Icons.search),
+                          ),*/
                           const SizedBox(width: 4.0),
                           IconButton(
                             style: IconButton.styleFrom(
@@ -567,7 +828,6 @@ class _MapPageState extends State<MapPage> {
                               shape: const CircleBorder(),
                             ),
                             onPressed: () {
-                              // Navega a la pantalla de favoritos.
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
@@ -583,8 +843,9 @@ class _MapPageState extends State<MapPage> {
                   ),
                 ],
               );
+            } else if (state is MapError) {
+              return Center(child: Text(state.message));
             } else {
-              // Mientras las rutas se cargan, muestra indicador de progreso.
               return const Center(child: CircularProgressIndicator());
             }
           },

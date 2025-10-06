@@ -11,34 +11,33 @@ class FavoritesScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Favoritos'), // Título de la barra de la pantalla.
+        title: const Text('Favoritos'),
       ),
       body: BlocBuilder<FavoritesCubit, FavoritesState>(
         builder: (context, state) {
-          // Si no hay favoritos, muestra mensaje centrado.
+          // Muestra un mensaje si todavia no se han marcado favoritos.
           if (state.favorites.isEmpty) {
-            return const Center(child: Text('Aun no tienes POIs favoritos.'));
+            return const Center(
+              child: Text('Aun no tienes POIs favoritos.'),
+            );
           }
 
-          // Lista con separadores que muestra los POIs favoritos.
+          // Lista reactiva con acceso rapido al detalle y opcion para remover.
           return ListView.separated(
-            itemCount:
-                state.favorites.length, // Número de elementos en la lista.
-            separatorBuilder: (context, index) =>
-                const Divider(height: 1), // Separador visual.
+            itemCount: state.favorites.length,
+            separatorBuilder: (context, index) => const Divider(height: 1),
             itemBuilder: (context, index) {
-              final poi = state.favorites[index]; // POI actual del índice.
+              final poi = state.favorites[index];
 
               return ListTile(
                 leading: ClipRRect(
-                  borderRadius: BorderRadius.circular(6), // Bordes redondeados.
+                  borderRadius: BorderRadius.circular(6),
                   child: Image.network(
-                    poi.imagen, // Imagen del POI.
+                    poi.imagen,
                     width: 56,
                     height: 56,
                     fit: BoxFit.cover,
                     errorBuilder: (context, error, stackTrace) {
-                      // En caso de error al cargar imagen, muestra un icono predeterminado.
                       return Container(
                         width: 56,
                         height: 56,
@@ -49,26 +48,22 @@ class FavoritesScreen extends StatelessWidget {
                     },
                   ),
                 ),
-                title: Text(poi.nombre), // Nombre del POI.
-                // Muestra categorías si existen, separadas por coma.
+                title: Text(poi.nombre),
                 subtitle: poi.categorias.isNotEmpty
                     ? Text(poi.categorias.join(', '))
                     : null,
                 trailing: IconButton(
-                  icon: const Icon(
-                    Icons.favorite,
-                    color: Colors.pink,
-                  ), // Icono de favorito.
-                  // Al pulsar alterna entre favorito/no favorito.
+                  icon: const Icon(Icons.favorite, color: Colors.pink),
                   onPressed: () {
                     context.read<FavoritesCubit>().toggleFavorite(poi);
                   },
                 ),
-                // Al tocar la fila, navega a la pantalla de detalle del POI.
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => PoiScreen(poi)),
+                    MaterialPageRoute(
+                      builder: (context) => PoiScreen(poi),
+                    ),
                   );
                 },
               );

@@ -1,18 +1,28 @@
-// Clase base abstracta para representar los diferentes estados relacionados con POIs.
+import 'package:consultoria_chat_bot/model/poi_model.dart';
+
 abstract class PoiState {}
 
-// Estado inicial antes de cargar cualquier dato de POIs.
 class PoiInitial extends PoiState {}
 
-// Estado que indica que los datos de POIs se están cargando.
+
 class PoiLoading extends PoiState {}
 
-// Estado que indica que los datos de POIs se han cargado correctamente.
-class PoiLoaded extends PoiState {}
+class PoiLoaded extends PoiState {
+  final POI current;
+  final List<POI> recommended;
+  final List<POI> nearby;
+  final Map<String, double> distancesKm;
 
-// Estado que indica un error con un mensaje descriptivo al usuario.
+  PoiLoaded ({
+    required this.current,
+    required this.recommended,
+    required this.nearby,
+    required this.distancesKm,
+  });
+}
 class PoiError extends PoiState {
-  final String message; // Mensaje de error para mostrar.
-
+  final String message;
   PoiError(this.message);
 }
+
+
