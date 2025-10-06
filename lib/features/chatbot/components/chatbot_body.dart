@@ -16,6 +16,9 @@ class ChatbotBody extends StatelessWidget {
   final Function(String) onSendMessage;
   final VoidCallback onShowFrequentlyAskedQuestions;
   final Function(String) onFaqSelected;
+  final List<Map<String, dynamic>> emergencyContacts;
+  final Function(String) onEmergencyCall;
+  final VoidCallback onCloseEmergency;
 
   const ChatbotBody({
     super.key,
@@ -28,6 +31,9 @@ class ChatbotBody extends StatelessWidget {
     required this.onSendMessage,
     required this.onShowFrequentlyAskedQuestions,
     required this.onFaqSelected,
+    required this.emergencyContacts,
+    required this.onEmergencyCall,
+    required this.onCloseEmergency,
   });
 
 // Método para abrir URLs
@@ -41,6 +47,7 @@ class ChatbotBody extends StatelessWidget {
       }
     }
   }
+
 
   @override
   Widget build(BuildContext context) {

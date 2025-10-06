@@ -5,15 +5,16 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../bloc/theme_bloc.dart';
 import '../bloc/faq_bloc.dart';
-import '../../../services/firestore_conversations.dart';
 import '../utils/app_colors.dart';
 import '../components/chatbot_header.dart';
 import '../components/chatbot_body.dart';
 import '../components/chatbot_footer.dart';
 import '../../../services/openai_service.dart';
-import 'package:consultoria_chat_bot/services/firestore_faq_service.dart';
+import '../../../services/firestore_conversations.dart';
+import '../../../services/firestore_faq_service.dart';
 import '../../../services/language_service.dart';
 import '../../../services/chat_history_service.dart';
+import '../../../services/firestore_emergency.dart';
 
 class ChatbotScreen extends StatefulWidget {
   const ChatbotScreen({super.key});
@@ -23,41 +24,44 @@ class ChatbotScreen extends StatefulWidget {
 
 class _ChatbotScreenState extends State<ChatbotScreen>
     with TickerProviderStateMixin {
-  final List<Map<String, dynamic>> messages = [];
-  List<Faq> _allLoadedFaqs = [];
-
-  bool _isTyping = false;
+  // ===========================================================================
+  // CONTROLADORES Y ANIMACIONES
+  // ===========================================================================
+  final ScrollController _scrollController = ScrollController();
   late AnimationController _typingController;
   Animation<double>? _typingAnimation;
-  final ScrollController _scrollController = ScrollController();
+
+  // ===========================================================================
+  // ESTADO DE LA APLICACIÓN
+  // ===========================================================================
+  final List<Map<String, dynamic>> messages = [];
+  bool _isTyping = false;
+  bool _isLoadingConversation = false;
+  bool _hasRestoredLocalHistory = false;
+
+  // ===========================================================================
+  // DATOS Y SERVICIOS
+  // ===========================================================================
+  List<Faq> _allLoadedFaqs = [];
+  List<EmergencyContact> _currentEmergencyContacts = [];
+  String? _currentConversationId;
+  String _currentLanguage = 'es';
+  final Map<String, String> _messageLanguages = {};
 
   // Servicios
   final FirestoreConnection _firestoreConnection = FirestoreConnection();
+  final LanguageService _languageService = LanguageService();
+  final EmergencyService _emergencyService = EmergencyService();
   late FaqService _faqService;
   late OpenAIService _openAIService;
-  late final ChatHistoryService _chatHistoryService; // Servicio de historial local (shared_preferences)
-  bool _hasRestoredLocalHistory = false;
+  late final ChatHistoryService _chatHistoryService;
 
-    
-
-  // ID de conversación actual
-  String? _currentConversationId;
-  bool _isLoadingConversation = false;
-
-  final LanguageService _languageService = LanguageService();
-  String _currentLanguage = 'es'; // Idioma actual por defecto
-  // Agregar un mapa para guardar el idioma de cada mensaje
-  final Map<String, String> _messageLanguages = {};
-
-  // Palabras clave para detectar preguntas de seguimiento
+  // ===========================================================================
+  // CONSTANTES Y CONFIGURACIÓN
+  // ===========================================================================
   final Set<String> _contextualTriggers = const {
-    'por que',
-    'porqué',
-    'porque',
-    'why',
-    'explica mas',
-    'dame mas detalles',
-    'a que te refieres'
+    'por que', 'porqué', 'porque', 'why', 
+    'explica mas', 'dame mas detalles', 'a que te refieres'
   };
 
   @override
@@ -82,6 +86,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       curve: Curves.easeInOut,
     ));
     _loadAllFaqs();
+    _loadEmergencyContacts();
   // Restaura historial local y luego inicializa conversación en Firestore
   _restoreCachedHistory().whenComplete(_initializeConversation);
   }
@@ -94,6 +99,9 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     super.dispose();
   }
 
+  // ===========================================================================
+  // GESTIÓN DE CONVERSACIONES E HISTORIAL
+  // ===========================================================================
   Future<void> _restoreCachedHistory() async {
     final cached = await _chatHistoryService.loadLastConversation();
     if (!mounted || cached == null) return;
@@ -129,17 +137,6 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       language: _currentLanguage,
     );
     // Guarda el historial localmente
-  }
-
-  Future<void> _loadAllFaqs() async {
-    final faqs = await _faqService.getAllFaqs();
-    // Esta línea nos dirá si la carga de datos fue exitosa
-    print('FAQs cargadas desde Firestore: ${faqs.length} preguntas');
-    if (mounted) {
-      setState(() {
-        _allLoadedFaqs = faqs;
-      });
-    }
   }
 
   /// Inicializa la conversación cargando mensajes existentes o creando una nueva
@@ -209,16 +206,137 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     ).then((_) => _persistMessages()); // Cachea el mensaje de bienvenida
   }
 
+  void _clearChatHistory() {
+    setState(() {
+      messages.clear();
+      _initializeChat();
+    });
+    _chatHistoryService.clearHistory(conversationId: _currentConversationId); // Borra historial local
+  }
+
+  // ===========================================================================
+  // GESTIÓN DE MENSAJES
+  // ===========================================================================
+  Future<String?> addMessage({
+    required String sender,
+    String? text,
+    String? type,
+    List<String>? options,
+    String? messageId,
+    int? insertAtIndex,
+    bool saveToDatabase = true,
+    String? source,
+    String? link,
+    Map<String, dynamic>? extras,
+    String? language, // parametro nuevo
+  }) async {
+    final newMessage = {
+      "id": messageId, // El ID ahora vendrá de Firestore
+      "sender": sender, "text": text, "type": type, "options": options,
+      "feedback": null, "visible": true, "source": source, "link": link,
+      "extras": extras, "language": language, //parametro nuevo
+    };
+
+    String? generatedMessageId;
+
+    if (saveToDatabase &&
+        _currentConversationId != null &&
+        text != null &&
+        text.isNotEmpty) {
+      try {
+        // Usamos el nuevo servicio para guardar el mensaje
+        generatedMessageId =
+            await _firestoreConnection.addMessageToConversation(
+          conversationId: _currentConversationId!,
+          text: text,
+          sender: sender,
+          isFaq: source != null && source.contains('firestore'),
+          faqSource: source,
+        );
+        newMessage['id'] = generatedMessageId;
+      } catch (e) {
+        debugPrint("❌ Error al guardar mensaje con el nuevo servicio: $e");
+      }
+    }
+  // Usar el ID generado o el original para el índice de idiomas
+  final effectiveId = generatedMessageId ?? messageId;
+  if (effectiveId != null && language != null) {
+    _messageLanguages[effectiveId] = language;
+  }
+
+  if (mounted) {
+    setState(() {
+      if (insertAtIndex != null) {
+        messages.insert(insertAtIndex, newMessage);
+      } else {
+        messages.add(newMessage);
+      }
+    });
+      // Persistir historial local después de cada cambio
+      await _persistMessages();
+  }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          0.0, // Va al final de la lista porque está invertida
+          duration: const Duration(
+              milliseconds: 400), // <-- Puedes ajustar la duración
+          curve: Curves.easeOut, // <-- Esta curva da una sensación suave
+        );
+      }
+    });
+
+    return generatedMessageId;
+  }
+
+  void _handleFeedback(String messageId, bool wasUseful) {
+    if (!mounted) return;
+
+    setState(() {
+      final messageIndex = messages.indexWhere((m) => m['id'] == messageId);
+
+      if (messageIndex != -1) {
+        final message = messages[messageIndex];
+        if (message['extras'] is Map) {
+          // 1. Ocultamos los botones como antes
+          (message['extras'] as Map)['showFeedback'] = false;
+          // 2. ¡NUEVO! Añadimos el mensaje de agradecimiento al mismo objeto
+          (message['extras'] as Map)['feedbackMessage'] =
+              "¡Gracias por tu feedback!";
+        }
+      }
+    });
+
+    // Guardamos la calificación en Firestore como antes
+    if (_currentConversationId != null) {
+      _firestoreConnection.saveMessageRating(
+        conversationId: _currentConversationId!,
+        messageId: messageId,
+        helpful: wasUseful,
+      );
+    }
+  }
+
+  // ===========================================================================
+  // PROCESAMIENTO DE MENSAJES Y IA
+  // ===========================================================================
   void handleSendMessage(String text) async {
 
     // **AGREGAR LOGS DE DEBUG COMPLETOS**
-  print("🎯🎯🎯 INICIANDO handleSendMessage 🎯🎯🎯");
-  print("📝 Mensaje recibido: '$text'");
+    print("🎯🎯🎯 INICIANDO handleSendMessage 🎯🎯🎯");
+    print("📝 Mensaje recibido: '$text'");
   
   // **DETECTAR IDIOMA CON MÁS LOGS**
   try {
     _currentLanguage = await _languageService.detectLanguage(text);
     print("🌐🌐🌐 IDIOMA DETECTADO: $_currentLanguage para mensaje: $text");
+    // Verificar si es emergencia
+      if (_emergencyService.detectEmergency(text, _currentLanguage)) {
+        print("🚨🚨🚨 EMERGENCIA DETECTADA! 🚨🚨🚨");
+        _activateEmergencyMode(text);
+        return; // Detener procesamiento normal
+      }
   } catch (e) {
     print("❌ ERROR en detección de idioma: $e");
     _currentLanguage = 'es'; // Fallback a español
@@ -360,143 +478,251 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     }
     print("🏁🏁🏁 FINALIZANDO handleSendMessage 🏁🏁🏁");
   }
-
-  Future<String?> addMessage({
-    required String sender,
-    String? text,
-    String? type,
-    List<String>? options,
-    String? messageId,
-    int? insertAtIndex,
-    bool saveToDatabase = true,
-    String? source,
-    String? link,
-    Map<String, dynamic>? extras,
-    String? language, // parametro nuevo
-  }) async {
-    final newMessage = {
-      "id": messageId, // El ID ahora vendrá de Firestore
-      "sender": sender, "text": text, "type": type, "options": options,
-      "feedback": null, "visible": true, "source": source, "link": link,
-      "extras": extras, "language": language, //parametro nuevo
-    };
-
-    String? generatedMessageId;
-
-    if (saveToDatabase &&
-        _currentConversationId != null &&
-        text != null &&
-        text.isNotEmpty) {
-      try {
-        // Usamos el nuevo servicio para guardar el mensaje
-        generatedMessageId =
-            await _firestoreConnection.addMessageToConversation(
-          conversationId: _currentConversationId!,
-          text: text,
-          sender: sender,
-          isFaq: source != null && source.contains('firestore'),
-          faqSource: source,
-        );
-        newMessage['id'] = generatedMessageId;
-      } catch (e) {
-        debugPrint("❌ Error al guardar mensaje con el nuevo servicio: $e");
-      }
-    }
-     
-  // Usar el ID generado o el original para el índice de idiomas
-  final effectiveId = generatedMessageId ?? messageId;
-  if (effectiveId != null && language != null) {
-    _messageLanguages[effectiveId] = language;
-  }
-
-  if (mounted) {
+  // ===========================================================================
+  // GESTIÓN DE EMERGENCIAS
+  // ===========================================================================
+  void _activateEmergencyMode(String userMessage) {
+    addMessage(
+      sender: "user", 
+      text: userMessage,
+      language: _currentLanguage,
+    );
+    final relevantContacts = _emergencyService.getRelevantContacts(userMessage, _currentLanguage);
+    
     setState(() {
-      if (insertAtIndex != null) {
-        messages.insert(insertAtIndex, newMessage);
-      } else {
-        messages.add(newMessage);
-      }
+    _currentEmergencyContacts = relevantContacts;
     });
-      // Persistir historial local después de cada cambio
-      await _persistMessages();
-  }
-
+    
+    /// Mensaje automático del bot
+    final emergencyMessage = _currentLanguage == 'en'
+        ? "I've detected an emergency situation. I'm showing emergency contacts that can help you."
+        : "He detectado una situación de emergencia. Estoy mostrando contactos de emergencia que pueden ayudarte.";
+    
+    addMessage(
+      sender: "bot",
+      text: emergencyMessage,
+      type: "emergency",
+      language: _currentLanguage,
+    );
+    
+    // Mostrar el modal de emergencia
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          0.0, // Va al final de la lista porque está invertida
-          duration: const Duration(
-              milliseconds: 400), // <-- Puedes ajustar la duración
-          curve: Curves.easeOut, // <-- Esta curva da una sensación suave
+      _showEmergencyModal();
+    });
+  }
+
+  void _deactivateEmergencyMode() {
+  setState(() {
+    _currentEmergencyContacts = [];
+  });
+  }
+
+  Future<void> _makeEmergencyCall(String phoneNumber) async {
+    try {
+      await _emergencyService.makeCall(phoneNumber);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              _currentLanguage == 'en'
+                  ? "Could not make the call. Please dial $phoneNumber manually"
+                  : "No se pudo realizar la llamada. Por favor marca $phoneNumber manualmente",
+            ),
+            backgroundColor: Colors.red,
+          ),
         );
       }
-    });
-
-    return generatedMessageId;
-  }
-
-  void _handleFeedback(String messageId, bool wasUseful) {
-    if (!mounted) return;
-
-    setState(() {
-      final messageIndex = messages.indexWhere((m) => m['id'] == messageId);
-
-      if (messageIndex != -1) {
-        final message = messages[messageIndex];
-        if (message['extras'] is Map) {
-          // 1. Ocultamos los botones como antes
-          (message['extras'] as Map)['showFeedback'] = false;
-          // 2. ¡NUEVO! Añadimos el mensaje de agradecimiento al mismo objeto
-          (message['extras'] as Map)['feedbackMessage'] =
-              "¡Gracias por tu feedback!";
-        }
-      }
-    });
-
-    // Guardamos la calificación en Firestore como antes
-    if (_currentConversationId != null) {
-      _firestoreConnection.saveMessageRating(
-        conversationId: _currentConversationId!,
-        messageId: messageId,
-        helpful: wasUseful,
-      );
     }
   }
 
-  void _clearChatHistory() {
-    setState(() {
-      messages.clear();
-      _initializeChat();
-    });
-    _chatHistoryService.clearHistory(conversationId: _currentConversationId); // Borra historial local
+  // Agregar este método para mostrar el modal de emergencia
+  void _showEmergencyModal() {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black54, // Fondo semitransparente
+      barrierDismissible: false, // No se puede cerrar tocando fuera
+      builder: (BuildContext context) {
+        return _buildEmergencyModal();
+      },
+    );
   }
 
-  void _launchWhatsApp() async {
-    const phoneNumber = "+56912345678";
-    const message = "Hola, necesito ayuda de un asesor.";
-    final Uri whatsappUri = Uri.parse(
-        "https://wa.me/$phoneNumber?text=${Uri.encodeComponent(message)}");
-    if (!await launchUrl(whatsappUri, mode: LaunchMode.externalApplication)) {
-      if (!mounted) return; // <-- Añade esta línea de seguridad
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("No se pudo abrir WhatsApp.")),
+  Future<void> _loadEmergencyContacts() async {
+    await _emergencyService.loadEmergencyContacts();
+  }
+  
+  // Reemplazar el método _buildEmergencyCard por este:
+  Widget _buildEmergencyModal() {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.all(20),
+      child: ConstrainedBox(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.8, // 80% de la altura
+      ),
+      child: Container(
+        padding: const EdgeInsets.all(20.0),
+        decoration: BoxDecoration(
+          color: Theme.of(context).brightness == Brightness.dark ?
+          AppColors.darkBackground : Colors.grey[50],
+          borderRadius: BorderRadius.circular(20.0),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.3),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildEmergencyHeader(),
+            const SizedBox(height: 16),
+            _buildEmergencyDescription(),
+            const SizedBox(height: 16),
+            Expanded(//scroll en caso de muchos numeros
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: _buildEmergencyContacts(),
+                )
+              )
+            ),
+            
+            const SizedBox(height: 20),
+            _buildCloseButton(),
+          ],
+        ),
+      ),
+      )
+    );
+  }
+  // Header de emergencia
+  Widget _buildEmergencyHeader(){
+    return Row(
+      children: [
+                Icon(Icons.warning_amber_rounded, 
+                    color: Colors.red[700], size: 28),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    _currentLanguage == 'en' ? 'EMERGENCY DETECTED' : 'EMERGENCIA DETECTADA',
+                    style: TextStyle(
+                      color: Colors.red[700],
+                      fontSize: 28,
+                      fontWeight: FontWeight.w600,
+                      fontFamily: 'Poppins',
+                    ),
+                  ),
+                ),
+              ],
+            );
+  }
+  // Descripcion de emergencia
+  Widget _buildEmergencyDescription(){
+    return Text(
+      _currentLanguage == 'en'
+          ? "I've detected an emergency situation. Here are contacts that can help you immediately:"
+          : "He detectado una situación de emergencia. Aquí tienes contactos que pueden ayudarte inmediatamente:",
+      style: const TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.w400,
+        fontFamily: 'Poppins',
+      ),
+    );
+  }
+  // Lista de contactos de emergencia
+  List<Widget> _buildEmergencyContacts(){
+    return _currentEmergencyContacts.map((contact) {
+      return Card(
+        margin: const EdgeInsets.symmetric(vertical: 6.0),
+        elevation: 2,
+        child: ListTile(
+          title: Text(
+            contact.getName(_currentLanguage),
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+              fontFamily: 'Poppins',
+            ),
+          ),
+          subtitle: Text(
+            '${contact.phone} • ${contact.getType(_currentLanguage)}',
+            style: TextStyle(
+              color: Colors.grey[700],
+              fontWeight: FontWeight.w400,
+              fontFamily: 'Poppins',
+            ),
+          ),
+          trailing: FilledButton.tonal(
+            onPressed: () {
+              Navigator.of(context).pop(); // Cerrar modal
+              _makeEmergencyCall(contact.phone);
+            },
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.red[100],
+              foregroundColor: Colors.red[900],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.phone, size: 16),
+                const SizedBox(width: 4),
+                Text(
+                  _currentLanguage == 'en' ? 'Call' : 'Llamar',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontFamily: 'Poppins',
+                  ),
+                  ),
+              ],
+            ),
+          ),
+        ),
       );
-    }
+    }).toList();
   }
-
-  List<String> _getRandomFaqs({int count = 3}) {
-    if (_allLoadedFaqs.isEmpty) return [];
-
-    // 1. Filtra la lista para excluir la categoría 'saludos_despedidas'
-    final filteredFaqs = _allLoadedFaqs
-        .where((faq) => faq.category != 'saludos_despedidas')
-        .toList();
-
-    // 2. Baraja la lista ya filtrada
-    final shuffledFaqs = filteredFaqs..shuffle();
-
-    // 3. Toma las preguntas de la lista barajada
-    return shuffledFaqs.take(count).map((faq) => faq.question).toList();
+  // Botón de cierre
+  Widget _buildCloseButton(){
+    return Row(
+      children: [
+        Expanded(
+          child: FilledButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _deactivateEmergencyMode();
+            },
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.red[700],
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+            ),
+            child: Text(
+              _currentLanguage == 'en' ? 'Close' : 'Cerrar',
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+  // ===========================================================================
+  // GESTIÓN DE FAQs
+  // ===========================================================================
+  Future<void> _loadAllFaqs() async {
+    final faqs = await _faqService.getAllFaqs();
+    // Esta línea nos dirá si la carga de datos fue exitosa
+    print('FAQs cargadas desde Firestore: ${faqs.length} preguntas');
+    if (mounted) {
+      setState(() {
+        _allLoadedFaqs = faqs;
+      });
+    }
   }
 
   void _showFrequentlyAskedQuestions() {
@@ -553,9 +779,17 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     final faqBloc = context.read<FaqBloc>();
     faqBloc.add(ToggleFaqsEvent());
 
+    // 2. Eliminar el mensaje de FAQs de la interfaz
+    setState(() {
+      messages.removeWhere((message) => message['type'] == 'faq_options');
+    });
+
     handleSendMessage(selectedFaq);
   }
 
+  // ===========================================================================
+  // MÉTODOS DE UI AUXILIARES
+  // ===========================================================================
   /// Widget para mostrar indicador de carga durante la inicialización
   Widget _buildLoadingIndicator(bool isDarkMode) {
     return Container(
@@ -590,14 +824,24 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     );
   }
 
+  void _launchWhatsApp() async {
+    const phoneNumber = "+56912345678";
+    const message = "Hola, necesito ayuda de un asesor.";
+    final Uri whatsappUri = Uri.parse(
+        "https://wa.me/$phoneNumber?text=${Uri.encodeComponent(message)}");
+    if (!await launchUrl(whatsappUri, mode: LaunchMode.externalApplication)) {
+      if (!mounted) return; // <-- Añade esta línea de seguridad
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("No se pudo abrir WhatsApp.")),
+      );
+    }
+  }
+
+  // ===========================================================================
+  // CONSTRUCCIÓN DE LA UI
+  // ===========================================================================
   @override
   Widget build(BuildContext context) {
-    print('--- Reconstruyendo la lista de mensajes ---');
-    for (var msg in messages.reversed.take(5)) {
-      // Imprime los últimos 5 mensajes
-      print('TIPO: ${msg['type']} | TEXTO: ${msg['text']}');
-    }
-    print('-----------------------------------------');
     return BlocBuilder<ThemeBloc, ThemeState>(builder: (context, state) {
       //
       // --- CAMBIO 1: Envolvemos todo en AnnotatedRegion ---
@@ -644,6 +888,15 @@ class _ChatbotScreenState extends State<ChatbotScreen>
                                 onShowFrequentlyAskedQuestions:
                                     _showFrequentlyAskedQuestions,
                                 onFaqSelected: _onFaqSelected,
+                                emergencyContacts: _currentEmergencyContacts.map((contact) {
+                                  return {
+                                    'name': contact.name,
+                                    'phone': contact.phone,
+                                    'type': contact.type,
+                                  };
+                                }).toList(),
+                                onEmergencyCall: _makeEmergencyCall,
+                                onCloseEmergency: _deactivateEmergencyMode,
                               )
                             : Container(),
                   ),
