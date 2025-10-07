@@ -60,8 +60,13 @@ class _ChatbotScreenState extends State<ChatbotScreen>
   // CONSTANTES Y CONFIGURACIÓN
   // ===========================================================================
   final Set<String> _contextualTriggers = const {
-    'por que', 'porqué', 'porque', 'why', 
-    'explica mas', 'dame mas detalles', 'a que te refieres'
+    'por que',
+    'porqué',
+    'porque',
+    'why',
+    'explica mas',
+    'dame mas detalles',
+    'a que te refieres'
   };
 
   @override
@@ -69,7 +74,8 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     super.initState();
     _faqService = context.read<FaqService>();
     _openAIService = context.read<OpenAIService>();
-    _chatHistoryService = ChatHistoryService(); // Inicializa el servicio de caché local
+    _chatHistoryService =
+        ChatHistoryService(); // Inicializa el servicio de caché local
     _typingController = AnimationController(
       duration: const Duration(milliseconds: 1500),
       vsync: this,
@@ -87,8 +93,8 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     ));
     _loadAllFaqs();
     _loadEmergencyContacts();
-  // Restaura historial local y luego inicializa conversación en Firestore
-  _restoreCachedHistory().whenComplete(_initializeConversation);
+    // Restaura historial local y luego inicializa conversación en Firestore
+    _restoreCachedHistory().whenComplete(_initializeConversation);
   }
 
   @override
@@ -147,8 +153,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
 
     try {
       if (_currentConversationId == null) {
-        _currentConversationId =
-            await _firestoreConnection.createConversation(
+        _currentConversationId = await _firestoreConnection.createConversation(
           userId: _firestoreConnection.currentUserId!,
           language: _currentLanguage,
         );
@@ -195,8 +200,8 @@ class _ChatbotScreenState extends State<ChatbotScreen>
 
   void _initializeChat() {
     final welcomeMessage = _currentLanguage == 'en'
-      ? "Hello! I am the virtual assistant of Colbún. How can I help you?"
-      : "¡Hola! Soy el asistente virtual de Colbún. ¿En qué puedo ayudarte?";
+        ? "Hello! I am the virtual assistant of Colbún. How can I help you?"
+        : "¡Hola! Soy el asistente virtual de Colbún. ¿En qué puedo ayudarte?";
     addMessage(
       sender: "bot",
       text: welcomeMessage,
@@ -211,7 +216,8 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       messages.clear();
       _initializeChat();
     });
-    _chatHistoryService.clearHistory(conversationId: _currentConversationId); // Borra historial local
+    _chatHistoryService.clearHistory(
+        conversationId: _currentConversationId); // Borra historial local
   }
 
   // ===========================================================================
@@ -258,23 +264,23 @@ class _ChatbotScreenState extends State<ChatbotScreen>
         debugPrint("❌ Error al guardar mensaje con el nuevo servicio: $e");
       }
     }
-  // Usar el ID generado o el original para el índice de idiomas
-  final effectiveId = generatedMessageId ?? messageId;
-  if (effectiveId != null && language != null) {
-    _messageLanguages[effectiveId] = language;
-  }
+    // Usar el ID generado o el original para el índice de idiomas
+    final effectiveId = generatedMessageId ?? messageId;
+    if (effectiveId != null && language != null) {
+      _messageLanguages[effectiveId] = language;
+    }
 
-  if (mounted) {
-    setState(() {
-      if (insertAtIndex != null) {
-        messages.insert(insertAtIndex, newMessage);
-      } else {
-        messages.add(newMessage);
-      }
-    });
+    if (mounted) {
+      setState(() {
+        if (insertAtIndex != null) {
+          messages.insert(insertAtIndex, newMessage);
+        } else {
+          messages.add(newMessage);
+        }
+      });
       // Persistir historial local después de cada cambio
       await _persistMessages();
-  }
+    }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
@@ -322,32 +328,34 @@ class _ChatbotScreenState extends State<ChatbotScreen>
   // PROCESAMIENTO DE MENSAJES Y IA
   // ===========================================================================
   void handleSendMessage(String text) async {
-
     // **AGREGAR LOGS DE DEBUG COMPLETOS**
     print("🎯🎯🎯 INICIANDO handleSendMessage 🎯🎯🎯");
     print("📝 Mensaje recibido: '$text'");
-  
-  // **DETECTAR IDIOMA CON MÁS LOGS**
-  try {
-    _currentLanguage = await _languageService.detectLanguage(text);
-    print("🌐🌐🌐 IDIOMA DETECTADO: $_currentLanguage para mensaje: $text");
-    // Verificar si es emergencia
+
+    // **DETECTAR IDIOMA CON MÁS LOGS**
+    try {
+      _currentLanguage = await _languageService.detectLanguage(text);
+      print("🌐🌐🌐 IDIOMA DETECTADO: $_currentLanguage para mensaje: $text");
+      // Verificar si es emergencia
       if (_emergencyService.detectEmergency(text, _currentLanguage)) {
         print("🚨🚨🚨 EMERGENCIA DETECTADA! 🚨🚨🚨");
         _activateEmergencyMode(text);
         return; // Detener procesamiento normal
       }
-  } catch (e) {
-    print("❌ ERROR en detección de idioma: $e");
-    _currentLanguage = 'es'; // Fallback a español
-  }
-  
+    } catch (e) {
+      print("❌ ERROR en detección de idioma: $e");
+      _currentLanguage = 'es'; // Fallback a español
+    }
 
     setState(() => messages.removeWhere((m) => m['type'] == 'faq_options'));
 
     final conversationHistory =
         _openAIService.formatMessagesForOpenAI(messages);
-    addMessage(sender: "user", text: text,language: _currentLanguage,);
+    addMessage(
+      sender: "user",
+      text: text,
+      language: _currentLanguage,
+    );
 
     setState(() {
       _isTyping = true;
@@ -364,22 +372,22 @@ class _ChatbotScreenState extends State<ChatbotScreen>
           text.toLowerCase().trim().replaceAll(RegExp(r'[?¿]'), '');
 
       if (!_contextualTriggers.contains(cleanText)) {
-      contextFaqs = await _faqService.findContextFaqs(text);
-      print("📚 FAQs encontradas: ${contextFaqs.length}");
-      
-      // **DEBUG DETALLADO DE LAS FAQs CON IDIOMA**
-      for (var i = 0; i < contextFaqs.length; i++) {
-        var faq = contextFaqs[i];
-        print('📖 FAQ $i - ID: ${faq.id}');
-        print('📖 FAQ $i - Pregunta ES: ${faq.question}');
-        print('📖 FAQ $i - Pregunta EN: ${faq.questionEn}');
-        print('📖 FAQ $i - Respuesta ES: ${faq.answer}');
-        print('📖 FAQ $i - Respuesta EN: ${faq.answerEn}');
-        print('📖 FAQ $i - Categoría: ${faq.category}');
-        print('📖 FAQ $i - Tags: ${faq.tags}');
-        print('📖 FAQ $i - Link: ${faq.link}');
+        contextFaqs = await _faqService.findContextFaqs(text);
+        print("📚 FAQs encontradas: ${contextFaqs.length}");
+
+        // **DEBUG DETALLADO DE LAS FAQs CON IDIOMA**
+        for (var i = 0; i < contextFaqs.length; i++) {
+          var faq = contextFaqs[i];
+          print('📖 FAQ $i - ID: ${faq.id}');
+          print('📖 FAQ $i - Pregunta ES: ${faq.question}');
+          print('📖 FAQ $i - Pregunta EN: ${faq.questionEn}');
+          print('📖 FAQ $i - Respuesta ES: ${faq.answer}');
+          print('📖 FAQ $i - Respuesta EN: ${faq.answerEn}');
+          print('📖 FAQ $i - Categoría: ${faq.category}');
+          print('📖 FAQ $i - Tags: ${faq.tags}');
+          print('📖 FAQ $i - Link: ${faq.link}');
+        }
       }
-    }
       // **OBTENER LA URL REAL ANTES DE LLAMAR A OPENAI**
       String? realUrl;
       if (contextFaqs.isNotEmpty) {
@@ -402,19 +410,20 @@ class _ChatbotScreenState extends State<ChatbotScreen>
           // **PRIORIDAD: URL REAL > URL EXTRAÍDA**
           String? finalUrl = realUrl;
           if (finalUrl == null || finalUrl.isEmpty) {
-            finalUrl = openAIResponse.extractedUrls.isNotEmpty 
-                ? openAIResponse.extractedUrls.first 
+            finalUrl = openAIResponse.extractedUrls.isNotEmpty
+                ? openAIResponse.extractedUrls.first
                 : null;
             print('🔗 Usando URL extraída como fallback: $finalUrl');
           }
-          print("✅ RESPUESTA OPENAI: ${openAIResponse.message.substring(0, 100)}...");
+          print(
+              "✅ RESPUESTA OPENAI: ${openAIResponse.message.substring(0, 100)}...");
           addMessage(
             sender: "bot",
             text: openAIResponse.message,
             messageId: aiMessageId,
             source: 'openai_rag',
             link: finalUrl,
-            language: _currentLanguage, 
+            language: _currentLanguage,
             extras: {'showFeedback': true},
           );
           print('✅ Respuesta procesada con URL: $realUrl');
@@ -434,21 +443,26 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       if (mounted) {
         if (localResults.isNotEmpty) {
           // ¡Éxito! Encontramos una respuesta local.
-          final bestMatch = localResults.first; // Tomamos el resultado más relevante
+          final bestMatch =
+              localResults.first; // Tomamos el resultado más relevante
 
           // **USAR LA RESPUESTA EN EL IDIOMA CORRECTO**
           String offlineAnswer;
           if (_currentLanguage == 'en' && bestMatch.answerEn.isNotEmpty) {
-            offlineAnswer = "I don't have connection right now, but I found this that might help you:\n\n${bestMatch.answerEn}";
+            offlineAnswer =
+                "I don't have connection right now, but I found this that might help you:\n\n${bestMatch.answerEn}";
           } else {
-            offlineAnswer = "No tengo conexión en este momento, pero encontré esto que podría ayudarte:\n\n${bestMatch.answer}";
+            offlineAnswer =
+                "No tengo conexión en este momento, pero encontré esto que podría ayudarte:\n\n${bestMatch.answer}";
           }
-          final offlineMessageId = DateTime.now().millisecondsSinceEpoch.toString();
+          final offlineMessageId =
+              DateTime.now().millisecondsSinceEpoch.toString();
           addMessage(
             sender: "bot",
             text: offlineAnswer,
             messageId: offlineMessageId,
-            source: 'offline_faq', // Un nuevo source para identificar la respuesta
+            source:
+                'offline_faq', // Un nuevo source para identificar la respuesta
             link: bestMatch.link, // ← URL real de la FAQ
             language: _currentLanguage,
             extras: {
@@ -457,15 +471,15 @@ class _ChatbotScreenState extends State<ChatbotScreen>
           );
         } else {
           String errorMessage = _currentLanguage == 'en'
-            ? "Sorry, I couldn't connect and didn't find a local answer for your question. Please check your internet connection."
-            : "Lo siento, no pude conectarme y no encontré una respuesta local para tu pregunta. Por favor, revisa tu conexión a internet.";
+              ? "Sorry, I couldn't connect and didn't find a local answer for your question. Please check your internet connection."
+              : "Lo siento, no pude conectarme y no encontré una respuesta local para tu pregunta. Por favor, revisa tu conexión a internet.";
           // Falló la conexión Y no encontramos nada en la base de datos local.
           addMessage(
-              sender: "bot",
-              text: errorMessage,
-              source: 'error',
-              language: _currentLanguage,
-              );
+            sender: "bot",
+            text: errorMessage,
+            source: 'error',
+            language: _currentLanguage,
+          );
         }
       }
     } finally {
@@ -478,33 +492,35 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     }
     print("🏁🏁🏁 FINALIZANDO handleSendMessage 🏁🏁🏁");
   }
+
   // ===========================================================================
   // GESTIÓN DE EMERGENCIAS
   // ===========================================================================
   void _activateEmergencyMode(String userMessage) {
     addMessage(
-      sender: "user", 
+      sender: "user",
       text: userMessage,
       language: _currentLanguage,
     );
-    final relevantContacts = _emergencyService.getRelevantContacts(userMessage, _currentLanguage);
-    
+    final relevantContacts =
+        _emergencyService.getRelevantContacts(userMessage, _currentLanguage);
+
     setState(() {
-    _currentEmergencyContacts = relevantContacts;
+      _currentEmergencyContacts = relevantContacts;
     });
-    
+
     /// Mensaje automático del bot
     final emergencyMessage = _currentLanguage == 'en'
         ? "I've detected an emergency situation. I'm showing emergency contacts that can help you."
         : "He detectado una situación de emergencia. Estoy mostrando contactos de emergencia que pueden ayudarte.";
-    
+
     addMessage(
       sender: "bot",
       text: emergencyMessage,
       type: "emergency",
       language: _currentLanguage,
     );
-    
+
     // Mostrar el modal de emergencia
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _showEmergencyModal();
@@ -512,9 +528,9 @@ class _ChatbotScreenState extends State<ChatbotScreen>
   }
 
   void _deactivateEmergencyMode() {
-  setState(() {
-    _currentEmergencyContacts = [];
-  });
+    setState(() {
+      _currentEmergencyContacts = [];
+    });
   }
 
   Future<void> _makeEmergencyCall(String phoneNumber) async {
@@ -551,78 +567,80 @@ class _ChatbotScreenState extends State<ChatbotScreen>
   Future<void> _loadEmergencyContacts() async {
     await _emergencyService.loadEmergencyContacts();
   }
-  
+
   // Reemplazar el método _buildEmergencyCard por este:
   Widget _buildEmergencyModal() {
     return Dialog(
-      backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.all(20),
-      child: ConstrainedBox(
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.8, // 80% de la altura
-      ),
-      child: Container(
-        padding: const EdgeInsets.all(20.0),
-        decoration: BoxDecoration(
-          color: Theme.of(context).brightness == Brightness.dark ?
-          AppColors.darkBackground : Colors.grey[50],
-          borderRadius: BorderRadius.circular(20.0),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.3),
-              blurRadius: 20,
-              offset: const Offset(0, 10),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildEmergencyHeader(),
-            const SizedBox(height: 16),
-            _buildEmergencyDescription(),
-            const SizedBox(height: 16),
-            Expanded(//scroll en caso de muchos numeros
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: _buildEmergencyContacts(),
-                )
-              )
-            ),
-            
-            const SizedBox(height: 20),
-            _buildCloseButton(),
-          ],
-        ),
-      ),
-      )
-    );
-  }
-  // Header de emergencia
-  Widget _buildEmergencyHeader(){
-    return Row(
-      children: [
-                Icon(Icons.warning_amber_rounded, 
-                    color: Colors.red[700], size: 28),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    _currentLanguage == 'en' ? 'EMERGENCY DETECTED' : 'EMERGENCIA DETECTADA',
-                    style: TextStyle(
-                      color: Colors.red[700],
-                      fontSize: 28,
-                      fontWeight: FontWeight.w600,
-                      fontFamily: 'Poppins',
-                    ),
-                  ),
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(20),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight:
+                MediaQuery.of(context).size.height * 0.8, // 80% de la altura
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(20.0),
+            decoration: BoxDecoration(
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? AppColors.darkBackground
+                  : Colors.grey[50],
+              borderRadius: BorderRadius.circular(20.0),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.3),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
                 ),
               ],
-            );
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildEmergencyHeader(),
+                const SizedBox(height: 16),
+                _buildEmergencyDescription(),
+                const SizedBox(height: 16),
+                Expanded(
+                    //scroll en caso de muchos numeros
+                    child: SingleChildScrollView(
+                        child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: _buildEmergencyContacts(),
+                ))),
+                const SizedBox(height: 20),
+                _buildCloseButton(),
+              ],
+            ),
+          ),
+        ));
   }
+
+  // Header de emergencia
+  Widget _buildEmergencyHeader() {
+    return Row(
+      children: [
+        Icon(Icons.warning_amber_rounded, color: Colors.red[700], size: 28),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            _currentLanguage == 'en'
+                ? 'EMERGENCY DETECTED'
+                : 'EMERGENCIA DETECTADA',
+            style: TextStyle(
+              color: Colors.red[700],
+              fontSize: 28,
+              fontWeight: FontWeight.w600,
+              fontFamily: 'Poppins',
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   // Descripcion de emergencia
-  Widget _buildEmergencyDescription(){
+  Widget _buildEmergencyDescription() {
     return Text(
       _currentLanguage == 'en'
           ? "I've detected an emergency situation. Here are contacts that can help you immediately:"
@@ -634,8 +652,9 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       ),
     );
   }
+
   // Lista de contactos de emergencia
-  List<Widget> _buildEmergencyContacts(){
+  List<Widget> _buildEmergencyContacts() {
     return _currentEmergencyContacts.map((contact) {
       return Card(
         margin: const EdgeInsets.symmetric(vertical: 6.0),
@@ -676,7 +695,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
                     fontWeight: FontWeight.w600,
                     fontFamily: 'Poppins',
                   ),
-                  ),
+                ),
               ],
             ),
           ),
@@ -684,8 +703,9 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       );
     }).toList();
   }
+
   // Botón de cierre
-  Widget _buildCloseButton(){
+  Widget _buildCloseButton() {
     return Row(
       children: [
         Expanded(
@@ -711,6 +731,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       ],
     );
   }
+
   // ===========================================================================
   // GESTIÓN DE FAQs
   // ===========================================================================
@@ -735,7 +756,8 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     final currentState = faqBloc.state;
 
     if (!currentState.showFaqs || currentState.currentFaqs.isEmpty) {
-      final List<String> randomFaqs = _faqService.getRandomFaqsByLanguage(_currentLanguage, count: 3);
+      final List<String> randomFaqs =
+          _faqService.getRandomFaqsByLanguage(_currentLanguage, count: 3);
 
       if (randomFaqs.isNotEmpty) {
         // Encontrar la posición del mensaje de bienvenida
@@ -747,8 +769,8 @@ class _ChatbotScreenState extends State<ChatbotScreen>
           faqBloc.add(ToggleFaqsEvent(newFaqs: randomFaqs));
 
           // Texto dinámico según idioma para la introducción de FAQs
-          final introText = _currentLanguage == 'en' 
-              ? "Here are some frequently asked questions:" 
+          final introText = _currentLanguage == 'en'
+              ? "Here are some frequently asked questions:"
               : "Aquí tienes algunas preguntas frecuentes:";
 
           // Insertar las FAQs justo después del mensaje de bienvenida
@@ -825,7 +847,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
   }
 
   void _launchWhatsApp() async {
-    const phoneNumber = "+56912345678";
+    const phoneNumber = "14155238886";
     const message = "Hola, necesito ayuda de un asesor.";
     final Uri whatsappUri = Uri.parse(
         "https://wa.me/$phoneNumber?text=${Uri.encodeComponent(message)}");
@@ -888,7 +910,8 @@ class _ChatbotScreenState extends State<ChatbotScreen>
                                 onShowFrequentlyAskedQuestions:
                                     _showFrequentlyAskedQuestions,
                                 onFaqSelected: _onFaqSelected,
-                                emergencyContacts: _currentEmergencyContacts.map((contact) {
+                                emergencyContacts:
+                                    _currentEmergencyContacts.map((contact) {
                                   return {
                                     'name': contact.name,
                                     'phone': contact.phone,
