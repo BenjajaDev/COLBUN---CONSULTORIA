@@ -14,54 +14,68 @@ class PoiBloc extends Bloc<PoiEvent, PoiState> {
       emit(PoiLoading());
 
       final POI selected = event.current;
-      final List<POI> others =
-          event.all.where((poi) => poi.id != selected.id).toList();
+      final List<POI> others = event.all
+          .where((poi) => poi.id != selected.id)
+          .toList();
       final Distance distance = const Distance();
-      final LatLng selectedCoords =
-          LatLng(selected.latitud, selected.longitud);
+      final LatLng selectedCoords = LatLng(selected.latitud, selected.longitud);
 
       //Ajuste de recomendados priorizando categoria y distancia
-      final Set<String> selectedCategories =
-          Set<String>.from(selected.categorias);
+      final Set<String> selectedCategories = Set<String>.from(
+        selected.categorias,
+      );
       final List<POI> recommended = List<POI>.from(others);
       recommended.sort((a, b) {
-        final bool aMatches =
-            a.categorias.any(selectedCategories.contains);
-        final bool bMatches =
-            b.categorias.any(selectedCategories.contains);
+        final bool aMatches = a.categorias.any(selectedCategories.contains);
+        final bool bMatches = b.categorias.any(selectedCategories.contains);
         if (aMatches != bMatches) {
           return bMatches ? 1 : -1;
         }
-        final double da =
-            distance(selectedCoords, LatLng(a.latitud, a.longitud));
-        final double db =
-            distance(selectedCoords, LatLng(b.latitud, b.longitud));
+        final double da = distance(
+          selectedCoords,
+          LatLng(a.latitud, a.longitud),
+        );
+        final double db = distance(
+          selectedCoords,
+          LatLng(b.latitud, b.longitud),
+        );
         return da.compareTo(db);
       });
       final List<POI> limitedRecommended = recommended.take(5).toList();
 
-      //Calculo de cercanos con distancias al usuario
+      //Cercanos al POI seleccionado (≤ 1 km)
       final List<POI> nearby = <POI>[];
       final Map<String, double> distancesKm = <String, double>{};
-      if (event.userLocation != null) {
-        final LatLng user = event.userLocation!;
-        final List<POI> sortedByUser = List<POI>.from(others);
-        sortedByUser.sort((a, b) {
-          final double da = distance(user, LatLng(a.latitud, a.longitud));
-          final double db = distance(user, LatLng(b.latitud, b.longitud));
-          return da.compareTo(db);
-        });
 
-        for (final POI poi in sortedByUser) {
-          final double dMeters =
-              distance(user, LatLng(poi.latitud, poi.longitud));
-          distancesKm[poi.id] = dMeters / 1000.0;
+      final List<POI> sortedByPoi = List<POI>.from(others);
+      sortedByPoi.sort((a, b) {
+        final double da = distance(
+          selectedCoords,
+          LatLng(a.latitud, a.longitud),
+        );
+        final double db = distance(
+          selectedCoords,
+          LatLng(b.latitud, b.longitud),
+        );
+        return da.compareTo(db);
+      });
+
+      for (final POI poi in sortedByPoi) {
+        final double dMeters = distance(
+          selectedCoords,
+          LatLng(poi.latitud, poi.longitud),
+        );
+        final double dKm = dMeters / 1000.0;
+        distancesKm[poi.id] = dKm;
+
+        if (dKm <= 10.0) {
+          nearby.add(poi);
         }
-
-        nearby.addAll(sortedByUser.take(5));
+      }
+      if (nearby.length > 5) {
+        nearby.removeRange(5, nearby.length);
       }
 
-  
       emit(
         PoiLoaded(
           current: selected,

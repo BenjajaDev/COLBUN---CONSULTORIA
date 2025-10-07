@@ -101,7 +101,6 @@ class _PoiScreenState extends State<PoiScreen> {
   final PageController _cercanosController = PageController();
   int _recomendadosPage = 0;
   int _cercanosPage = 0;
-  
 
   @override
   void initState() {
@@ -461,87 +460,85 @@ class _PoiScreenState extends State<PoiScreen> {
                                   vertical: 12,
                                 ),
                                 child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Container(
-                                        decoration: BoxDecoration(
-                                          border: Border(
-                                            bottom: BorderSide(
-                                              color: _selectedIndex == 0
-                                                  ? colbunBlue
-                                                  : Colors.black,
-                                              width: _selectedIndex == 0
-                                                  ? 3
-                                                  : 1,
-                                            ),
-                                          ),
-                                        ),
-                                        child: TextButton(
-                                          style: TextButton.styleFrom(
-                                            padding: EdgeInsets.zero,
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(0),
-                                            ),
-                                          ),
-                                          onPressed: () {
-                                            setState(() {
-                                              _selectedIndex = 0;
-                                            });
-                                          },
-                                          child: Text(
-                                            AppLocalizations.of(
-                                              context,
-                                            )!.recomendados,
-                                            style: TextStyle(
-                                              color: _selectedIndex == 0
-                                                  ? colbunBlue
-                                                  : Colors.black,
-                                              fontSize: 18,
-                                            ),
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Container(
+                                      decoration: BoxDecoration(
+                                        border: Border(
+                                          bottom: BorderSide(
+                                            color: _selectedIndex == 0
+                                                ? colbunBlue
+                                                : Colors.black,
+                                            width: _selectedIndex == 0 ? 3 : 1,
                                           ),
                                         ),
                                       ),
-                                      Container(
-                                        decoration: BoxDecoration(
-                                          border: Border(
-                                            bottom: BorderSide(
-                                              color: _selectedIndex == 1
-                                                  ? colbunBlue
-                                                  : Colors.black,
-                                              width: _selectedIndex == 1
-                                                  ? 3
-                                                  : 1,
+                                      child: TextButton(
+                                        style: TextButton.styleFrom(
+                                          padding: EdgeInsets.zero,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              0,
                                             ),
                                           ),
                                         ),
-                                        child: TextButton(
-                                          style: TextButton.styleFrom(
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(0),
-                                            ),
-                                          ),
-                                          onPressed: () {
-                                            setState(() {
-                                              _selectedIndex = 1;
-                                            });
-                                          },
-                                          child: Text(
-                                            AppLocalizations.of(
-                                              context,
-                                            )!.cercanos,
-                                            style: TextStyle(
-                                              color: _selectedIndex == 1
-                                                  ? colbunBlue
-                                                  : Colors.black,
-                                              fontSize: 18,
-                                            ),
+                                        onPressed: () {
+                                          setState(() {
+                                            _selectedIndex = 0;
+                                          });
+                                        },
+                                        child: Text(
+                                          AppLocalizations.of(
+                                            context,
+                                          )!.recomendados,
+                                          style: TextStyle(
+                                            color: _selectedIndex == 0
+                                                ? colbunBlue
+                                                : Colors.black,
+                                            fontSize: 18,
                                           ),
                                         ),
                                       ),
-                                    ],
-                                  ),
+                                    ),
+                                    Container(
+                                      decoration: BoxDecoration(
+                                        border: Border(
+                                          bottom: BorderSide(
+                                            color: _selectedIndex == 1
+                                                ? colbunBlue
+                                                : Colors.black,
+                                            width: _selectedIndex == 1 ? 3 : 1,
+                                          ),
+                                        ),
+                                      ),
+                                      child: TextButton(
+                                        style: TextButton.styleFrom(
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              0,
+                                            ),
+                                          ),
+                                        ),
+                                        onPressed: () {
+                                          setState(() {
+                                            _selectedIndex = 1;
+                                          });
+                                        },
+                                        child: Text(
+                                          AppLocalizations.of(
+                                            context,
+                                          )!.cercanos,
+                                          style: TextStyle(
+                                            color: _selectedIndex == 1
+                                                ? colbunBlue
+                                                : Colors.black,
+                                            fontSize: 18,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                               // ==================== RECOMENDADOS ====================
                               if (_selectedIndex == 0)
@@ -709,9 +706,7 @@ class _PoiScreenState extends State<PoiScreen> {
                                     if (nearList.isEmpty)
                                       const Padding(
                                         padding: EdgeInsets.all(12),
-                                        child: Text(
-                                          'Sin lugares cerca de tu ubicacion.',
-                                        ),
+                                        child: Text('Sin lugares cerca.'),
                                       )
                                     else
                                       SizedBox(
