@@ -3,6 +3,31 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 /// Clase para manejar la conexión con Firestore
 class FirestoreConnection {
+  /// Borra todas las conversaciones y subcolecciones (messages) del usuario autenticado
+  Future<void> deleteAllUserConversations() async {
+    final userId = currentUserId;
+    if (userId == null) return;
+    try {
+      final conversations = await _firestore
+          .collection('conversations')
+          .where('user_id', isEqualTo: userId)
+          .get();
+
+      for (final doc in conversations.docs) {
+        // Borrar subcolección 'messages'
+        final messages = await doc.reference.collection('messages').get();
+        for (final msg in messages.docs) {
+          await msg.reference.delete();
+        }
+        // Borrar documento de conversación
+        await doc.reference.delete();
+      }
+      print('✅ Conversaciones y mensajes del usuario eliminados');
+    } catch (e) {
+      print('❌ Error al borrar conversaciones: $e');
+      rethrow;
+    }
+  }
   static final FirestoreConnection _instance = FirestoreConnection._internal();
   factory FirestoreConnection() => _instance;
   FirestoreConnection._internal();

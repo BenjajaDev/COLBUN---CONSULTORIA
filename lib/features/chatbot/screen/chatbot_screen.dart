@@ -212,6 +212,8 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       _initializeChat();
     });
     _chatHistoryService.clearHistory(conversationId: _currentConversationId); // Borra historial local
+    // Borra historial en Firestore
+    _firestoreConnection.deleteAllUserConversations();
   }
 
   // ===========================================================================
