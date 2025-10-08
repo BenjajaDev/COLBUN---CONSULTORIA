@@ -571,87 +571,88 @@ class _ChatbotScreenState extends State<ChatbotScreen>
   // Reemplazar el método _buildEmergencyCard por este:
   Widget _buildEmergencyModal() {
     return Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.all(20),
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxHeight:
-                MediaQuery.of(context).size.height * 0.8, // 80% de la altura
-          ),
-          child: Container(
-            padding: const EdgeInsets.all(20.0),
-            decoration: BoxDecoration(
-              color: Theme.of(context).brightness == Brightness.dark
-                  ? AppColors.darkBackground
-                  : Colors.grey[50],
-              borderRadius: BorderRadius.circular(20.0),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.3),
-                  blurRadius: 20,
-                  offset: const Offset(0, 10),
-                ),
-              ],
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.all(20),
+      child: ConstrainedBox(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.8, // 80% de la altura
+      ),
+      child: Container(
+        padding: const EdgeInsets.all(20.0),
+        decoration: BoxDecoration(
+          color: Theme.of(context).brightness == Brightness.dark ?
+          AppColors.darkBackground : Colors.grey[50],
+          borderRadius: BorderRadius.circular(20.0),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.3),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildEmergencyHeader(),
-                const SizedBox(height: 16),
-                _buildEmergencyDescription(),
-                const SizedBox(height: 16),
-                Expanded(
-                    //scroll en caso de muchos numeros
-                    child: SingleChildScrollView(
-                        child: Column(
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildEmergencyHeader(),
+            const SizedBox(height: 16),
+            _buildEmergencyDescription(),
+            const SizedBox(height: 16),
+            Expanded(//scroll en caso de muchos numeros
+              child: SingleChildScrollView(
+                child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: _buildEmergencyContacts(),
-                ))),
-                const SizedBox(height: 20),
-                _buildCloseButton(),
-              ],
+                )
+              )
             ),
-          ),
-        ));
-  }
-
-  // Header de emergencia
-  Widget _buildEmergencyHeader() {
-    return Row(
-      children: [
-        Icon(Icons.warning_amber_rounded, color: Colors.red[700], size: 28),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            _currentLanguage == 'en'
-                ? 'EMERGENCY DETECTED'
-                : 'EMERGENCIA DETECTADA',
-            style: TextStyle(
-              color: Colors.red[700],
-              fontSize: 28,
-              fontWeight: FontWeight.w600,
-              fontFamily: 'Poppins',
-            ),
-          ),
+            
+            const SizedBox(height: 20),
+            _buildCloseButton(),
+          ],
         ),
-      ],
+      ),
+      )
     );
   }
-
+  // Header de emergencia
+  Widget _buildEmergencyHeader(){
+    return Row(
+      children: [
+                Expanded(
+                  child: Center(
+                    child: Text(
+                    _currentLanguage == 'en' ? 'EMERGENCY DETECTED' : 'EMERGENCIA DETECTADA',
+                    style: TextStyle(
+                      color: Colors.red[700],
+                      fontSize: 28,
+                      fontWeight: FontWeight.w600,
+                      fontFamily: 'Poppins',
+                    ),
+                  ),
+                  ),
+                  
+                ),
+              ],
+            );
+  }
   // Descripcion de emergencia
   Widget _buildEmergencyDescription() {
-    return Text(
+  return Center(
+    child: Text(
       _currentLanguage == 'en'
-          ? "I've detected an emergency situation. Here are contacts that can help you immediately:"
-          : "He detectado una situación de emergencia. Aquí tienes contactos que pueden ayudarte inmediatamente:",
+          ? "I've detected an emergency situation. Here are contacts that can help you immediately"
+          : "He detectado una situación de emergencia. Aquí tienes contactos que pueden ayudarte inmediatamente",
       style: const TextStyle(
         fontSize: 16,
         fontWeight: FontWeight.w400,
         fontFamily: 'Poppins',
       ),
-    );
-  }
+      textAlign: TextAlign.center, // Asegura que el texto esté centrado
+    ),
+  );
+}
 
   // Lista de contactos de emergencia
   List<Widget> _buildEmergencyContacts() {

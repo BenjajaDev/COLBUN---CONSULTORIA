@@ -49,3 +49,5 @@ app.*.map.json
 scripts/config/serviceAccountKey.json
 scripts/node_modules/
 /.github/copilot-instructions.md
+
+chatbotexplicado.md
