@@ -5,6 +5,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter/foundation.dart';
 import 'package:consultoria_chat_bot/services/firestore_faq_service.dart'; // Importamos el modelo Faq
 
 // ============================================================================
@@ -176,51 +177,48 @@ Sigue estos pasos para cada pregunta del usuario:
     List<Map<String, String>>? conversationHistory,
     required String language, // **AGREGAR ESTE PARÁMETRO**
   }) async {
-
     print('🎯 GENERATE RAG RESPONSE - Idioma recibido: $language');
     print('🔍 CONTEXT FAQs COUNT: ${contextFaqs.length}');
 
-    String formattedContext =
-      language == 'en' 
-      ? "No relevant context information found in the database."
-      : "No se encontró información de contexto relevante en la base de datos.";
+    String formattedContext = language == 'en'
+        ? "No relevant context information found in the database."
+        : "No se encontró información de contexto relevante en la base de datos.";
 
     if (contextFaqs.isNotEmpty) {
       formattedContext = contextFaqs.map((faq) {
         // **USAR EL IDIOMA CORRECTO PARA LAS FAQs**
-      String question = language == 'en' && faq.questionEn.isNotEmpty 
-          ? faq.questionEn 
-          : faq.question;
-      String answer = language == 'en' && faq.answerEn.isNotEmpty 
-          ? faq.answerEn 
-          : faq.answer;
-      
-      String sourceInfo = faq.link != null && faq.link!.isNotEmpty
-          ? 'Specific source: ${faq.link}'
-          : 'Source: General information about Colbún';
-      
+        String question = language == 'en' && faq.questionEn.isNotEmpty
+            ? faq.questionEn
+            : faq.question;
+        String answer = language == 'en' && faq.answerEn.isNotEmpty
+            ? faq.answerEn
+            : faq.answer;
 
-      print('📚 FAQ CONTEXT - Question ($language): $question');
-      print('📚 FAQ CONTEXT - Answer ($language): $answer');
-      print('📚 FAQ CONTEXT - Source: $sourceInfo');
-      return '''
+        String sourceInfo = faq.link != null && faq.link!.isNotEmpty
+            ? 'Specific source: ${faq.link}'
+            : 'Source: General information about Colbún';
+
+        print('📚 FAQ CONTEXT - Question ($language): $question');
+        print('📚 FAQ CONTEXT - Answer ($language): $answer');
+        print('📚 FAQ CONTEXT - Source: $sourceInfo');
+        return '''
         Pregunta: "$question"
-        Respuesta: "$answer"
-        ${sourceInfo}
+  Respuesta: "$answer"
+  $sourceInfo
         ''';
-    }).join('\n\n---\n\n');
-  }
+      }).join('\n\n---\n\n');
+    }
 
-  // 2. INSTRUCCIÓN ESPECÍFICA PARA USAR LAS URLs PROPORCIONADAS
-  final urlInstruction = language == 'en' 
-      ? '''
+    // 2. INSTRUCCIÓN ESPECÍFICA PARA USAR LAS URLs PROPORCIONADAS
+    final urlInstruction = language == 'en'
+        ? '''
 IMPORTANT ABOUT SOURCES AND LINKS:
 - If the context includes a "Specific source", you MUST use that exact URL.
 - DO NOT invent URLs or mention generic websites.
 - If there are multiple sources, use the most relevant one for the question.
 - Required format for links: [Descriptive text](Specific_URL)
 '''
-      : '''
+        : '''
 IMPORTANTE SOBRE FUENTES Y ENLACES:
 - Si el contexto incluye una "Fuente específica", DEBES usar esa URL exacta.
 - NO inventes URLs ni menciones sitios web genéricos.
@@ -229,7 +227,11 @@ IMPORTANTE SOBRE FUENTES Y ENLACES:
 ''';
 
     // 3. Construir el mensaje final para el usuario, inyectando el contexto.
-    final finalUserMessage = '''
+    String finalUserMessage;
+
+    if (contextFaqs.isEmpty) {
+      // Si no hay contexto, permitimos que la IA responda con su conocimiento general
+      finalUserMessage = '''
 INFORMACIÓN DE CONTEXTO:
 """
 $formattedContext
@@ -237,12 +239,25 @@ $formattedContext
 
 $urlInstruction
 USER QUESTION: "$userMessage"
-FINAL INSTRUCTION: Respond based solely on the provided context. If you use information from the context,
-include the specific link provided using the format [Text](URL). RESPOND IN ${language.toUpperCase()}.
+FINAL INSTRUCTION: There is no context available from the database for this question. Use your general knowledge about Colbún to provide a concise, helpful answer in ${language.toUpperCase()}. Do not reply that you cannot answer or that no context was found. If you are not certain, provide reasonable options or guidance and suggest verifying with official sources when appropriate. RESPOND IN ${language.toUpperCase()}.
 ''';
+    } else {
+      // Si existe contexto, priorizamos responder a partir del mismo (RAG)
+      finalUserMessage = '''
+INFORMACIÓN DE CONTEXTO:
+"""
+$formattedContext
+"""
+
+$urlInstruction
+USER QUESTION: "$userMessage"
+FINAL INSTRUCTION: Respond based primarily on the provided context. If you use information from the context,
+include the specific link provided using the format [Text](URL). You may supplement with concise general knowledge about Colbún only when it helps clarify or complete the answer. RESPOND IN ${language.toUpperCase()}.
+''';
+    }
 
     print('🚀 FINAL MESSAGE TO OPENAI: $finalUserMessage');
-    
+
     // 3. Llamar al método de envío de mensajes.
     return await _sendMessage(
       userMessage: finalUserMessage,
@@ -270,9 +285,7 @@ include the specific link provided using the format [Text](URL). RESPOND IN ${la
       String systemPrompt = language == 'en' ? _systemPromptEn : _systemPrompt;
 
       List<Map<String, String>> messages = [
-        {'role': 'system',
-        'content': systemPrompt
-        }
+        {'role': 'system', 'content': systemPrompt}
       ];
       // Agregar historial de conversación si existe
       if (conversationHistory != null) {
@@ -288,14 +301,41 @@ include the specific link provided using the format [Text](URL). RESPOND IN ${la
       final requestBody = {
         'model': _model,
         'messages': messages,
-        'max_tokens': 100,
-        'temperature': 0.5, // Un poco menos creativo para que se apegue más al contexto.
+        'max_tokens': 250,
+        'temperature':
+            0.5, // Un poco menos creativo para que se apegue más al contexto.
       };
+
+      // En web, las llamadas directas a api.openai.com suelen fallar por CORS.
+      // Soportamos una variable de entorno OPENAI_PROXY_URL que apunta a un proxy propio
+      // que reenvía las peticiones a OpenAI (con la API Key en el servidor).
+      String targetUrl = '$_baseUrl/chat/completions';
+      final proxyUrl = dotenv.env['OPENAI_PROXY_URL'] ?? '';
+      if (kIsWeb) {
+        if (proxyUrl.isNotEmpty) {
+          targetUrl = proxyUrl;
+          print(
+              '🌐 Ejecutando en web: usando proxy OPENAI_PROXY_URL -> $proxyUrl');
+        } else {
+          // Evitar intentar llamada directa desde web sin proxy (causa ClientException/CORS)
+          print(
+              '⚠️ OpenAI direct call blocked on web (no OPENAI_PROXY_URL configured)');
+          return OpenAIResponse(
+            success: false,
+            message: language == 'en'
+                ? 'Unable to contact OpenAI from the web client due to browser CORS restrictions. Configure a server-side proxy and set OPENAI_PROXY_URL in .env.'
+                : 'No es posible contactar OpenAI desde el cliente web debido a restricciones CORS del navegador. Configura un proxy en servidor y asigna OPENAI_PROXY_URL en .env.',
+            error: 'CORS or web environment without proxy',
+            tokensUsed: 0,
+          );
+        }
+      }
 
       print('🚀 Enviando petición a OpenAI en idioma: $language');
 
-      final response = await http.post(
-            Uri.parse('$_baseUrl/chat/completions'),
+      final response = await http
+          .post(
+            Uri.parse(targetUrl),
             headers: _headers,
             body: jsonEncode(requestBody),
           )
@@ -313,13 +353,14 @@ include the specific link provided using the format [Text](URL). RESPOND IN ${la
       print('❌ Error en OpenAI Service: $e');
       return OpenAIResponse(
           success: false,
-          message: language == 'en' 
-          ? 'Sorry, there is a technical problem. Please try again in a few moments.'
-          : 'Lo siento, hay un problema técnico. Por favor, intenta nuevamente en unos momentos.',
-        error: e.toString(),
+          message: language == 'en'
+              ? 'Sorry, there is a technical problem. Please try again in a few moments.'
+              : 'Lo siento, hay un problema técnico. Por favor, intenta nuevamente en unos momentos.',
+          error: e.toString(),
           tokensUsed: 0);
     }
   }
+
   //prompt en inglés
   String get _systemPromptEn => '''
 ## ROLE AND OBJECTIVE
@@ -364,11 +405,29 @@ Follow these steps for each user question:
     - **Cite Sources:** If you use information from a context that has a link, end your response with: "You can find more official information at this link: [URL]".
     - **Maintain Tone:** Always friendly, helpful, and focused on Colbún.
 ''';
+
   /// Envía un mensaje simple sin historial
   Future<OpenAIResponse> sendSimpleMessage(String userMessage) async {
     // Detectar idioma para mensajes simples (por defecto español)
     final language = await _detectLanguageForSimpleMessage(userMessage);
-    return await _sendMessage(userMessage: userMessage, language: language,);
+    return await _sendMessage(
+      userMessage: userMessage,
+      language: language,
+    );
+  }
+
+  /// Devuelve una URL relevante para la pregunta (si existe) usando el servicio de FAQs
+  /// Esta función facilita consultar la fuente desde capas superiores.
+  Future<String?> getRelevantFaqUrl(String userMessage,
+      {FaqService? service}) async {
+    try {
+      final faqSvc = service ?? FaqService();
+      final url = await faqSvc.findRelevantFaqUrl(userMessage);
+      return url;
+    } catch (e) {
+      print('⚠️ Error al obtener URL relevante de FAQ: $e');
+      return null;
+    }
   }
 
   /// Envía un mensaje con contexto específico adicional
@@ -401,7 +460,7 @@ CONSULTA DEL USUARIO: $userMessage
   Future<String> _detectLanguageForSimpleMessage(String text) async {
     try {
       // Para ejemplos simples, usar una detección básica
-      if (text.contains(RegExp(r'[a-zA-Z]')) && 
+      if (text.contains(RegExp(r'[a-zA-Z]')) &&
           !text.contains(RegExp(r'[áéíóúñ]'))) {
         return 'en';
       }
@@ -410,6 +469,7 @@ CONSULTA DEL USUARIO: $userMessage
       return 'es'; // Fallback a español
     }
   }
+
   /// Procesa respuesta exitosa de OpenAI
   OpenAIResponse _parseSuccessResponse(Map<String, dynamic> data) {
     try {
@@ -422,24 +482,22 @@ CONSULTA DEL USUARIO: $userMessage
       String cleanMessage = message;
 
       // Solo limpiar formato Markdown pero mantener las URLs en el texto
-    cleanMessage = cleanMessage.replaceAllMapped(
-      RegExp(r'\[([^\]]+)\]\(([^)]+)\)'),
-      (match) {
+      cleanMessage = cleanMessage
+          .replaceAllMapped(RegExp(r'\[([^\]]+)\]\(([^)]+)\)'), (match) {
         final linkText = match.group(1) ?? '';
         final url = match.group(2) ?? '';
         return '$linkText ($url)'; // Mantener URL visible
-      }
-    );
-    print('✅ Respuesta procesada exitosamente');
-    print('📊 Tokens utilizados: $tokensUsed');
-    print('🔗 URLs extraídas: $extractedUrls');
+      });
+      print('✅ Respuesta procesada exitosamente');
+      print('📊 Tokens utilizados: $tokensUsed');
+      print('🔗 URLs extraídas: $extractedUrls');
 
       return OpenAIResponse(
-          success: true,
-          message: message.trim(),
-          tokensUsed: tokensUsed,
-          extractedUrls: extractedUrls, // Nuevo campo
-          );
+        success: true,
+        message: message.trim(),
+        tokensUsed: tokensUsed,
+        extractedUrls: extractedUrls, // Nuevo campo
+      );
     } catch (e) {
       return OpenAIResponse(
           success: false,
@@ -460,18 +518,22 @@ CONSULTA DEL USUARIO: $userMessage
       String userFriendlyMessage;
       switch (response.statusCode) {
         case 401:
-          userFriendlyMessage = 'Error de autenticación. Verifica la configuración.';
+          userFriendlyMessage =
+              'Error de autenticación. Verifica la configuración.';
           break;
         case 429:
-          userFriendlyMessage = 'Demasiadas consultas. Por favor, espera un momento e intenta nuevamente.';
+          userFriendlyMessage =
+              'Demasiadas consultas. Por favor, espera un momento e intenta nuevamente.';
           break;
         case 500:
         case 502:
         case 503:
-          userFriendlyMessage = 'El servicio está temporalmente no disponible. Intenta más tarde.';
+          userFriendlyMessage =
+              'El servicio está temporalmente no disponible. Intenta más tarde.';
           break;
         default:
-          userFriendlyMessage = 'Lo siento, no pude procesar tu consulta en este momento.';
+          userFriendlyMessage =
+              'Lo siento, no pude procesar tu consulta en este momento.';
       }
 
       return OpenAIResponse(
@@ -481,15 +543,13 @@ CONSULTA DEL USUARIO: $userMessage
         tokensUsed: 0,
         statusCode: response.statusCode,
       );
-
     } catch (e) {
       print('❌ Error al procesar respuesta de error: $e');
       return OpenAIResponse(
-        success: false,
-        message: "Hubo un error con el servicio de IA.",
-        error: response.body,
-        tokensUsed: 0
-      );
+          success: false,
+          message: "Hubo un error con el servicio de IA.",
+          error: response.body,
+          tokensUsed: 0);
     }
   }
   // ============================================================================

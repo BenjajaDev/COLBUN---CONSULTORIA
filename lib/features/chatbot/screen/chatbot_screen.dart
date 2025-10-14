@@ -417,9 +417,40 @@ class _ChatbotScreenState extends State<ChatbotScreen>
           }
           print(
               "✅ RESPUESTA OPENAI: ${openAIResponse.message.substring(0, 100)}...");
+          // Si tenemos una URL final separada, limpiamos el texto de la IA
+          // para evitar mostrar el enlace inline y dejar solo el botón "Fuente".
+          String displayMessage = openAIResponse.message;
+          if (finalUrl != null && finalUrl.isNotEmpty) {
+            try {
+              // Eliminar links en formato Markdown [texto](url)
+              displayMessage = displayMessage.replaceAllMapped(
+                RegExp(r'\[([^\]]+)\]\(([^)]+)\)'),
+                (m) => '',
+              );
+
+              // Eliminar URLs explícitas (http/https/www)
+              displayMessage = displayMessage.replaceAll(
+                RegExp(r'https?:\/\/[\S]+|www\.[\S]+'),
+                '',
+              );
+
+              // Asegurar que no quede la URL textual específica
+              displayMessage = displayMessage.replaceAll(finalUrl, '');
+
+              // Limpiar espacios extra y puntuación sobrante
+              displayMessage =
+                  displayMessage.replaceAll(RegExp(r'\s{2,}'), ' ').trim();
+              displayMessage =
+                  displayMessage.replaceAll(RegExp(r'\s+[,\.:;\)]+'), '');
+            } catch (e) {
+              print('⚠️ Error limpiando el mensaje de la IA: $e');
+              displayMessage = openAIResponse.message; // fallback
+            }
+          }
+
           addMessage(
             sender: "bot",
-            text: openAIResponse.message,
+            text: displayMessage,
             messageId: aiMessageId,
             source: 'openai_rag',
             link: finalUrl,
@@ -470,16 +501,48 @@ class _ChatbotScreenState extends State<ChatbotScreen>
             }, // También podemos mostrar el link si existe
           );
         } else {
-          String errorMessage = _currentLanguage == 'en'
-              ? "Sorry, I couldn't connect and didn't find a local answer for your question. Please check your internet connection."
-              : "Lo siento, no pude conectarme y no encontré una respuesta local para tu pregunta. Por favor, revisa tu conexión a internet.";
-          // Falló la conexión Y no encontramos nada en la base de datos local.
-          addMessage(
-            sender: "bot",
-            text: errorMessage,
-            source: 'error',
-            language: _currentLanguage,
-          );
+          // No se encontró respuesta local. Intentar un último reintento a la IA
+          try {
+            print(
+                '🔁 Reintentando consulta a la IA sin contexto como último recurso...');
+            final retryResponse = await _openAIService.sendSimpleMessage(text);
+            if (mounted) {
+              if (retryResponse.success) {
+                final aiMessageId =
+                    DateTime.now().millisecondsSinceEpoch.toString();
+                addMessage(
+                  sender: "bot",
+                  text: retryResponse.message,
+                  messageId: aiMessageId,
+                  source: 'openai_fallback',
+                  language: _currentLanguage,
+                  extras: {'showFeedback': true},
+                );
+              } else {
+                // Si OpenAI respondió con error, mostrar mensaje de error amigable
+                String errorMessage = _currentLanguage == 'en'
+                    ? "Sorry, I couldn't connect and didn't find a local answer for your question. Please check your internet connection."
+                    : "Lo siento, no pude conectarme y no encontré una respuesta local para tu pregunta. Por favor, revisa tu conexión a internet.";
+                addMessage(
+                  sender: "bot",
+                  text: errorMessage,
+                  source: 'error',
+                  language: _currentLanguage,
+                );
+              }
+            }
+          } catch (e2) {
+            print('❌ Reintento a la IA falló: $e2');
+            String errorMessage = _currentLanguage == 'en'
+                ? "Sorry, I couldn't connect and didn't find a local answer for your question. Please check your internet connection."
+                : "Lo siento, no pude conectarme y no encontré una respuesta local para tu pregunta. Por favor, revisa tu conexión a internet.";
+            addMessage(
+              sender: "bot",
+              text: errorMessage,
+              source: 'error',
+              language: _currentLanguage,
+            );
+          }
         }
       }
     } finally {
@@ -571,56 +634,58 @@ class _ChatbotScreenState extends State<ChatbotScreen>
   // Reemplazar el método _buildEmergencyCard por este:
   Widget _buildEmergencyModal() {
     return Dialog(
-      backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.all(20),
-      child: ConstrainedBox(
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.6, // 80% de la altura
-      ),
-      child: Container(
-        padding: const EdgeInsets.all(20.0),
-        decoration: BoxDecoration(
-          color: Theme.of(context).brightness == Brightness.dark ?
-          AppColors.darkBackground : Colors.grey[50],
-          borderRadius: BorderRadius.circular(20.0),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.3),
-              blurRadius: 20,
-              offset: const Offset(0, 10),
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(20),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight:
+                MediaQuery.of(context).size.height * 0.6, // 80% de la altura
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(20.0),
+            decoration: BoxDecoration(
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? AppColors.darkBackground
+                  : Colors.grey[50],
+              borderRadius: BorderRadius.circular(20.0),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.3),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                ),
+              ],
             ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildEmergencyHeader(),
-            const SizedBox(height: 16),
-            _buildEmergencyDescription(),
-            const SizedBox(height: 16),
-            Expanded(//scroll en caso de muchos numeros
-              child: SingleChildScrollView(
-                child: Column(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildEmergencyHeader(),
+                const SizedBox(height: 16),
+                _buildEmergencyDescription(),
+                const SizedBox(height: 16),
+                Expanded(
+                    //scroll en caso de muchos numeros
+                    child: SingleChildScrollView(
+                        child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: _buildEmergencyContacts(),
-                )
-              )
+                ))),
+                const SizedBox(height: 20),
+                _buildCloseButton(),
+              ],
             ),
-            
-            const SizedBox(height: 20),
-            _buildCloseButton(),
-          ],
-        ),
-      ),
-      )
-    );
+          ),
+        ));
   }
+
   // Header de emergencia
   Widget _buildEmergencyHeader() {
     return Center(
       child: Text(
-        _currentLanguage == 'en' ? 'EMERGENCY DETECTED' : 'EMERGENCIA DETECTADA',
+        _currentLanguage == 'en'
+            ? 'EMERGENCY DETECTED'
+            : 'EMERGENCIA DETECTADA',
         style: TextStyle(
           color: Colors.red[700],
           fontSize: 28,
@@ -630,23 +695,24 @@ class _ChatbotScreenState extends State<ChatbotScreen>
         textAlign: TextAlign.center, // Asegura que el texto esté centrado
       ),
     );
-  } 
+  }
+
   // Descripcion de emergencia
   Widget _buildEmergencyDescription() {
-  return Center(
-    child: Text(
-      _currentLanguage == 'en'
-          ? "I've detected an emergency situation. Here are contacts that can help you immediately"
-          : "He detectado una situación de emergencia. Aquí tienes contactos que pueden ayudarte inmediatamente",
-      style: const TextStyle(
-        fontSize: 16,
-        fontWeight: FontWeight.w400,
-        fontFamily: 'Poppins',
+    return Center(
+      child: Text(
+        _currentLanguage == 'en'
+            ? "I've detected an emergency situation. Here are contacts that can help you immediately"
+            : "He detectado una situación de emergencia. Aquí tienes contactos que pueden ayudarte inmediatamente",
+        style: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w400,
+          fontFamily: 'Poppins',
+        ),
+        textAlign: TextAlign.center, // Asegura que el texto esté centrado
       ),
-      textAlign: TextAlign.center, // Asegura que el texto esté centrado
-    ),
-  );
-}
+    );
+  }
 
   // Lista de contactos de emergencia
   List<Widget> _buildEmergencyContacts() {
