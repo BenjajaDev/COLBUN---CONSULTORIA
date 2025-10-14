@@ -251,14 +251,18 @@ class ChatbotBody extends StatelessWidget {
                               child: Container(
                                 padding: const EdgeInsets.all(8.0),
                                 decoration: BoxDecoration(
-                                  color: isDarkMode
-                                      ? Colors.blue[900]
-                                      : Colors.blue[50],
+                                  // Fondo igual al de la burbuja
+                                  color: isUser
+                                      ? (isDarkMode
+                                          ? AppColors.darkprimary
+                                          : AppColors.lightprimary)
+                                      : (isDarkMode ? Colors.grey[800] : Colors.white),
                                   borderRadius: BorderRadius.circular(8.0),
                                   border: Border.all(
                                     color: isDarkMode
-                                        ? Colors.blue[700]!
+                                        ? const Color(0xFF5AA1E8) // azul personalizado modo oscuro
                                         : Colors.blue[200]!,
+                                    width: 1,
                                   ),
                                 ),
                                 child: Row(
@@ -268,7 +272,7 @@ class ChatbotBody extends StatelessWidget {
                                       Icons.link,
                                       size: 16,
                                       color: isDarkMode
-                                          ? Colors.blue[200]
+                                          ? const Color(0xFF5AA1E8)
                                           : Colors.blue[700],
                                     ),
                                     const SizedBox(width: 4),
@@ -277,8 +281,8 @@ class ChatbotBody extends StatelessWidget {
                                         sourceText, // **TEXTO DINÁMICO SEGÚN IDIOMA**
                                         style: TextStyle(
                                           color: isDarkMode
-                                              ? Colors.blue[200]
-                                              : Colors.blue[700],
+                                              ? const Color(0xFF5AA1E8)
+                                              : const Color(0xFF1976D2),
                                           fontSize: 16,
                                           fontFamily: 'Poppins',
                                           fontWeight: FontWeight.w600,

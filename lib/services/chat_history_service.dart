@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'cache_service.dart';
 
 // Modelo para guardar una conversación cacheada

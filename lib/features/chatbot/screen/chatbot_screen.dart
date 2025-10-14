@@ -339,7 +339,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       // Verificar si es emergencia
       if (_emergencyService.detectEmergency(text, _currentLanguage)) {
         print("🚨🚨🚨 EMERGENCIA DETECTADA! 🚨🚨🚨");
-        _activateEmergencyMode(text);
+        await _activateEmergencyMode(text);
         return; // Detener procesamiento normal
       }
     } catch (e) {
@@ -496,8 +496,8 @@ class _ChatbotScreenState extends State<ChatbotScreen>
   // ===========================================================================
   // GESTIÓN DE EMERGENCIAS
   // ===========================================================================
-  void _activateEmergencyMode(String userMessage) {
-    addMessage(
+  Future<void> _activateEmergencyMode(String userMessage) async {
+    await addMessage(
       sender: "user",
       text: userMessage,
       language: _currentLanguage,
@@ -514,7 +514,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
         ? "I've detected an emergency situation. I'm showing emergency contacts that can help you."
         : "He detectado una situación de emergencia. Estoy mostrando contactos de emergencia que pueden ayudarte.";
 
-    addMessage(
+    await addMessage(
       sender: "bot",
       text: emergencyMessage,
       type: "emergency",
@@ -575,7 +575,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       insetPadding: const EdgeInsets.all(20),
       child: ConstrainedBox(
       constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.8, // 80% de la altura
+        maxHeight: MediaQuery.of(context).size.height * 0.6, // 80% de la altura
       ),
       child: Container(
         padding: const EdgeInsets.all(20.0),
@@ -617,26 +617,20 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     );
   }
   // Header de emergencia
-  Widget _buildEmergencyHeader(){
-    return Row(
-      children: [
-                Expanded(
-                  child: Center(
-                    child: Text(
-                    _currentLanguage == 'en' ? 'EMERGENCY DETECTED' : 'EMERGENCIA DETECTADA',
-                    style: TextStyle(
-                      color: Colors.red[700],
-                      fontSize: 28,
-                      fontWeight: FontWeight.w600,
-                      fontFamily: 'Poppins',
-                    ),
-                  ),
-                  ),
-                  
-                ),
-              ],
-            );
-  }
+  Widget _buildEmergencyHeader() {
+    return Center(
+      child: Text(
+        _currentLanguage == 'en' ? 'EMERGENCY DETECTED' : 'EMERGENCIA DETECTADA',
+        style: TextStyle(
+          color: Colors.red[700],
+          fontSize: 28,
+          fontWeight: FontWeight.w600,
+          fontFamily: 'Poppins',
+        ),
+        textAlign: TextAlign.center, // Asegura que el texto esté centrado
+      ),
+    );
+  } 
   // Descripcion de emergencia
   Widget _buildEmergencyDescription() {
   return Center(

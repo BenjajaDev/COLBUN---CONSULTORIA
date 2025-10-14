@@ -4,7 +4,7 @@ const crypto = require('crypto');
 
 // --- CONFIGURACIÓN ---
 const serviceAccount = require('./serviceAccountKey.json');
-const CATEGORIES_COLLECTION = 'categories_v2';
+
 const FAQS_COLLECTION = 'faqs_curadas';
 // --------------------
 
