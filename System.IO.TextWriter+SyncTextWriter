@@ -1,4 +1,4 @@
-﻿import 'package:consultoria_chat_bot/blocs/map_bloc.dart';
+import 'package:consultoria_chat_bot/blocs/map_bloc.dart';
 import 'package:consultoria_chat_bot/events/map_event.dart';
 import 'package:consultoria_chat_bot/l10n/app_localizations.dart';
 import 'package:consultoria_chat_bot/screens/poi_screen.dart';
@@ -198,7 +198,7 @@ class _MapPageState extends State<MapPage> {
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        'Categoría',
+                        'Categor�a',
                         style:
                             labelStyle ??
                             const TextStyle(
@@ -501,12 +501,13 @@ class _MapPageState extends State<MapPage> {
                     ],
                   ),
 
+                  // FAB de emergencia (rojo), ubicado sobre el FAB de ubicaci�n
                   Positioned(
                     bottom: _fabPosition + _fabPositionPadding + 72,
                     right: 16,
                     child: FloatingActionButton(heroTag: 'emergency_fab',
                       backgroundColor: Colors.red,
-                      onPressed: () { if (state.userLocation == null) return; 
+                      onPressed: () {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -527,7 +528,7 @@ class _MapPageState extends State<MapPage> {
                         mapController.move(
                           state.userLocation!,
                           15,
-                        ); // ðŸ‘ˆ Centrar
+                        ); // 👈 Centrar
                       },
                       child: const Icon(Icons.my_location, color: Colors.white),
                     ),
@@ -546,8 +547,8 @@ class _MapPageState extends State<MapPage> {
                     child: DraggableScrollableSheet(
                       initialChildSize:
                           _initialSheetChildSize, // Altura inicial (25%)
-                      minChildSize: 0.2, // Altura mÃ­nima
-                      maxChildSize: 0.6, // Altura mÃ¡xima
+                      minChildSize: 0.2, // Altura mínima
+                      maxChildSize: 0.6, // Altura máxima
 
                       snap: true,
                       builder: (context, scrollController) {
@@ -872,3 +873,5 @@ class _MapPageState extends State<MapPage> {
     );
   }
 }
+
+
