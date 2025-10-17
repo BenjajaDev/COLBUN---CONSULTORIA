@@ -1,131 +1,71 @@
-const functions = require("firebase-functions");
-const admin = require("firebase-admin");
-const {OpenAI} = require("openai");
+// Reemplaza TODO el contenido de tu index.js con este código corregido
 
-// Define el parámetro para tu clave secreta de OpenAI
-// Asegúrate de haberla configurado en Firebase con:
+const functions = require("firebase-functions");
+const https = require("https");
+
+// Usamos el método moderno y seguro para manejar secretos en Firebase.
+// Asegúrate de haberlo configurado con:
 // firebase functions:secrets:set OPENAI_API_KEY
 const {defineString} = require("firebase-functions/params");
 const openaiApiKey = defineString("OPENAI_API_KEY");
 
-// Inicializa Firebase Admin para poder acceder a Firestore
-admin.initializeApp();
-const db = admin.firestore();
+const OPENAI_API_HOST = "api.openai.com";
+const OPENAI_API_PATH = "/v1/chat/completions";
 
 /**
- * Busca en Firestore las FAQs más relevantes para el mensaje del usuario.
- * @param {string} userMessage El mensaje del usuario.
- * @return {Promise<Array>} Una lista de objetos FAQ encontrados.
+ * Actúa como un proxy seguro para las llamadas a la API de OpenAI.
+ * Recibe la petición desde la app web de Flutter, añade la API Key
+ * en el servidor y reenvía la petición a OpenAI.
  */
-async function findContextFaqs(userMessage) {
-  console.log(`Buscando FAQs para el mensaje: "${userMessage}"`);
-  try {
-    const faqsCollection = db.collection("faqs");
-    const snapshot = await faqsCollection.get();
+exports.openAIProxy = functions.https.onRequest((req, res) => {
+  // Configura los encabezados CORS para permitir que tu app web llame.
+  // Para mayor seguridad en producción, puedes reemplazar "*"
+  // con el dominio de tu app web (ej: "https://tu-proyecto.web.app").
+  res.set("Access-Control-Allow-Origin", "*");
+  res.set("Access-Control-Allow-Headers", "Content-Type");
 
-    if (snapshot.empty) {
-      console.log("No se encontraron FAQs en la colección.");
-      return [];
-    }
-
-    const allFaqs = [];
-    snapshot.forEach((doc) => {
-      allFaqs.push({id: doc.id, ...doc.data()});
-    });
-
-    const searchTerms = userMessage.toLowerCase().split(/\s+/);
-    const relevantFaqs = allFaqs.filter((faq) => {
-      const question = (faq.question || "").toLowerCase();
-      const answer = (faq.answer || "").toLowerCase();
-      const tags = (faq.tags || []).join(" ").toLowerCase();
-
-      return searchTerms.some(
-          (term) =>
-            question.includes(term) ||
-            answer.includes(term) ||
-            tags.includes(term),
-      );
-    });
-
-    console.log(`Se encontraron ${relevantFaqs.length} FAQs relevantes.`);
-    return relevantFaqs;
-  } catch (error) {
-    console.error("Error al buscar FAQs en Firestore:", error);
-    return [];
-  }
-}
-
-/**
- * Esta es nuestra función de 1ª Generación con toda la lógica del chatbot.
- */
-exports.whatsappWebhookGen1 = functions.https.onRequest(async (req, res) => {
-  const openai = new OpenAI({
-    apiKey: openaiApiKey.value(),
-  });
-
-  const userMessage = req.body.Body;
-  if (!userMessage) {
-    res.status(200).send("<Response/>");
+  // El navegador envía una petición "pre-vuelo" (OPTIONS) para CORS.
+  if (req.method === "OPTIONS") {
+    res.status(204).send("");
     return;
   }
 
-  console.log(`Mensaje recibido: "${userMessage}"`);
-
-  try {
-    const contextFaqs = await findContextFaqs(userMessage);
-
-    const faqContextText = contextFaqs
-        .map(
-            (faq) =>
-              `Pregunta: ${faq.question}\nRespuesta: ${faq.answer}\nLink: ${
-                faq.link || "No disponible"
-              }`,
-        )
-        .join("\n\n---\n\n");
-
-    const systemPrompt = `
-      Eres el asistente virtual de Colbún. Tu personalidad es amigable.
-      Tu misión es responder basándote PRINCIPALMENTE en el siguiente
-      contexto. Si la respuesta está en el contexto, úsala. Si no,
-      responde que solo puedes dar información sobre Colbún.
-      Si el contexto incluye un link, proporciónalo al final.
-
-      --- CONTEXTO DE PREGUNTAS FRECUENTES ---
-      ${faqContextText}
-      --- FIN DEL CONTEXTO ---
-    `;
-
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        {role: "system", content: systemPrompt},
-        {role: "user", content: userMessage},
-      ],
-    });
-
-    const botResponse = completion.choices[0].message.content;
-
-    const twiml = `
-      <Response>
-        <Message>
-          <Body>${botResponse}</Body>
-        </Message>
-      </Response>
-    `;
-
-    res.set("Content-Type", "text/xml");
-    res.status(200).send(twiml);
-  } catch (error) {
-    console.error("Error procesando el mensaje con IA:", error);
-    const errorResponse = `
-      <Response>
-        <Message>
-          <Body>Lo siento, tuve un problema para procesar tu solicitud.
-          Intenta de nuevo.</Body>
-        </Message>
-      </Response>
-    `;
-    res.set("Content-Type", "text/xml");
-    res.status(200).send(errorResponse);
+  // Solo aceptamos peticiones POST.
+  if (req.method !== "POST") {
+    res.status(405).send("Method Not Allowed");
+    return;
   }
+
+  // Opciones para la llamada a la API de OpenAI.
+  const options = {
+    hostname: OPENAI_API_HOST,
+    path: OPENAI_API_PATH,
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      // Aquí se inserta la clave API de forma segura.
+      "Authorization": `Bearer ${openaiApiKey.value()}`,
+    },
+  };
+
+  // Creamos la petición hacia la API de OpenAI.
+  const apiRequest = https.request(options, (apiResponse) => {
+    let data = "";
+    apiResponse.on("data", (chunk) => {
+      data += chunk;
+    });
+    apiResponse.on("end", () => {
+      // Devolvemos la respuesta de OpenAI a la app de Flutter.
+      res.status(apiResponse.statusCode).send(data);
+    });
+  });
+
+  apiRequest.on("error", (error) => {
+    console.error("Error al llamar a la API de OpenAI:", error);
+    res.status(500).send({error: "Failed to communicate with OpenAI API"});
+  });
+
+  // Pasamos el cuerpo de la petición de Flutter directamente a OpenAI.
+  apiRequest.write(JSON.stringify(req.body));
+  apiRequest.end();
 });

@@ -1,3 +1,4 @@
+import 'package:consultoria_chat_bot/features/auth/screen/auth_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -50,37 +51,60 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // MultiBlocProvider sigue siendo la raíz para los Blocs
     return MultiBlocProvider(
       providers: [
         BlocProvider(create: (context) => ThemeBloc()),
         BlocProvider(create: (context) => FaqBloc()),
         BlocProvider(
-          create: (context) {
-            final authBloc = AuthBloc(
-              authService: context.read<AuthService>(),
-            );
-            // Verificar el estado de autenticación al iniciar
-            authBloc.add(CheckAuthStatus());
-            return authBloc;
-          },
+          create: (context) => AuthBloc(
+            authService: context.read<AuthService>(),
+          ),
+          // NOTA: Ya no disparamos CheckAuthStatus aquí.
+          // El StreamBuilder se encargará de la lógica inicial.
         ),
       ],
-      child: BlocBuilder<ThemeBloc, ThemeState>(builder: (context, state) {
-        return MaterialApp(
-          title: 'Asistente Colbún',
-          theme: ThemeData(
-            colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-            fontFamily: 'Poppins',
-            useMaterial3: true,
-          ),
-          darkTheme: ThemeData.dark().copyWith(
-              // Opcional: define un tema oscuro explícito
-              ),
-          themeMode: state.isDarkMode ? ThemeMode.dark : ThemeMode.light,
-          home: const HomeScreen(),
-          debugShowCheckedModeBanner: false,
-        );
-      }),
+      child: BlocBuilder<ThemeBloc, ThemeState>(
+        builder: (context, themeState) {
+          return MaterialApp(
+            title: 'Asistente Colbún',
+            theme: ThemeData(
+              colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+              fontFamily: 'Poppins',
+              useMaterial3: true,
+            ),
+            darkTheme: ThemeData.dark(),
+            themeMode: themeState.isDarkMode ? ThemeMode.dark : ThemeMode.light,
+            debugShowCheckedModeBanner: false,
+            // Usamos un StreamBuilder para decidir qué pantalla mostrar
+            home: StreamBuilder(
+              // Escuchamos el stream que nos dice si el usuario está logueado
+              stream: context.read<AuthService>().authStateChanges,
+              builder: (context, snapshot) {
+                // MIENTRAS ESPERA: Muestra un indicador de carga.
+                // Esto es crucial en el segundo arranque.
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Scaffold(
+                    body: Center(child: CircularProgressIndicator()),
+                  );
+                }
+
+                // SI HAY UN USUARIO: El usuario está logueado.
+                if (snapshot.hasData) {
+                  // Disparamos el evento para que el AuthBloc sepa del usuario
+                  context.read<AuthBloc>().add(AuthUserChanged(snapshot.data));
+                  return const HomeScreen();
+                }
+
+                // SI NO HAY USUARIO: Nadie está logueado.
+                // Aquí deberías mostrar tu pantalla de Login.
+                // Por ahora, usamos un placeholder.
+                return const AuthScreen(); // ¡Asegúrate de tener esta pantalla!
+              },
+            ),
+          );
+        },
+      ),
     );
   }
 }

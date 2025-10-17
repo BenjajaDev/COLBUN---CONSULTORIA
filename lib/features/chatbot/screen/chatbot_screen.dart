@@ -93,8 +93,8 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     ));
     _loadAllFaqs();
     _loadEmergencyContacts();
-    // Restaura historial local y luego inicializa conversación en Firestore
-    _restoreCachedHistory().whenComplete(_initializeConversation);
+
+    _resetChatState();
   }
 
   @override
@@ -143,6 +143,20 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       language: _currentLanguage,
     );
     // Guarda el historial localmente
+  }
+
+  Future<void> _resetChatState() async {
+    // 1. Limpia la lista de mensajes en la UI.
+    setState(() {
+      messages.clear();
+      _currentConversationId = null;
+    });
+
+    // 2. Borra el historial del caché local.
+    await _chatHistoryService.clearHistory();
+
+    // 3. Muestra el mensaje de bienvenida inicial.
+    _initializeChat();
   }
 
   /// Inicializa la conversación cargando mensajes existentes o creando una nueva
