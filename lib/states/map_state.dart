@@ -2,12 +2,24 @@ import 'package:consultoria_chat_bot/model/poi_model.dart';
 import 'package:consultoria_chat_bot/model/route_model.dart';
 import 'package:latlong2/latlong.dart';
 
+const _noChange = Object();
+
+/// 🔹 Estado base
 abstract class MapState {}
 
+/// Estado inicial (sin datos aún)
 class MapInitial extends MapState {}
 
+/// Estado cargando
 class MapLoading extends MapState {}
 
+/// Estado de error
+class MapError extends MapState {
+  final String message;
+  MapError(this.message);
+}
+
+/// Estado cargado (mapa con rutas y filtros)
 class MapLoaded extends MapState {
   final LatLng center;
   final List<LatLng> markers;
@@ -16,6 +28,8 @@ class MapLoaded extends MapState {
   final List<MapRoute> allRoutes;
   final List<MapRoute> filteredRoutes;
   final List<POI> filteredPois;
+
+  // Filtros
   final String? selectedCategory;
   final double? selectedDistanceKm;
   final String? selectedSeason;
@@ -43,13 +57,10 @@ class MapLoaded extends MapState {
     List<MapRoute>? allRoutes,
     List<MapRoute>? filteredRoutes,
     List<POI>? filteredPois,
-    String? selectedCategory,
-    bool clearSelectedCategory = false,
-    double? selectedDistanceKm,
-    bool clearSelectedDistanceKm = false,
-    String? selectedSeason,
-    bool clearSelectedSeason = false,
-    String? query,
+    Object? selectedCategory = _noChange,
+    Object? selectedDistanceKm = _noChange,
+    Object? selectedSeason = _noChange,
+    Object? query = _noChange,
   }) {
     return MapLoaded(
       center: center ?? this.center,
@@ -59,21 +70,36 @@ class MapLoaded extends MapState {
       allRoutes: allRoutes ?? this.allRoutes,
       filteredRoutes: filteredRoutes ?? this.filteredRoutes,
       filteredPois: filteredPois ?? this.filteredPois,
-      selectedCategory: clearSelectedCategory
-          ? null
-          : (selectedCategory ?? this.selectedCategory),
-      selectedDistanceKm: clearSelectedDistanceKm
-          ? null
-          : (selectedDistanceKm ?? this.selectedDistanceKm),
-      selectedSeason: clearSelectedSeason
-          ? null
-          : (selectedSeason ?? this.selectedSeason),
-      query: query ?? this.query,
+      selectedCategory: identical(selectedCategory, _noChange)
+          ? this.selectedCategory
+          : selectedCategory as String?,
+      selectedDistanceKm: identical(selectedDistanceKm, _noChange)
+          ? this.selectedDistanceKm
+          : selectedDistanceKm as double?,
+      selectedSeason: identical(selectedSeason, _noChange)
+          ? this.selectedSeason
+          : selectedSeason as String?,
+      query: identical(query, _noChange)
+          ? this.query
+          : query as String,
     );
   }
 }
+/// 🚗 Estado de navegación activa
+class MapNavigating extends MapState {
+  final LatLng start;
+  final LatLng destination;
+  final List<LatLng> routePoints;
+  final List<String> instructions;
+  final double? heading;
+  final LatLng? userLocation;
 
-class MapError extends MapState {
-  final String message;
-  MapError(this.message);
+  MapNavigating({
+    required this.start,
+    required this.destination,
+    required this.routePoints,
+    required this.instructions,
+    this.heading,
+    this.userLocation,
+  });
 }
