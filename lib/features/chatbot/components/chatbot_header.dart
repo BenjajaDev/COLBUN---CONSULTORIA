@@ -96,11 +96,76 @@ class ChatbotHeader extends StatelessWidget implements PreferredSizeWidget {
                   borderRadius: BorderRadius.circular(8.0),
                 ),
                 // Maneja la selección de opciones del menú
-                onSelected: (value) {
+                onSelected: (value) async {
                   if (value == 'Whatsapp') {
                     onContactWhatsApp();
                   } else if (value == 'Borrar Historial') {
-                    onClearHistory();
+                    // Mostrar diálogo de confirmación antes de borrar
+                    final confirmed = await showDialog<bool>(
+                      context: context,
+                      barrierDismissible: false,
+                      builder: (ctx) {
+                        final primaryColor = state.isDarkMode
+                            ? AppColors.darkprimary
+                            : AppColors.lightprimary;
+                        return AlertDialog(
+                          // Reduce horizontal inset para dar más espacio al título
+                          insetPadding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 24.0),
+                          titlePadding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+                          contentPadding: const EdgeInsets.fromLTRB(24, 12, 24, 12),
+                          actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          title: const Text(
+                            '¿Desea borrar el historial?',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          content: const SizedBox.shrink(),
+                          actions: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                // 'No, volver' on the left
+                                Expanded(
+                                  child: ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                      side: BorderSide(color: primaryColor),
+                                      backgroundColor: Colors.transparent,
+                                      foregroundColor: primaryColor,
+                                      elevation: 0,
+                                    ),
+                                    onPressed: () {
+                                      Navigator.of(ctx).pop(false);
+                                    },
+                                    child: const Text('No, volver'),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                // 'Si, Eliminar' on the right
+                                Expanded(
+                                  child: FilledButton(
+                                    style: FilledButton.styleFrom(
+                                      backgroundColor: Colors.red[700],
+                                      foregroundColor: Colors.white,
+                                    ),
+                                    onPressed: () {
+                                      Navigator.of(ctx).pop(true);
+                                    },
+                                    child: const Text('Si, Eliminar'),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        );
+                      },
+                    );
+
+                    if (confirmed == true) {
+                      onClearHistory();
+                    }
                   }
                 },
                 // Construye los ítems del menú desplegable

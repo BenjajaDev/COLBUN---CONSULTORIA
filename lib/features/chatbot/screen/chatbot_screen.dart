@@ -61,7 +61,6 @@ class _ChatbotScreenState extends State<ChatbotScreen>
   // ===========================================================================
   final Set<String> _contextualTriggers = const {
     'por que',
-    'porqué',
     'porque',
     'why',
     'explica mas',
@@ -94,7 +93,9 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     _loadAllFaqs();
     _loadEmergencyContacts();
 
-    _resetChatState();
+    _restoreCachedHistory().then((_) => _initializeConversation());
+
+
   }
 
   @override
@@ -109,13 +110,43 @@ class _ChatbotScreenState extends State<ChatbotScreen>
   // GESTIÓN DE CONVERSACIONES E HISTORIAL
   // ===========================================================================
   Future<void> _restoreCachedHistory() async {
-    final cached = await _chatHistoryService.loadLastConversation();
+  final cached = await _chatHistoryService.loadLastConversation(currentUserId: _firestoreConnection.currentUserId);
     if (!mounted || cached == null) return;
+
+    // Normalizar mensajes cacheados para evitar problemas de tipos (ej. List<dynamic>)
+    final normalizedCachedMessages = cached.messages.map((m) {
+      final Map<String, dynamic> msg = Map<String, dynamic>.from(m);
+
+      // Normalizar options -> List<String>
+      final rawOptions = msg['options'];
+      if (rawOptions == null) {
+        msg['options'] = <String>[];
+      } else if (rawOptions is List) {
+        msg['options'] = rawOptions.map((e) => e?.toString() ?? '').where((s) => s.isNotEmpty).toList();
+      } else {
+        msg['options'] = <String>[];
+      }
+
+      // Asegurar type
+      if (msg['type'] == null) msg['type'] = '';
+
+      // Normalizar timestamp a String si viene como DateTime u otro
+      final ts = msg['timestamp'];
+      if (ts is DateTime) {
+        msg['timestamp'] = ts.toIso8601String();
+      } else if (ts == null) {
+        msg['timestamp'] = DateTime.now().toIso8601String();
+      } else {
+        msg['timestamp'] = ts.toString();
+      }
+
+      return msg;
+    }).toList();
 
     setState(() {
       messages
         ..clear()
-        ..addAll(cached.messages);
+        ..addAll(normalizedCachedMessages);
       _currentConversationId = cached.conversationId;
     });
 
@@ -123,6 +154,71 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     _rebuildMessageLanguageIndex(messages);
     _hasRestoredLocalHistory = true;
     // Historial local restaurado
+
+    //Verificar si al conversación local tiene un documento remoto en Firestore
+    //Si no existe, crear comversión remota nueva con los mensajes cacheados
+    try{
+      if (_currentConversationId != null) {
+        final remoteConversation =
+            await _firestoreConnection.getCompleteConversation(_currentConversationId!);
+        if (remoteConversation == null) {
+          final uid = _firestoreConnection.currentUserId;
+          if (uid == null) {
+             print('⚠️ Usuario no autenticado: no se puede crear conversación remota.');
+            return;
+          }
+
+          final newConversationId = await _firestoreConnection.createConversation(
+            userId: uid,
+            language: _currentLanguage,
+          );
+          print('🔗 Conversación remota creada: $newConversationId  (se sincroniza caché local)');
+
+          _currentConversationId = newConversationId;
+
+          // Subir mensajes cacheados a la nueva conversación remota.
+          // Hacemos una copia para evitar mutaciones durante la iteración.
+          final cachedMessages = List<Map<String, dynamic>>.from(messages);
+          for (final msg in cachedMessages) {
+            // Normalizar 'options' para evitar que sea null y asegurar List<String>
+            final rawOptionsCached = msg['options'];
+            if (rawOptionsCached == null) {
+              msg['options'] = <String>[];
+            } else if (rawOptionsCached is List) {
+              msg['options'] = rawOptionsCached.map((e) => e?.toString() ?? '').where((s) => s.isNotEmpty).toList();
+            } else {
+              msg['options'] = <String>[];
+            }
+
+            final text = msg['text'] as String?;
+            final sender = msg['sender'] as String?;
+            final msgType = msg['type'] as String?;
+            if (text != null && text.isNotEmpty && sender != null) {
+              try {
+                final uploadedId = await _firestoreConnection.addMessageToConversation(
+                  conversationId: _currentConversationId!, 
+                  text: text,
+                  sender: sender,
+                  type: msgType,
+                  isFaq: msg['source'] != null && (msg['source'] as String).contains('firestore'),
+                  faqSource: msg['source'] as String?,
+                );
+                // Actualizar el ID del mensaje en el caché local con el id de firestore
+                msg['id'] = uploadedId;
+              } catch (e) {
+                print('❌ Error subiendo mensaje cacheado a Firestore: $e');
+              }
+            }
+          }
+          //Persistir cache actualizado con los nuevos IDs remotos
+          await _persistMessages();
+        } else {
+          print('✅ Conversación remota existente encontrada: $_currentConversationId');
+        }
+      }
+    } catch(e){
+      print('❌ Error verificando conversación remota: $e');
+    }
   }
 
   void _rebuildMessageLanguageIndex(List<Map<String, dynamic>> source) {
@@ -141,22 +237,9 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       conversationId: _currentConversationId,
       messages: List<Map<String, dynamic>>.from(messages),
       language: _currentLanguage,
+      ownerId: _firestoreConnection.currentUserId,
     );
     // Guarda el historial localmente
-  }
-
-  Future<void> _resetChatState() async {
-    // 1. Limpia la lista de mensajes en la UI.
-    setState(() {
-      messages.clear();
-      _currentConversationId = null;
-    });
-
-    // 2. Borra el historial del caché local.
-    await _chatHistoryService.clearHistory();
-
-    // 3. Muestra el mensaje de bienvenida inicial.
-    _initializeChat();
   }
 
   /// Inicializa la conversación cargando mensajes existentes o creando una nueva
@@ -185,6 +268,24 @@ class _ChatbotScreenState extends State<ChatbotScreen>
         final correctlyTypedMessages = existingMessages
             .map((msg) => Map<String, dynamic>.from(msg))
             .toList();
+         // Normalizar campos que pueden venir nulos desde Firestore/caché
+        for (final m in correctlyTypedMessages) {
+          // options siempre debe ser List<String>
+          final rawOptions = m['options'];
+          if (rawOptions == null) {
+            m['options'] = <String>[];
+          } else if (rawOptions is List) {
+            m['options'] = rawOptions.map((e) => e?.toString() ?? '').where((s) => s.isNotEmpty).toList();
+          } else {
+            m['options'] = <String>[];
+          }
+
+          // Asegurar que 'type' existe (evita nulls inesperados)
+          if (m['type'] == null) m['type'] = '';
+
+         // Normalizar timestamp si es String o DateTime (ya convertido en service)
+          if (m['timestamp'] == null) m['timestamp'] = DateTime.now().toIso8601String();
+       }
 
         setState(() {
           messages
@@ -225,13 +326,29 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     ).then((_) => _persistMessages()); // Cachea el mensaje de bienvenida
   }
 
-  void _clearChatHistory() {
+  void _clearChatHistory() async {
+    // Intentar borra conversación en Firestore
+    try {
+      if (_currentConversationId != null) {
+        await _firestoreConnection.deleteConversationsByID(_currentConversationId!);
+        print('🗑️ Conversación remota borrada: $_currentConversationId');
+        // Evitar usar el id eliminado para nuevos mensajes
+        _currentConversationId = null;
+      } else {
+        // Si no hay conversationId puede borrar conversaciones del usuario
+        await _firestoreConnection.deleteAllUserConversations();
+      }
+    } catch (e) {
+      print('❌ Error al borrar historial de chat: $e');
+    }
+
+    //Limpiar UI y cache local
     setState(() {
       messages.clear();
       _initializeChat();
     });
-    _chatHistoryService.clearHistory(
-        conversationId: _currentConversationId); // Borra historial local
+    // Borrar historial local (usamos null si ya lo reiniciamos)
+    await _chatHistoryService.clearHistory(conversationId: _currentConversationId);
   }
 
   // ===========================================================================
@@ -249,10 +366,11 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     String? link,
     Map<String, dynamic>? extras,
     String? language, // parametro nuevo
+    bool autoScroll = true,
   }) async {
     final newMessage = {
       "id": messageId, // El ID ahora vendrá de Firestore
-      "sender": sender, "text": text, "type": type, "options": options,
+      "sender": sender, "text": text, "type": type, "options": options ?? <String>[],
       "feedback": null, "visible": true, "source": source, "link": link,
       "extras": extras, "language": language, //parametro nuevo
     };
@@ -270,6 +388,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
           conversationId: _currentConversationId!,
           text: text,
           sender: sender,
+          type: type,
           isFaq: source != null && source.contains('firestore'),
           faqSource: source,
         );
@@ -297,7 +416,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
+      if (autoScroll && _scrollController.hasClients) {
         _scrollController.animateTo(
           0.0, // Va al final de la lista porque está invertida
           duration: const Duration(
@@ -856,6 +975,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
             options: randomFaqs,
             insertAtIndex: welcomeIndex + 1, // Insertar después del welcome
             language: _currentLanguage, // ← IMPORTANTE: pasar el idioma
+            autoScroll: false, // <-- No forzar scroll al insertar FAQs
           );
         }
       }

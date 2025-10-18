@@ -7,12 +7,14 @@ class CachedConversation {
     const CachedConversation({
     required this.conversationId,
     required this.messages,
-    this.lastLanguage
+    this.lastLanguage,
+    this.ownerId,
     });
 
     final String conversationId;
     final List<Map<String, dynamic>> messages;
     final String? lastLanguage;
+    final String? ownerId;
 }
 
 // Servicio para manejar el historial de chat en caché local
@@ -31,6 +33,7 @@ class ChatHistoryService {
         String? conversationId,
         required List<Map<String, dynamic>> messages,
         String? language,
+        String? ownerId,
     }) async {
         // Usa el id de la conversación o uno por defecto
         final targetId =
@@ -48,6 +51,10 @@ class ChatHistoryService {
                 language
             ));
         }
+            // Guarda el ownerId si está disponible
+            if (ownerId != null && ownerId.isNotEmpty) {
+                unawaited(_cacheService.setString(_ownerKey(targetId), ownerId));
+            }
         // Guarda el id de la última conversación activa
         unawaited(_cacheService.setString(lastConversationKey, targetId));
     }
@@ -64,19 +71,34 @@ class ChatHistoryService {
 
         // Lee el idioma guardado
         final language = await _cacheService.getString(_languageKey(conversationId));
+        // Lee el owner guardado (si existe)
+        final owner = await _cacheService.getString(_ownerKey(conversationId));
 
         return CachedConversation(
             conversationId: conversationId,
             messages: decoded,
-            lastLanguage: language
+            lastLanguage: language,
+            ownerId: owner,
         );
     }
 
     // Recupera la última conversación cacheada
-    Future<CachedConversation?> loadLastConversation() async {
+    /// Recupera la última conversación cacheada.
+    /// Si se proporciona [currentUserId], y la conversación cacheada pertenece a otro usuario,
+    /// se devolverá null para evitar mezclar historiales entre usuarios.
+    Future<CachedConversation?> loadLastConversation({String? currentUserId}) async {
         final lastId = await _cacheService.getString(lastConversationKey);
         if (lastId == null || lastId.isEmpty) return null;
-        return loadConversation(lastId);
+
+        final cached = await loadConversation(lastId);
+        if (cached == null) return null;
+
+        if (currentUserId != null && cached.ownerId != null && cached.ownerId != currentUserId) {
+            // El caché pertenece a otro usuario: no lo cargamos
+            return null;
+        }
+
+        return cached;
     }
 
     // Borra el historial local de una conversación
@@ -95,6 +117,8 @@ class ChatHistoryService {
         if (lastId == targetId) {
             unawaited(_cacheService.remove(lastConversationKey));
         }
+        // Borra owner si existe
+        unawaited(_cacheService.remove(_ownerKey(targetId)));
     }
 
     // Genera la clave para guardar mensajes
@@ -103,4 +127,7 @@ class ChatHistoryService {
     // Genera la clave para guardar idioma
     String _languageKey(String conversationId) =>
         '$_storagePrefix$conversationId$_storageLanguageSuffix';
+    // Genera la clave para guardar ownerId
+    String _ownerKey(String conversationId) =>
+        '$_storagePrefix${conversationId}_owner';
 }

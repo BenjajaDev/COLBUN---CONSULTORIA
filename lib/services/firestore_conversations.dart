@@ -8,23 +8,48 @@ class FirestoreConnection {
     final userId = currentUserId;
     if (userId == null) return;
     try {
-      final conversations = await _firestore
+      final conversationQuery = _firestore
           .collection('conversations')
-          .where('user_id', isEqualTo: userId)
-          .get();
+          .where('user_id', isEqualTo: userId);
+      final conversationSnapshot = await conversationQuery.get();
 
-      for (final doc in conversations.docs) {
-        // Borrar subcolección 'messages'
-        final messages = await doc.reference.collection('messages').get();
-        for (final msg in messages.docs) {
-          await msg.reference.delete();
-        }
-        // Borrar documento de conversación
-        await doc.reference.delete();
+      for (final doc in conversationSnapshot.docs ){
+        await deleteConversationsByID(doc.id);
       }
-      print('✅ Conversaciones y mensajes del usuario eliminados');
+      print('✅ Todas las conversaciones del usuario $userId han sido eliminadas.');
+    } catch (e){
+      print("❌ Error al borrar conversaciones: $e");
+    } 
+  }
+
+  //Borra mensajes de conversacion por lotes y luego la conversacion
+  Future<void> deleteConversationsByID(String conversationId) async {
+    try {
+      final messagesCol = _firestore
+          .collection('conversations')
+          .doc(conversationId)
+          .collection('messages');
+      //Borrar mensajes por lotes de 500(máximo por batch)
+      const int batchSize = 500;
+      while (true) {
+        final snapshot = await messagesCol.limit(batchSize).get();
+        if (snapshot.docs.isEmpty) break; // No hay más documentos que borrar
+
+        final batch = firestore.batch();
+        for (final doc in snapshot.docs) {
+          batch.delete(doc.reference);
+        }
+        await batch.commit();
+      }
+
+      //Finalmente borrar la conversación
+      await _firestore.collection('conversations').doc(conversationId).delete();
+      print('✅ Conversación $conversationId y sus mensajes han sido eliminados.');
+    } on FirebaseException catch (e) {
+      print('❌ FirebaseException al borrar conversación $conversationId: code=${e.code}, message=${e.message}');
+      rethrow;
     } catch (e) {
-      print('❌ Error al borrar conversaciones: $e');
+      print('❌ Error al borrar conversación $conversationId: $e');
       rethrow;
     }
   }
@@ -55,6 +80,7 @@ class FirestoreConnection {
     required String language,
   }) async {
     try {
+      print('🔎 createConversation called - userId=$userId, firestoreApp=${_firestore.app.name}');
       final conversationData = {
         'user_id': userId,
         'session_start': FieldValue.serverTimestamp(),
@@ -67,7 +93,11 @@ class FirestoreConnection {
       print('✅ Conversación creada: ${docRef.id}');
       return docRef.id;
     } catch (e) {
-      print('❌ Error al crear conversación: $e');
+      if (e is FirebaseException) {
+        print('❌ FirebaseException en createConversation: code=${e.code}, message=${e.message}');
+      } else {
+        print('❌ Error al crear conversación: $e');
+      }
       rethrow;
     }
   }
@@ -77,10 +107,12 @@ class FirestoreConnection {
     required String conversationId,
     required String text,
     required String sender, // 'user' o 'bot'
+    String? type,
     bool? isFaq,
     String? faqSource,
   }) async {
     try {
+      print('🔎 addMessageToConversation called - conversationId=$conversationId, sender=$sender, currentUserId=${_auth.currentUser?.uid}');
       // 1. Crear el mensaje individual
       final messageData = {
         'text': text,
@@ -90,6 +122,9 @@ class FirestoreConnection {
         'faq_source': faqSource, // referencia si viene de FAQ
         'rating': null, // Se agregará después con el feedback
       };
+      if (type != null) {
+        messageData['type'] = type;
+      }
 
       final messageRef = await _firestore.collection('conversations')
           .doc(conversationId)
@@ -104,6 +139,51 @@ class FirestoreConnection {
 
       print('✅ Mensaje agregado: ${messageRef.id}');
       return messageRef.id;
+    } on FirebaseException catch (e) {
+      print('❌ FirebaseException en addMessageToConversation: code=${e.code}, message=${e.message}');
+      // Si la conversación no existe (not-found), intentar crearla y reintentar
+      if (e.code == 'not-found') {
+        final uid = _auth.currentUser?.uid;
+        if (uid == null) {
+          print('⚠️ Usuario no autenticado: no se puede crear conversación remota tras not-found.');
+          rethrow;
+        }
+
+        try {
+          print('🔁 Conversación $conversationId no encontrada. Creando nueva conversación remota para el usuario $uid...');
+          // Usamos un idioma por defecto 'es' si no hay contexto de idioma aquí
+          final newConversationId = await createConversation(userId: uid, language: 'es');
+          print('🔗 Conversación creada automáticamente: $newConversationId. Reintentando subida del mensaje...');
+
+          // Reintentar añadir el mensaje a la nueva conversación
+          final retryMessageRef = await _firestore.collection('conversations')
+              .doc(newConversationId)
+              .collection('messages')
+              .add({
+            ...{
+              'text': text,
+              'sender': sender,
+              'timestamp': FieldValue.serverTimestamp(),
+              'is_faq': isFaq ?? false,
+              'faq_source': faqSource,
+              'rating': null,
+            },
+            if (type != null) 'type': type,
+          });
+
+          await _firestore.collection('conversations').doc(newConversationId).update({
+            'messages': FieldValue.arrayUnion([retryMessageRef]),
+            'session_end': FieldValue.serverTimestamp(),
+          });
+
+          print('✅ Mensaje agregado tras crear conversación: ${retryMessageRef.id}');
+          return retryMessageRef.id;
+        } catch (e2) {
+          print('❌ Error creando conversación y reintentando mensaje: $e2');
+          rethrow;
+        }
+      }
+      rethrow;
     } catch (e) {
       print('❌ Error al agregar mensaje: $e');
       rethrow;
@@ -152,8 +232,16 @@ class FirestoreConnection {
 
       if (!conversationDoc.exists) return null;
 
-      final conversationData = conversationDoc.data() as Map<String, dynamic>;
+      final conversationData = Map<String, dynamic>.from(conversationDoc.data() ??  {});
       conversationData['id'] = conversationDoc.id;
+
+      //Convertir timestamps a ISO strings legibles
+      if (conversationData['session_start'] is Timestamp) {
+        conversationData['session_start'] = (conversationData['session_start'] as Timestamp).toDate().toIso8601String();
+      }
+      if (conversationData['session_end'] is Timestamp) {
+        conversationData['session_end'] = (conversationData['session_end'] as Timestamp).toDate().toIso8601String();
+      }
 
       // Obtener todos los mensajes de la conversación
       final messagesSnapshot = await _firestore
@@ -164,7 +252,11 @@ class FirestoreConnection {
           .get();
 
       final messages = messagesSnapshot.docs.map((doc) {
-        final data = doc.data();
+        final data = Map<String, dynamic>.from(doc.data());
+        // Convertir timestamp a ISO string legible para evitar encoding
+        if (data['timestamp'] is Timestamp) {
+          data['timestamp'] = (data['timestamp'] as Timestamp).toDate().toIso8601String();
+        }
         data['id'] = doc.id;
         return data;
       }).toList();
