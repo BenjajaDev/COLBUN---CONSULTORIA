@@ -134,6 +134,17 @@ REGLAS DE COMPORTAMIENTO:
 4.  **No Inventes:** Si no conoces una respuesta, es mejor admitirlo y sugerir contactar a la municipalidad directamente.
 ---
 ''';
+  String get _systemPromptPt => '''
+Você é "Assistente Colbún", um assistente virtual especialista, amigável e prestativo para a Prefeitura de Colbún, Chile.
+Sua única missão é fornecer informações precisas e úteis sobre o município de Colbún.
+---
+REGRAS DE COMPORTAMENTO:
+1.  **Foco Amplo em Colbún:** Seu conhecimento abrange tudo relacionado ao município: serviços municipais, turismo, eventos, vida local, cultura, geografia e história. Se uma pergunta for sobre Colbún, responda da maneira mais útil possível.
+2.  **Limites Claros:** Se um usuário perguntar sobre tópicos sensíveis como política, violência, conteúdo sexual, opiniões pessoais ou qualquer outro assunto não relacionado a Colbún, você deve recusar educadamente e redirecionar a conversa.
+3.  **Resposta Segura:** Diante de uma pergunta fora do seu alcance, responda com uma variação de: "Meu propósito é ajudá-lo com informações sobre o município de Colbún. Não tenho permissão para falar sobre [tema mencionado]. Há algo sobre Colbún em que eu possa ajudar?".
+4.  **Não Invente:** Se você não souber uma resposta, é melhor admitir e sugerir entrar em contato diretamente com a prefeitura.
+---
+''';
 
   // ============================================================================
   // ¡NUEVO MÉTODO PRINCIPAL!
@@ -148,20 +159,28 @@ REGLAS DE COMPORTAMIENTO:
   }) async {
     print('🎯 GENERATE RAG RESPONSE - Idioma recibido: $language');
     print('🔍 CONTEXT FAQs COUNT: ${contextFaqs.length}');
+    //prompt: agregar tambien portugues a los otros dos idiomas
 
     String formattedContext = language == 'en'
         ? "No relevant context information found in the database."
-        : "No se encontró información de contexto relevante en la base de datos.";
+        : language == 'pt'
+            ? "Nenhuma informação de contexto relevante encontrada na base de dados."
+            : "No se encontró información de contexto relevante en la base de datos.";
 
     if (contextFaqs.isNotEmpty) {
       formattedContext = contextFaqs.map((faq) {
         // **USAR EL IDIOMA CORRECTO PARA LAS FAQs**
         String question = language == 'en' && faq.questionEn.isNotEmpty
             ? faq.questionEn
-            : faq.question;
+            : language == 'pt' && faq.questionPt.isNotEmpty
+                ? faq.questionPt
+                : faq.question;
+
         String answer = language == 'en' && faq.answerEn.isNotEmpty
             ? faq.answerEn
-            : faq.answer;
+            : language == 'pt' && faq.answerPt.isNotEmpty
+                ? faq.answerPt
+                : faq.answer;
 
         String sourceInfo = faq.link != null && faq.link!.isNotEmpty
             ? 'Specific source: ${faq.link}'
@@ -186,6 +205,12 @@ IMPORTANT ABOUT SOURCES AND LINKS:
 - DO NOT invent URLs or mention generic websites.
 - If there are multiple sources, use the most relevant one for the question.
 - Required format for links: [Descriptive text](Specific_URL)
+'''
+        :  language == 'pt'
+            ? '''IMPORTANTE SOBRE FONTES E LINKS:
+- Se o contexto incluir uma "Fonte específica", VOCÊ DEVE usar essa URL exata
+- NÃO invente URLs ou mencione sites genéricos.
+- Se houver várias fontes, use a mais relevante para a pergunta.
 '''
         : '''
 IMPORTANTE SOBRE FUENTES Y ENLACES:
@@ -251,7 +276,11 @@ include the specific link provided using the format [Text](URL). You may supplem
             tokensUsed: 0);
       }
       // Prompt base en español o inglés según el idioma detectado
-      String systemPrompt = language == 'en' ? _systemPromptEn : _systemPrompt;
+      String systemPrompt = language == 'en'
+          ? _systemPromptEn
+          : language == 'pt'
+              ? _systemPromptPt
+              : _systemPrompt;
 
       List<Map<String, String>> messages = [
         {'role': 'system', 'content': systemPrompt}
@@ -324,7 +353,9 @@ include the specific link provided using the format [Text](URL). You may supplem
           success: false,
           message: language == 'en'
               ? 'Sorry, there is a technical problem. Please try again in a few moments.'
-              : 'Lo siento, hay un problema técnico. Por favor, intenta nuevamente en unos momentos.',
+              : language == 'pt'
+                  ? 'Desculpe, há um problema técnico. Por favor, tente novamente em alguns momentos.'
+                  : 'Lo siento, hay un problema técnico. Por favor, intenta nuevamente en unos momentos.',
           error: e.toString(),
           tokensUsed: 0);
     }
@@ -373,6 +404,7 @@ BEHAVIORAL RULES:
     required String userMessage,
     required String additionalContext,
     List<Map<String, String>>? conversationHistory,
+    required List<Faq> contextFaqs,
   }) async {
     // Detectar idioma para mensajes con contexto
     final language = await _detectLanguageForSimpleMessage(userMessage);
@@ -397,10 +429,11 @@ CONSULTA DEL USUARIO: $userMessage
   /// Método auxiliar para detectar idioma en mensajes simples
   Future<String> _detectLanguageForSimpleMessage(String text) async {
     try {
-      // Para ejemplos simples, usar una detección básica
       if (text.contains(RegExp(r'[a-zA-Z]')) &&
           !text.contains(RegExp(r'[áéíóúñ]'))) {
         return 'en';
+      } else if (text.contains(RegExp(r'[ãõçêéáíóú]'))) {
+        return 'pt';
       }
       return 'es';
     } catch (e) {

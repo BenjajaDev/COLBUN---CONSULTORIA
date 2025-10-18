@@ -78,14 +78,18 @@ class ChatbotBody extends StatelessWidget {
           // 2. El switch ahora ASIGNA el widget a la variable, en lugar de retornarlo directamente.
           switch (message['type']) {
             case 'faq_options':
-              messageWidget =
-                  _buildFaqOptions(context, message['options'] as List<String>);
-              break;
-            default: // 'text' y 'feedback' (mensajes de texto normales)
+              final options =
+              (message['options'] as List?)?.cast<String>() ?? const <String>[];
+          if (options.isEmpty) {
+            messageWidget = const SizedBox.shrink();
+          } else {
+            messageWidget = _buildFaqOptions(context, options);
+          }
+            break;
+          default: // 'text' y 'feedback' (mensajes de texto normales)
             messageWidget = _buildTextMessage(context, message);
             break;
         }
-
           // 3. Aplicamos la animación al widget guardado y retornamos el resultado final.
           if (index == 0) {
             // Es el mensaje más reciente, ¡anímalo!
@@ -151,7 +155,8 @@ class ChatbotBody extends StatelessWidget {
 
     //Obtener el idioma del mensaje para textos dinámicos**
     final messageLanguage = message['language'] ?? 'es';
-    final sourceText = messageLanguage == 'en' ? 'Source' : 'Fuente';
+    final sourceText = messageLanguage == 'en' ? 'Source' : messageLanguage == 'pt' ?
+    'Fonte' : 'Fuente';
 
     // Lógica para el feedback
     final bool shouldShowFeedback =
@@ -159,9 +164,9 @@ class ChatbotBody extends StatelessWidget {
     final String? messageId = message['id'];
 
     //Textos dinámicos para feedback según idioma**
-    final yesText = messageLanguage == 'en' ? 'Yes, helpful' : 'Sí, fue útil';
-    final noText = messageLanguage == 'en' ? 'No, Not helpful' : 'No, no fue útil';
-    final thankYouText = messageLanguage == 'en' ? 'Thank you for your feedback!' : '¡Gracias por tu feedback!';
+    final yesText = messageLanguage == 'en' ? 'Yes, helpful' : messageLanguage == 'pt' ? 'Sim, útil' : 'Sí, fue útil';
+    final noText = messageLanguage == 'en' ? 'No, Not helpful' : messageLanguage == 'pt' ? 'Não, não foi útil' : 'No, no fue útil';
+    final thankYouText = messageLanguage == 'en' ? 'Thank you for your feedback!' : messageLanguage == 'pt' ? 'Obrigado pelo seu feedback!' : '¡Gracias por tu feedback!';
 
     // Columna principal que permite apilar la burbuja del mensaje y los botones de feedback
     return Column(
@@ -311,6 +316,7 @@ class ChatbotBody extends StatelessWidget {
                                       // **Texto dinámico para FAQs según idioma**
                                       final faqText = messageLanguage == 'en' 
                                           ? "Frequently asked questions" 
+                                          : messageLanguage == 'pt' ? "Perguntas frequentes" 
                                           : "Preguntas frecuentes";
                                   return TextButton(
                                       onPressed: () =>

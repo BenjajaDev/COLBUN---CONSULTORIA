@@ -29,13 +29,18 @@ class LanguageService {
       print("🔤 LANGUAGE SERVICE - Texto vacío, usando español por defecto");
       return 'es';
     }
+    final containsAsciiLetters = RegExp(r'[A-Za-z]').hasMatch(text);
+        final containsSpanishChars = RegExp(r'[áéíóúñüÁÉÍÓÚÑ]').hasMatch(text);
+        final containsPortugueseChars =
+        RegExp(r'[ãõâêôáéíóúçÁÉÍÓÚÂÊÔÃÕÇ]').hasMatch(text);
 
     // Si no hay implementacion del plugin (p. ej. web) usar heurística simple
     if (_languageIdentifier == null) {
       try {
-        // Heurística: si contiene letras ASCII sin tildes y no contiene caracteres acentuados en español => ingles
-        final containsAsciiLetters = RegExp(r'[A-Za-z]').hasMatch(text);
-        final containsSpanishChars = RegExp(r'[áéíóúñüÁÉÍÓÚÑ]').hasMatch(text);
+        if (containsPortugueseChars) {
+          print("🔤 LANGUAGE SERVICE (heurística) - Detectado: PT");
+          return 'pt';
+        }
         if (containsAsciiLetters && !containsSpanishChars) {
           print("🔤 LANGUAGE SERVICE (heurística) - Detectado: EN");
           return 'en';
@@ -58,6 +63,9 @@ class LanguageService {
       } else if (response == 'es') {
         print("🔤 LANGUAGE SERVICE - Idioma detectado: ESPAÑOL");
         return 'es';
+      } else if (response == 'pt') {
+        print("🔤 LANGUAGE SERVICE - Idioma detectado: PORTUGUÉS");
+        return 'pt';
       } else {
         print(
             "🔤 LANGUAGE SERVICE - Idioma no reconocido: '$response', usando español");
@@ -68,6 +76,9 @@ class LanguageService {
       // Fallback a heurística
       final containsAsciiLetters = RegExp(r'[A-Za-z]').hasMatch(text);
       final containsSpanishChars = RegExp(r'[áéíóúñüÁÉÍÓÚÑ]').hasMatch(text);
+      final containsPortugueseChars =
+          RegExp(r'[ãõâêôáéíóúçÁÉÍÓÚÂÊÔÃÕÇ]').hasMatch(text);
+      if (containsPortugueseChars) return 'pt';
       if (containsAsciiLetters && !containsSpanishChars) return 'en';
       return 'es';
     }

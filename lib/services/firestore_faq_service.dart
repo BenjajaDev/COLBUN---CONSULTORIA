@@ -13,6 +13,8 @@ class Faq {
   // Nuevos campos para soportar múltiples idiomas
   final String questionEn;
   final String answerEn;
+  final String questionPt;
+  final String answerPt;
 
   Faq({
     required this.id,
@@ -21,8 +23,10 @@ class Faq {
     this.link,
     required this.tags,
     required this.category,
-    required this.questionEn, // Nuevo
+     required this.questionEn, // Nuevo
     required this.answerEn,   // Nuevo
+    required this.questionPt, // Nuevo
+    required this.answerPt,   // Nuevo
   });
   // Constructor desde Firestore
   factory Faq.fromFirestore(DocumentSnapshot doc) {
@@ -36,16 +40,18 @@ class Faq {
       category: data['category'] ?? 'general',
       questionEn: data['question_en'] ?? data['question'] ?? 'Question not available', // Nuevo
       answerEn: data['answer_en'] ?? data['answer'] ?? 'No answer found.', // Nuevo
+      questionPt: data['question_pt'] ?? data['question'] ?? 'Pergunta não disponível', // Nuevo
+      answerPt: data['answer_pt'] ?? data['answer'] ?? 'Nenhuma resposta encontrada.',
     );
   }
-  // Nuevo método para obtener pregunta según idioma
+  // Nuevo método para obtener pregunta según idioma ingles español y portugues
   String getQuestion(String language) {
-    return language == 'en' ? questionEn : question;
+    return language == 'en' ? questionEn : language == 'pt' ? questionPt : question;
   }
 
   // Nuevo método para obtener respuesta según idioma
   String getAnswer(String language) {
-    return language == 'en' ? answerEn : answer;
+    return language == 'en' ? answerEn : language == 'pt' ? answerPt : answer;
   }
 }
 // --- MODELO CATEGORÍA  ---
@@ -252,6 +258,7 @@ class FaqService {
   }
 
   static const Map<String, String> _synonyms = {
+    
     // --- SINÓNIMOS EXISTENTES ---
   'municipio': 'municipalidad', 'comuna': 'municipalidad', 'horarios': 'horario',
   'atencion': 'servicio', 'servicios': 'servicio', 'oficinas': 'oficina',
@@ -273,6 +280,100 @@ class FaqService {
   'veterinaria': 'mascotas', 'empleo': 'trabajo', 'omil': 'trabajo', 'omdel': 'desarrollo_economico',
   'dideco': 'programas_sociales', 'deportes': 'actividad_fisica', 'talleres': 'actividades_culturales',
   'compras': 'artesanias', 'souvenirs': 'artesanias',
+  // --- NUEVOS SINÓNIMOS EN PORTUGUÉS ---
+  'prefeito': 'alcalde',
+  'prefeitura': 'municipalidad',
+  'município': 'comuna',
+  'escola': 'escuela',
+  'colégio': 'colegio',
+  'educação': 'educacion',
+  'turismo': 'turismo',
+  'trilhas': 'senderismo',
+  'artesanato': 'artesania',
+  'lago': 'lago',
+  'saúde': 'salud',
+  'médico': 'medico',
+  'atendimento médico': 'atencion_medica',
+  'serviços': 'servicios',
+  'permissões': 'permisos',
+  'licenças': 'licencias',
+  'trâmites': 'tramites',
+  'emergência': 'emergencia',
+  'ajuda': 'ayuda',
+  'perigo': 'peligro',
+  'polícia': 'policia',
+  'bombeiros': 'bomberos',
+  'veículo': 'vehiculo',
+  'mobilidade': 'movilidad',
+  'cultura': 'cultura',
+  'eventos': 'eventos',
+  'festivais': 'festivales',
+  'celebrações': 'celebraciones',
+  'telefone': 'telefono',
+  'endereço': 'direccion',
+  'obrigado': 'gracias',
+  'olá': 'hola',
+  'adeus': 'adios',
+  'horsehair': 'crin',
+  'crafts': 'artesania',
+  'rari': 'rari',
+  'artisans': 'artesanas',
+  'atividades': 'actividades',
+  'atividades aquáticas': 'deportes_acuaticos',
+  'esportes aquáticos': 'deportes_acuaticos',
+  'água': 'agua',
+  'lagoa': 'lago',
+  'colbún': 'colbún',
+  'pesca': 'pesca',
+  'natação': 'natacion',
+  'praia': 'playa',
+  'remo': 'remo',
+  'barco': 'bote',
+  'barcos': 'bote',
+  'canoagem': 'canoa',
+  'caiaque': 'kayak',
+  'catamarã': 'catamaran',
+  'trilha': 'sendero',
+  'caminhada': 'senderismo',
+  'montanhas': 'montañas',
+  'volcão': 'volcan',
+  'vista panorâmica': 'vista_panoramica',
+  'patrimônio cultural': 'patrimonio_cultural',
+  'tradições': 'tradiciones',
+  'artesanato tradicional': 'artesania_tradicional',
+  'mercado artesanal': 'mercado_artesanal',
+  'alojamento': 'hospedaje',
+  'hospedagem': 'hospedaje',
+  'comida típica': 'comida_tipica',
+  'comunidade': 'comunidad',
+  'escolas': 'escuelas',
+  'biblioteca': 'biblioteca',
+  'esportes': 'deportes',
+  'tradição': 'tradicion',
+  'prazer': 'relajacion',
+  'bem-estar': 'bienestar',
+  'terapia': 'terapia',
+  'natureza': 'naturaleza',
+  'aventura': 'aventura',
+  'ecoturismo': 'ecoturismo',
+  'igreja': 'iglesia',
+  'pedra': 'piedra',
+  'tecelagem': 'tejido',
+  'tecido': 'tejido',
+  'cobertor': 'manta',
+  'trenzinho': 'tren_chico',
+  'ferrovia': 'ferrocarril',
+  'história': 'historia',
+  'praça': 'plaza',
+  'guia': 'guia',
+  'reserva': 'reserva',
+  'parque': 'parque',
+  'roteiro': 'ruta',
+  'roteiros': 'rutas',
+  'curativo': 'curativo',
+  'águas termais': 'aguas_termales',
+  'banho': 'baño',
+  'banhos': 'baños',
   // --- NUEVOS SINÓNIMOS PARA INGLÉS ---
   'who': 'quien', 'what': 'que', 'where': 'donde', 'when': 'cuando', 'how': 'como',
   'mayor': 'alcalde', 'town': 'comuna', 'city': 'comuna', 'municipality': 'municipalidad',
@@ -371,6 +472,7 @@ class FaqService {
   'local food': 'comida_tipica',
   'artisan market': 'mercado_artesanal',
   'culture': 'cultura',
+
   // --- EDUCACIÓN ---
   'education': 'educacion', 'school': 'escuela', 'high school': 'liceo',
   'kindergarten': 'jardin_infantil', 'basic': 'basica', 'studies': 'estudios',
@@ -425,7 +527,26 @@ class FaqService {
   'particularmente', 'generalmente', 'normalmente', 'usualmente', 'habitualmente',
   'frecuentemente', 'constantemente', 'si', 'no', 'tambien',
   'inclusive', 'exclusivamente','específicamente',
-
+  // --- PALABRAS EXCLUIDAS EN PORTUGUÉS ---
+  'onde', 'quando', 'qual', 'quais', 'quem','com',
+  'um', 'uma', 'uns', 'umas','estes', 'estas', 'isso', 
+  'aquele', 'aquela', 'aqueles', 'aquelas', 'há', 'tem', 'pode', 'posso', 'devo',
+  'quero', 'fazer', 'obter', 'localizado', 'localizada',
+  'algum', 'alguns', 'algumas', 'outro', 'outra', 'outros', 'outras', 'mesmo',
+  'mesma', 'mesmos', 'mesmas','nenhum',
+  'nenhuma', 'ninguém', 'sempre','jamais', 'tampouco',
+  'além', 'somente', 'só', 'em cima', 'embaixo',
+  'na frente', 'atrás', 'perto', 'longe', 'acima', 'abaixo', 'fora',
+  'depois', 'enquanto', 'até',  'sob',
+  'segundo', 'via', 'exceto',
+  'mais', 'muito', 'pouco','demais', 'tão',
+  'quase',  'exato','provavelmente',
+  'possivelmente', 'certamente',  'verdadeiramente',
+  'atualmente','essencialmente', 
+  'geralmente','frequentemente',
+  'sim', 'não', 'também', 'especificamente',
+  'porque', 'se', 'caso', 'embora', 'apesar',
+  'contudo', 'entretanto', 'portanto', 'além disso', 'porém', 'todavia',
   // --- PALABRAS EXCLUIDAS EN INGLÉS ---
   'how', 'where', 'when', 'which', 'what', 'who', 'whos', 'the', 'a', 'an', 'is',
   'are', 'am', 'do', 'does', 'can', 'could', 'should', 'would', 'have', 'has',
@@ -453,7 +574,7 @@ class FaqService {
   'along', 'amongst', 'amid', 'amidst',  'atop', 'barring', 'concerning',
   'considering', 'despite', 'during', 'except', 'excluding', 'following',
   'including', 'like', 'minus', 'near', 'onto', 'opposite', 'outside', 'past',
-  'per', 'plus', 'regarding', 'round', 'save', 'than', 'times', 'unto', 'via',
+  'per', 'plus', 'regarding', 'round', 'save', 'than', 'times', 'unto',
   'worth', 'aboard', 'about',  'across', 'after', 
   'anti', 'as', 'at', 'before',
   'by', 'down', 'excepting',

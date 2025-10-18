@@ -15,6 +15,7 @@ import '../../../services/firestore_faq_service.dart';
 import '../../../services/language_service.dart';
 import '../../../services/chat_history_service.dart';
 import '../../../services/firestore_emergency.dart';
+import '../utils/chatbot_strings.dart';
 
 class ChatbotScreen extends StatefulWidget {
   const ChatbotScreen({super.key});
@@ -62,6 +63,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
   final Set<String> _contextualTriggers = const {
     'por que',
     'porque',
+    'porqué',
     'why',
     'explica mas',
     'dame mas detalles',
@@ -314,9 +316,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
   }
 
   void _initializeChat() {
-    final welcomeMessage = _currentLanguage == 'en'
-        ? "Hello! I am the virtual assistant of Colbún. How can I help you?"
-        : "¡Hola! Soy el asistente virtual de Colbún. ¿En qué puedo ayudarte?";
+    final welcomeMessage = ChatbotStrings.get('welcome.message', _currentLanguage);
     addMessage(
       sender: "bot",
       text: welcomeMessage,
@@ -442,7 +442,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
           (message['extras'] as Map)['showFeedback'] = false;
           // 2. ¡NUEVO! Añadimos el mensaje de agradecimiento al mismo objeto
           (message['extras'] as Map)['feedbackMessage'] =
-              "¡Gracias por tu feedback!";
+              ChatbotStrings.get('feedback.thanks', _currentLanguage);
         }
       }
     });
@@ -611,14 +611,19 @@ class _ChatbotScreenState extends State<ChatbotScreen>
               localResults.first; // Tomamos el resultado más relevante
 
           // **USAR LA RESPUESTA EN EL IDIOMA CORRECTO**
-          String offlineAnswer;
+          final offlinePrefix =
+              ChatbotStrings.get('fallback.offline_prefix', _currentLanguage);
+          String selectedAnswer;
           if (_currentLanguage == 'en' && bestMatch.answerEn.isNotEmpty) {
-            offlineAnswer =
-                "I don't have connection right now, but I found this that might help you:\n\n${bestMatch.answerEn}";
+            selectedAnswer = bestMatch.answerEn;
+          } else if (_currentLanguage == 'pt' &&
+              bestMatch.answerPt.isNotEmpty) {
+            selectedAnswer = bestMatch.answerPt;
           } else {
-            offlineAnswer =
-                "No tengo conexión en este momento, pero encontré esto que podría ayudarte:\n\n${bestMatch.answer}";
+            selectedAnswer = bestMatch.answer;
           }
+
+          final offlineAnswer = '$offlinePrefix\n\n$selectedAnswer';
           final offlineMessageId =
               DateTime.now().millisecondsSinceEpoch.toString();
           addMessage(
@@ -653,9 +658,8 @@ class _ChatbotScreenState extends State<ChatbotScreen>
                 );
               } else {
                 // Si OpenAI respondió con error, mostrar mensaje de error amigable
-                String errorMessage = _currentLanguage == 'en'
-                    ? "Sorry, I couldn't connect and didn't find a local answer for your question. Please check your internet connection."
-                    : "Lo siento, no pude conectarme y no encontré una respuesta local para tu pregunta. Por favor, revisa tu conexión a internet.";
+                final errorMessage =
+                  ChatbotStrings.get('fallback.error_message', _currentLanguage);
                 addMessage(
                   sender: "bot",
                   text: errorMessage,
@@ -666,9 +670,8 @@ class _ChatbotScreenState extends State<ChatbotScreen>
             }
           } catch (e2) {
             print('❌ Reintento a la IA falló: $e2');
-            String errorMessage = _currentLanguage == 'en'
-                ? "Sorry, I couldn't connect and didn't find a local answer for your question. Please check your internet connection."
-                : "Lo siento, no pude conectarme y no encontré una respuesta local para tu pregunta. Por favor, revisa tu conexión a internet.";
+            final errorMessage =
+                  ChatbotStrings.get('fallback.error_message', _currentLanguage);
             addMessage(
               sender: "bot",
               text: errorMessage,
@@ -706,9 +709,8 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     });
 
     /// Mensaje automático del bot
-    final emergencyMessage = _currentLanguage == 'en'
-        ? "I've detected an emergency situation. I'm showing emergency contacts that can help you."
-        : "He detectado una situación de emergencia. Estoy mostrando contactos de emergencia que pueden ayudarte.";
+    final emergencyMessage =
+      ChatbotStrings.get('emergency.alert_message', _currentLanguage);
 
     await addMessage(
       sender: "bot",
@@ -737,9 +739,8 @@ class _ChatbotScreenState extends State<ChatbotScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              _currentLanguage == 'en'
-                  ? "Could not make the call. Please dial $phoneNumber manually"
-                  : "No se pudo realizar la llamada. Por favor marca $phoneNumber manualmente",
+              ChatbotStrings.get('emergency.call_failed', _currentLanguage,
+                  params: {'phone': phoneNumber}),
             ),
             backgroundColor: Colors.red,
           ),
@@ -772,7 +773,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
         child: ConstrainedBox(
           constraints: BoxConstraints(
             maxHeight:
-                MediaQuery.of(context).size.height * 0.6, // 80% de la altura
+                MediaQuery.of(context).size.height * 0.8, // 80% de la altura
           ),
           child: Container(
             padding: const EdgeInsets.all(20.0),
@@ -816,9 +817,8 @@ class _ChatbotScreenState extends State<ChatbotScreen>
   Widget _buildEmergencyHeader() {
     return Center(
       child: Text(
-        _currentLanguage == 'en'
-            ? 'EMERGENCY DETECTED'
-            : 'EMERGENCIA DETECTADA',
+        ChatbotStrings.get('emergency.modal.title',
+        _currentLanguage),
         style: TextStyle(
           color: Colors.red[700],
           fontSize: 28,
@@ -834,9 +834,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
   Widget _buildEmergencyDescription() {
     return Center(
       child: Text(
-        _currentLanguage == 'en'
-            ? "I've detected an emergency situation. Here are contacts that can help you immediately"
-            : "He detectado una situación de emergencia. Aquí tienes contactos que pueden ayudarte inmediatamente",
+        ChatbotStrings.get('emergency.modal.description', _currentLanguage),
         style: const TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.w400,
@@ -884,7 +882,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
                 const Icon(Icons.phone, size: 16),
                 const SizedBox(width: 4),
                 Text(
-                  _currentLanguage == 'en' ? 'Call' : 'Llamar',
+                  ChatbotStrings.get('emergency.modal.call_button', _currentLanguage),
                   style: const TextStyle(
                     fontWeight: FontWeight.w600,
                     fontFamily: 'Poppins',
@@ -914,7 +912,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
               padding: const EdgeInsets.symmetric(vertical: 12),
             ),
             child: Text(
-              _currentLanguage == 'en' ? 'Close' : 'Cerrar',
+              ChatbotStrings.get('emergency.modal.close_button', _currentLanguage),
               style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
@@ -963,9 +961,8 @@ class _ChatbotScreenState extends State<ChatbotScreen>
           faqBloc.add(ToggleFaqsEvent(newFaqs: randomFaqs));
 
           // Texto dinámico según idioma para la introducción de FAQs
-          final introText = _currentLanguage == 'en'
-              ? "Here are some frequently asked questions:"
-              : "Aquí tienes algunas preguntas frecuentes:";
+          final introText =
+            ChatbotStrings.get('faq.intro', _currentLanguage);
 
           // Insertar las FAQs justo después del mensaje de bienvenida
           addMessage(
@@ -1022,7 +1019,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
           ),
           const SizedBox(height: 16),
           Text(
-            'Cargando conversación...',
+            ChatbotStrings.get('loading.conversation', _currentLanguage),
             style: TextStyle(
               color: isDarkMode ? Colors.white70 : Colors.black54,
               fontSize: 16,
@@ -1030,7 +1027,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
           ),
           const SizedBox(height: 8),
           Text(
-            'Conectando con Firestore',
+            ChatbotStrings.get('loading.firestore', _currentLanguage),
             style: TextStyle(
               color: isDarkMode ? Colors.white38 : Colors.black38,
               fontSize: 12,
@@ -1049,7 +1046,10 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     if (!await launchUrl(whatsappUri, mode: LaunchMode.externalApplication)) {
       if (!mounted) return; // <-- Añade esta línea de seguridad
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("No se pudo abrir WhatsApp.")),
+        SnackBar(
+          content:
+              Text(ChatbotStrings.get('whatsapp.error', _currentLanguage)),
+        ),
       );
     }
   }

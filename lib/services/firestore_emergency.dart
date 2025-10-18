@@ -5,21 +5,29 @@ class EmergencyContact {
   final String id;
   final List<String> keyWords;
   final List<String> keyWordsEn;
+  final List<String> keyWordsPt; // Palabras clave en portugués (si se agregan en Firestore)
   final String name;
   final String nameEn;
+  final String namePt; // Nombre en portugués (si se agrega en Firestore)
   final String phone;
   final String type;
   final String typeEn;
+  final String typePt;
 
   EmergencyContact({
     required this.id,
     required this.keyWords,
     required this.keyWordsEn,
+    required this.keyWordsPt,
     required this.name,
     required this.nameEn,
+
     required this.phone,
     required this.type,
     required this.typeEn,
+    
+    required this.namePt,
+    required this.typePt,
   });
 
   factory EmergencyContact.fromFirestore(DocumentSnapshot doc) {
@@ -28,21 +36,24 @@ class EmergencyContact {
       id: doc.id,
       keyWords: List<String>.from(data['key_words'] ?? []),
       keyWordsEn: List<String>.from(data['key_words_en'] ?? data['key_words'] ?? []),
+      keyWordsPt: List<String>.from(data['key_words_pt'] ?? []),
       name: data['name'] ?? '',
       nameEn: data['name_en'] ?? data['name'] ?? '',
+      namePt: data['name_pt'] ?? '',
       phone: data['phone'] ?? '',
       type: data['type'] ?? '',
       typeEn: data['type_en'] ?? data['type'] ?? '',
+      typePt: data['type_pt'] ?? '',
     );
   }
   String getName(String language) {
-    return language == 'en' && nameEn.isNotEmpty ? nameEn : name;
+    return language == 'en' && nameEn.isNotEmpty ? nameEn : language == 'pt' && namePt.isNotEmpty ? namePt : name;
   }
   String getType(String language) {
-    return language == 'en' && typeEn.isNotEmpty ? typeEn : type;
+    return language == 'en' && typeEn.isNotEmpty ? typeEn : language == 'pt' && typePt.isNotEmpty ? typePt : type;
   }
   List<String> getKeyWords(String language){
-    return language == 'en' && keyWordsEn.isNotEmpty ? keyWordsEn : keyWords;
+    return language == 'en' && keyWordsEn.isNotEmpty ? keyWordsEn : language == 'pt' && keyWordsPt.isNotEmpty ? keyWordsPt : keyWords;
   }
 
 }
@@ -54,7 +65,7 @@ class EmergencyService {
   // Palabras clave adicionales para detección (español e inglés)
   static const Map<String, List<String>> _emergencyKeywords = {
     'es': [
-      'emergencia', 'ayuda', 'socorro', 'auxilio', 'urgencia', 'peligro',
+      'emergencia', 'ayuda', 'auxilio', 'urgencia', 'peligro',
       'accidente', 'riesgo', 'policía', 'ambulancia', 'bomberos', 'hospital',
       'médico', 'doctor', 'enfermo', 'enferma', 'me siento mal', 'me duele',
       'sangrando', 'herido', 'herida', 'incendio', 'fuego', 'asalto', 'robo',
@@ -72,6 +83,18 @@ class EmergencyService {
       'stroke', 'seizure', 'drowning', 'burn', 'fracture',
       'poisoning', 'suicide', 'depression', 'anxiety', 'crisis',
       'panic attack', 'faint', 'dizzy', 'number of'
+    ],
+    //prompt: necesito tambien palabras clave adicionales para deteccion en portugues que si hay iguales que en español no las coloque
+    'pt':[
+      
+      'emergência', 'ajuda', 'urgente', 'perigo', 'acidente', 'risco',
+      'polícia', 'ambulância', 'bombeiros', 'hospital', 'médico',
+      'doente', 'sinto-me mal', 'dor', 'sangrando', 'ferido',
+      'incêndio', 'assalto', 'roubo', 'ameaça', 'perdido',
+      'desaparecido', 'violência', 'ataque', 'infarto', 'derrame',
+      'convulsão', 'afogamento', 'queimadura', 'fratura',
+      'intoxicação', 'suicídio', 'depressão', 'ansiedade', 'crise',
+      'ataque de pânico', 'desmaio', 'tontura', 'número de'
     ]
   };
 
@@ -79,7 +102,8 @@ class EmergencyService {
   static const Set<String> _excludeWords = {
     'no es emergencia', 'no es una emergencia', 'solo pregunta',
     'información', 'consultar', 'preguntar', 'not emergency',
-    'just asking', 'information', 'consult'
+    'just asking', 'information', 'consult', 'ask', 'não é emergência',
+    'só perguntar', 'informação','perguntar'
   };
 
   Future<void> loadEmergencyContacts() async {
