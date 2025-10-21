@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:consultoria_chat_bot/model/poi_model.dart';
+import 'package:flutter/foundation.dart';
 import 'package:consultoria_chat_bot/model/route_model.dart';
 
 class FireStoreService {
@@ -45,11 +46,14 @@ class FireStoreService {
 
   Future<List<MapRoute>> fetchRoutes() async {
     try {
-      final querySnapshot = await _routesCollection.get();
+      final querySnapshotFull = await _routesCollection.get();
+      final querySnapshot = querySnapshotFull.docs.where(
+        (doc) => doc.id.toString() != "sin_asignar",
+      );
 
       final List<MapRoute> routes = [];
 
-      for (final doc in querySnapshot.docs) {
+      for (final doc in querySnapshot) {
         final data = doc.data() as Map<String, dynamic>;
         final pois = await fetchAllPOIs(doc.id);
 
@@ -77,4 +81,70 @@ class FireStoreService {
       throw Exception('Error fetching Routes: $e');
     }
   }
+  Future<List<Map<String, dynamic>>> fetchCategory(List<String> categories) async {
+    try {
+      if (categories.isEmpty) return [];
+
+      final List<Map<String, dynamic>> results = [];
+
+      // Firestore whereIn supports up to 10 items per query; chunk if necessary
+      const chunkSize = 10;
+      for (var i = 0; i < categories.length; i += chunkSize) {
+        final chunk = categories.sublist(i, (i + chunkSize).clamp(0, categories.length));
+        final querySnapshot = await FirebaseFirestore.instance
+            .collection('categorias')
+            .where(FieldPath.documentId, whereIn: chunk)
+            .get();
+
+        for (final doc in querySnapshot.docs) {
+          final data = doc.data() as Map<String, dynamic>?;
+          if (data == null) continue;
+          try {
+            final merged = Map<String, dynamic>.from(data);
+            merged['id'] = doc.id;
+            results.add(merged);
+          } catch (_) {
+            // ignore malformed doc
+          }
+        }
+      }
+      debugPrint('fetchCategory: found ${results.length} items');
+      return results;
+    } catch (e) {
+      throw Exception('Error fetching Categories: $e');
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> fetchActivity(List<String> activities) async {
+    try {
+      if (activities.isEmpty) return [];
+
+      final List<Map<String, dynamic>> results = [];
+      const chunkSize = 10;
+      for (var i = 0; i < activities.length; i += chunkSize) {
+        final chunk = activities.sublist(i, (i + chunkSize).clamp(0, activities.length));
+        final querySnapshot = await FirebaseFirestore.instance
+            .collection('actividades')
+            .where(FieldPath.documentId, whereIn: chunk)
+            .get();
+
+        for (final doc in querySnapshot.docs) {
+          final data = doc.data() as Map<String, dynamic>?;
+          if (data == null) continue;
+          try {
+            final merged = Map<String, dynamic>.from(data);
+            merged['id'] = doc.id;
+            results.add(merged);
+          } catch (_) {
+            // ignore malformed doc
+          }
+        }
+      }
+      debugPrint('fetchActivity: found ${results.length} items');
+      return results;
+    } catch (e) {
+      throw Exception('Error fetching Activities: $e');
+    }
+  }
+  
 }

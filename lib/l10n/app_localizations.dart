@@ -177,6 +177,30 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'No se encontraron resultados'**
   String get sin_resultado;
+
+  /// Tooltip text indicating 360 views were modified with AI
+  ///
+  /// In es, this message translates to:
+  /// **'Incluye vistas modificadas con IA'**
+  String get vistas_modificadas_ia;
+
+  /// Message shown when the selected season has no 360 image
+  ///
+  /// In es, this message translates to:
+  /// **'No hay imagen 360 para la temporada \"{season}\".'**
+  String no_vista360_temporada(Object season);
+
+  /// Message shown when there is no 360 image available at all
+  ///
+  /// In es, this message translates to:
+  /// **'No hay imagen 360 disponible para la temporada seleccionada.'**
+  String get no_vista360_disponible;
+
+  /// Texto para el botón de ir a la ruta
+  ///
+  /// In es, this message translates to:
+  /// **'Ir'**
+  String get ir;
 }
 
 class _AppLocalizationsDelegate

@@ -13,5 +13,21 @@
     "rutas_disponibles": "Available routes",
     "resultado_busqueda": "Search result",
     "sin_resultado": "No results found"
-    
+        ,
+    "vistas_modificadas_ia": "Includes views modified with AI",
+    "@vistas_modificadas_ia": {
+        "description": "Tooltip text indicating 360 views were modified with AI"
+    },
+    "no_vista360_temporada": "No 360 image available for the \"{season}\" season.",
+    "@no_vista360_temporada": {
+        "description": "Message shown when the selected season has no 360 image",
+        "placeholders": {
+            "season": {}
+        }
+    },
+    "no_vista360_disponible": "No 360 image available for the selected season.",
+    "@no_vista360_disponible": {
+        "description": "Message shown when there is no 360 image available at all"
+    },
+    "ir": "Go"
 }

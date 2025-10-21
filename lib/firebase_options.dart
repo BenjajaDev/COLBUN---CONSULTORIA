@@ -44,19 +44,19 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyClqJpLEJP9gyI8cNVzI7bZ8w6Q_tvR_2s',
-    appId: '1:451753610369:android:eccba216d4c81f5737d180',
-    messagingSenderId: '451753610369',
-    projectId: 'rutas360-622fd',
-    storageBucket: 'rutas360-622fd.firebasestorage.app',
+    apiKey: 'AIzaSyAQ3pUh6TXvggNVdiDqBca03a5YLpHkJo4',
+    appId: '1:868569011120:android:ba98c972c3fd9d3b28fc75',
+    messagingSenderId: '868569011120',
+    projectId: 'crud-rutas360',
+    storageBucket: 'crud-rutas360.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyAnldZhd5z_o2FrxzW_CJtoIxyw5TAXPmE',
-    appId: '1:451753610369:ios:ada415f551b8aa7437d180',
-    messagingSenderId: '451753610369',
-    projectId: 'rutas360-622fd',
-    storageBucket: 'rutas360-622fd.firebasestorage.app',
+    apiKey: 'AIzaSyDaQaQ53XidQCa5fo4BaK2njyNKBxZt2XY',
+    appId: '1:868569011120:ios:5964617aebcfc6b128fc75',
+    messagingSenderId: '868569011120',
+    projectId: 'crud-rutas360',
+    storageBucket: 'crud-rutas360.firebasestorage.app',
     iosBundleId: 'com.example.consultoriaChatBot',
   );
 

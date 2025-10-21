@@ -46,4 +46,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get sin_resultado => 'No results found';
+
+  @override
+  String get vistas_modificadas_ia => 'Includes views modified with AI';
+
+  @override
+  String no_vista360_temporada(Object season) {
+    return 'No 360 image available for the \"$season\" season.';
+  }
+
+  @override
+  String get no_vista360_disponible =>
+      'No 360 image available for the selected season.';
+
+  @override
+  String get ir => 'Go';
 }

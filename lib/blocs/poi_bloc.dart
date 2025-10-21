@@ -1,8 +1,10 @@
 import 'package:consultoria_chat_bot/events/poi_event.dart';
 import 'package:consultoria_chat_bot/model/poi_model.dart';
+import 'package:consultoria_chat_bot/services/firestore_service.dart';
 import 'package:consultoria_chat_bot/states/poi_state.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:flutter/foundation.dart';
 
 class PoiBloc extends Bloc<PoiEvent, PoiState> {
   PoiBloc() : super(PoiInitial()) {
@@ -11,6 +13,12 @@ class PoiBloc extends Bloc<PoiEvent, PoiState> {
 
   void _onLoadPoi(LoadPoi event, Emitter<PoiState> emit) async {
     try {
+      // If we're already showing this POI, ignore duplicate requests to avoid UI blinking
+      final currentState = state;
+      if (currentState is PoiLoaded && currentState.current.id == event.current.id) {
+        return;
+      }
+
       emit(PoiLoading());
 
       final POI selected = event.current;
@@ -19,7 +27,9 @@ class PoiBloc extends Bloc<PoiEvent, PoiState> {
           .toList();
       final Distance distance = const Distance();
       final LatLng selectedCoords = LatLng(selected.latitud, selected.longitud);
-
+      final List<Map<String, dynamic>> categorias = await FireStoreService().fetchCategory(selected.categorias);
+      final List<Map<String, dynamic>> actividades = await FireStoreService().fetchActivity(selected.actividades);
+      debugPrint('PoiBloc: fetched ${categorias.length} categories and ${actividades.length} activities for POI ${selected.id}');
       //Ajuste de recomendados priorizando categoria y distancia
       final Set<String> selectedCategories = Set<String>.from(
         selected.categorias,
@@ -75,13 +85,15 @@ class PoiBloc extends Bloc<PoiEvent, PoiState> {
       if (nearby.length > 5) {
         nearby.removeRange(5, nearby.length);
       }
-
+      
       emit(
         PoiLoaded(
           current: selected,
           recommended: limitedRecommended,
           nearby: nearby,
           distancesKm: distancesKm,
+          categorias: categorias,
+          actividades: actividades,
         ),
       );
     } catch (e) {

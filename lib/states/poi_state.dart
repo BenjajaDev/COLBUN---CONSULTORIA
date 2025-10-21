@@ -12,12 +12,16 @@ class PoiLoaded extends PoiState {
   final List<POI> recommended;
   final List<POI> nearby;
   final Map<String, double> distancesKm;
+  final List<Map<String, dynamic>> categorias;
+  final List<Map<String, dynamic>> actividades;
 
   PoiLoaded ({
     required this.current,
     required this.recommended,
     required this.nearby,
     required this.distancesKm,
+    required this.categorias,
+    required this.actividades,
   });
 }
 class PoiError extends PoiState {

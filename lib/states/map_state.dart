@@ -90,16 +90,38 @@ class MapNavigating extends MapState {
   final LatLng start;
   final LatLng destination;
   final List<LatLng> routePoints;
-  final List<String> instructions;
-  final double? heading;
+  final List<Map<String, dynamic>> instructions;
   final LatLng? userLocation;
+  final double? bearing;
+  final Map<String, dynamic>? navigationInfo;
 
   MapNavigating({
     required this.start,
     required this.destination,
     required this.routePoints,
     required this.instructions,
-    this.heading,
     this.userLocation,
+    this.bearing,
+    this.navigationInfo,
   });
+
+  MapNavigating copyWith({
+    LatLng? start,
+    LatLng? destination,
+    List<LatLng>? routePoints,
+    List<Map<String, dynamic>>? instructions,
+    LatLng? userLocation,
+    double? bearing,
+    Map<String, dynamic>? navigationInfo,
+  }) {
+    return MapNavigating(
+      start: start ?? this.start,
+      destination: destination ?? this.destination,
+      routePoints: routePoints ?? this.routePoints,
+      instructions: instructions ?? this.instructions,
+      userLocation: userLocation ?? this.userLocation,
+      bearing: bearing ?? this.bearing,
+      navigationInfo: navigationInfo ?? this.navigationInfo,
+    );
+  }
 }
