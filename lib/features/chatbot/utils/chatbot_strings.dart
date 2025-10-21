@@ -88,16 +88,6 @@ class ChatbotStrings {
       'en': "Sorry, I couldn't connect and didn't find a local answer for your question. Please check your internet connection.",
       'pt': 'Desculpe, não consegui conectar e não encontrei uma resposta local para a sua pergunta. Por favor, verifique sua conexão com a internet.'
     },
-    'loading.conversation': {
-      'es': 'Cargando conversación...',
-      'en': 'Loading conversation...',
-      'pt': 'Carregando conversa...'
-    },
-    'loading.firestore': {
-      'es': 'Conectando con Firestore',
-      'en': 'Connecting to Firestore',
-      'pt': 'Conectando ao Firestore'
-    },
     'whatsapp.error': {
       'es': 'No se pudo abrir WhatsApp.',
       'en': 'Could not open WhatsApp.',

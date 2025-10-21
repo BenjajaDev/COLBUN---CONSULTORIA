@@ -118,7 +118,8 @@ class ChatbotHeader extends StatelessWidget implements PreferredSizeWidget {
                             '¿Desea borrar el historial?',
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                              fontSize: 18,
+                              fontSize: 16,
+                              fontFamily: 'Poppins',
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -131,15 +132,14 @@ class ChatbotHeader extends StatelessWidget implements PreferredSizeWidget {
                                 Expanded(
                                   child: ElevatedButton(
                                     style: ElevatedButton.styleFrom(
-                                      side: BorderSide(color: primaryColor),
-                                      backgroundColor: Colors.transparent,
-                                      foregroundColor: primaryColor,
+                                      backgroundColor: primaryColor,
+                                      foregroundColor: Colors.white,
                                       elevation: 0,
                                     ),
                                     onPressed: () {
                                       Navigator.of(ctx).pop(false);
                                     },
-                                    child: const Text('No, volver'),
+                                    child: const Text('No, volver', style: TextStyle(fontFamily: 'Poppins')),
                                   ),
                                 ),
                                 const SizedBox(width: 12),
@@ -153,7 +153,7 @@ class ChatbotHeader extends StatelessWidget implements PreferredSizeWidget {
                                     onPressed: () {
                                       Navigator.of(ctx).pop(true);
                                     },
-                                    child: const Text('Si, Eliminar'),
+                                    child: const Text('Si, Eliminar', style: TextStyle(fontFamily: 'Poppins')),
                                   ),
                                 ),
                               ],
