@@ -3,12 +3,16 @@ import 'package:consultoria_chat_bot/events/map_event.dart';
 import 'package:consultoria_chat_bot/l10n/app_localizations.dart';
 import 'package:consultoria_chat_bot/screens/poi_screen.dart';
 import 'package:consultoria_chat_bot/screens/emergency_screen.dart';
+import 'package:consultoria_chat_bot/services/local_storage.dart';
 import 'package:consultoria_chat_bot/screens/favorites_screen.dart';
 import 'package:consultoria_chat_bot/states/map_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'dart:async';
+import 'dart:io';
+
 
 class MapPage extends StatefulWidget {
   const MapPage({super.key});
@@ -28,6 +32,9 @@ class _MapPageState extends State<MapPage> {
   double _widgetHeight = 0;
   double _fabPosition = 0;
 
+  bool _isOffline = false;
+  Timer? _netTimer;
+
   final double _fabPositionPadding = 10;
   @override
   void initState() {
@@ -38,13 +45,38 @@ class _MapPageState extends State<MapPage> {
         _fabPosition = _initialSheetChildSize * context.size!.height;
       });
     });
+
+    _startNetworkMonitoring();
   }
 
   @override
   void dispose() {
     mapController.dispose();
     searchController.dispose();
+    _netTimer?.cancel();
     super.dispose();
+  }
+
+  void _startNetworkMonitoring() {
+    _checkConnectivity();
+    _netTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      _checkConnectivity();
+    });
+  }
+
+  Future<void> _checkConnectivity() async {
+    try {
+      final result = await InternetAddress.lookup('one.one.one.one')
+          .timeout(const Duration(seconds: 3));
+      final online = result.isNotEmpty && result.first.rawAddress.isNotEmpty;
+      if (mounted && _isOffline == online) {
+        setState(() => _isOffline = !online);
+      } else if (mounted && _isOffline != !online) {
+        setState(() => _isOffline = !online);
+      }
+    } catch (_) {
+      if (mounted && !_isOffline) setState(() => _isOffline = true);
+    }
   }
 
   void _openFilterSheet(MapLoaded state) {
@@ -660,7 +692,7 @@ class _MapPageState extends State<MapPage> {
                                                       title: Text('${AppLocalizations.of(context)!.ruta} ${route.name}'),
                                                       selected: selectedRouteIndex == index,
                                                       selectedTileColor: _primaryColor.withOpacity(0.12),
-                                                      onTap: () {
+                                                      onTap: () async {
                                                           final center = LatLng(
                                                               (route.initialLatitude + route.finalLatitude) / 2,
                                                               (route.initialLongitude + route.finalLongitude) / 2,
@@ -669,6 +701,8 @@ class _MapPageState extends State<MapPage> {
                                                               selectedRouteIndex = index;
                                                           });
                                                           mapController.move(center, 14);
+                                                          await LocalStorage.setLastRouteName(route.name);
+                                                          await LocalStorage.setLastRouteWithPois(route);
                                                       },
                                                   );
                                               }),
@@ -705,7 +739,7 @@ class _MapPageState extends State<MapPage> {
                                                   trailing: const Icon(Icons.arrow_forward_ios, color: Colors.grey, size: 18),
                                                   selected: selectedRouteIndex == index,
                                                   selectedTileColor: _primaryColor.withOpacity(0.12),
-                                                  onTap: () {
+                                                  onTap: () async {
                                                       final center = LatLng(
                                                           (route.initialLatitude + route.finalLatitude) / 2,
                                                           (route.initialLongitude + route.finalLongitude) / 2,
@@ -714,6 +748,8 @@ class _MapPageState extends State<MapPage> {
                                                           selectedRouteIndex = index;
                                                       });
                                                       mapController.move(center, 14);
+                                                      await LocalStorage.setLastRouteName(route.name);
+                                                      await LocalStorage.setLastRouteWithPois(route);
                                                   },
                                               );
                                           },
@@ -761,8 +797,33 @@ class _MapPageState extends State<MapPage> {
                     ),
                   ),
 
+                  if (_isOffline)
+                    Positioned(
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      child: Container(
+                        height: 36,
+                        color: Colors.red,
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        alignment: Alignment.centerLeft,
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.max,
+                          children: [
+                            Icon(Icons.wifi_off, color: Colors.white),
+                            SizedBox(width: 8),
+                            Text('Modo sin conexión',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                )),
+                          ],
+                        ),
+                      ),
+                    ),
+
                   Positioned(
-                    top: 0,
+                    top: _isOffline ? 36 : 0,
                     right: 0,
                     left: 0,
                     child: Padding(
