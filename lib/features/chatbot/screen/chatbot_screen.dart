@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -56,6 +57,8 @@ class _ChatbotScreenState extends State<ChatbotScreen>
   late FaqService _faqService;
   late OpenAIService _openAIService;
   late final ChatHistoryService _chatHistoryService;
+  // Timer usado para agrupar persistencias locales y evitar IO frecuente
+  Timer? _persistTimer;
 
   // ===========================================================================
   // CONSTANTES Y CONFIGURACIÓN
@@ -81,9 +84,10 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       duration: const Duration(milliseconds: 1500),
       vsync: this,
     )..addListener(() {
-        if (_isTyping) {
-          setState(() {});
-        }
+        // NOTE: Removed per-frame setState here to avoid rebuilding the whole
+        // ChatbotScreen on every animation tick. The typing indicator is
+        // handled locally inside `ChatbotBody` through the passed
+        // [typingAnimation] and an AnimatedBuilder.
       });
     _typingAnimation = Tween<double>(
       begin: 0.0,
@@ -96,8 +100,13 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     _loadEmergencyContacts();
 
     _restoreCachedHistory().then((_) => _initializeConversation());
+  }
 
-
+  void _log(Object? o) {
+    if (kDebugMode) {
+      // ignore: avoid_print
+      print(o);
+    }
   }
 
   @override
@@ -105,6 +114,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     _scrollController.dispose();
     _typingController.dispose();
     _languageService.close(); // Cerrar el servicio de idioma
+    _persistTimer?.cancel();
     super.dispose();
   }
 
@@ -112,7 +122,8 @@ class _ChatbotScreenState extends State<ChatbotScreen>
   // GESTIÓN DE CONVERSACIONES E HISTORIAL
   // ===========================================================================
   Future<void> _restoreCachedHistory() async {
-  final cached = await _chatHistoryService.loadLastConversation(currentUserId: _firestoreConnection.currentUserId);
+    final cached = await _chatHistoryService.loadLastConversation(
+        currentUserId: _firestoreConnection.currentUserId);
     if (!mounted || cached == null) return;
 
     // Normalizar mensajes cacheados para evitar problemas de tipos (ej. List<dynamic>)
@@ -124,7 +135,10 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       if (rawOptions == null) {
         msg['options'] = <String>[];
       } else if (rawOptions is List) {
-        msg['options'] = rawOptions.map((e) => e?.toString() ?? '').where((s) => s.isNotEmpty).toList();
+        msg['options'] = rawOptions
+            .map((e) => e?.toString() ?? '')
+            .where((s) => s.isNotEmpty)
+            .toList();
       } else {
         msg['options'] = <String>[];
       }
@@ -159,66 +173,40 @@ class _ChatbotScreenState extends State<ChatbotScreen>
 
     //Verificar si al conversación local tiene un documento remoto en Firestore
     //Si no existe, crear comversión remota nueva con los mensajes cacheados
-    try{
+    try {
       if (_currentConversationId != null) {
-        final remoteConversation =
-            await _firestoreConnection.getCompleteConversation(_currentConversationId!);
+        final remoteConversation = await _firestoreConnection
+            .getCompleteConversation(_currentConversationId!);
         if (remoteConversation == null) {
           final uid = _firestoreConnection.currentUserId;
           if (uid == null) {
-             print('⚠️ Usuario no autenticado: no se puede crear conversación remota.');
+            print(
+                '⚠️ Usuario no autenticado: no se puede crear conversación remota.');
             return;
           }
 
-          final newConversationId = await _firestoreConnection.createConversation(
+          final newConversationId =
+              await _firestoreConnection.createConversation(
             userId: uid,
             language: _currentLanguage,
           );
-          print('🔗 Conversación remota creada: $newConversationId  (se sincroniza caché local)');
+          print(
+              '🔗 Conversación remota creada: $newConversationId  (se sincroniza caché local)');
 
           _currentConversationId = newConversationId;
 
           // Subir mensajes cacheados a la nueva conversación remota.
           // Hacemos una copia para evitar mutaciones durante la iteración.
           final cachedMessages = List<Map<String, dynamic>>.from(messages);
-          for (final msg in cachedMessages) {
-            // Normalizar 'options' para evitar que sea null y asegurar List<String>
-            final rawOptionsCached = msg['options'];
-            if (rawOptionsCached == null) {
-              msg['options'] = <String>[];
-            } else if (rawOptionsCached is List) {
-              msg['options'] = rawOptionsCached.map((e) => e?.toString() ?? '').where((s) => s.isNotEmpty).toList();
-            } else {
-              msg['options'] = <String>[];
-            }
-
-            final text = msg['text'] as String?;
-            final sender = msg['sender'] as String?;
-            final msgType = msg['type'] as String?;
-            if (text != null && text.isNotEmpty && sender != null) {
-              try {
-                final uploadedId = await _firestoreConnection.addMessageToConversation(
-                  conversationId: _currentConversationId!, 
-                  text: text,
-                  sender: sender,
-                  type: msgType,
-                  isFaq: msg['source'] != null && (msg['source'] as String).contains('firestore'),
-                  faqSource: msg['source'] as String?,
-                );
-                // Actualizar el ID del mensaje en el caché local con el id de firestore
-                msg['id'] = uploadedId;
-              } catch (e) {
-                print('❌ Error subiendo mensaje cacheado a Firestore: $e');
-              }
-            }
-          }
-          //Persistir cache actualizado con los nuevos IDs remotos
-          await _persistMessages();
+          // Subir mensajes cacheados en background para no bloquear la UI
+          _uploadCachedMessagesInBackground(
+              List<Map<String, dynamic>>.from(cachedMessages));
         } else {
-          print('✅ Conversación remota existente encontrada: $_currentConversationId');
+          print(
+              '✅ Conversación remota existente encontrada: $_currentConversationId');
         }
       }
-    } catch(e){
+    } catch (e) {
       print('❌ Error verificando conversación remota: $e');
     }
   }
@@ -242,6 +230,69 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       ownerId: _firestoreConnection.currentUserId,
     );
     // Guarda el historial localmente
+  }
+
+  void _schedulePersistMessages(
+      {Duration delay = const Duration(milliseconds: 800)}) {
+    // Cancelar timer previo si existe
+    _persistTimer?.cancel();
+    _persistTimer = Timer(delay, () {
+      // Fire-and-forget: ChatHistoryService internamente sigue guardando
+      _persistMessages();
+    });
+  }
+
+  /// Sube mensajes cacheados a Firestore en background para no bloquear la inicialización
+  void _uploadCachedMessagesInBackground(
+      List<Map<String, dynamic>> cachedMessages) {
+    // Ejecutar asíncronamente sin bloquear init
+    Future(() async {
+      for (final msg in cachedMessages) {
+        try {
+          // Normalizar 'options'
+          final rawOptionsCached = msg['options'];
+          if (rawOptionsCached == null) {
+            msg['options'] = <String>[];
+          } else if (rawOptionsCached is List) {
+            msg['options'] = rawOptionsCached
+                .map((e) => e?.toString() ?? '')
+                .where((s) => s.isNotEmpty)
+                .toList();
+          } else {
+            msg['options'] = <String>[];
+          }
+
+          final text = msg['text'] as String?;
+          final sender = msg['sender'] as String?;
+          final msgType = msg['type'] as String?;
+          if (text != null && text.isNotEmpty && sender != null) {
+            final uploadedId =
+                await _firestoreConnection.addMessageToConversation(
+              conversationId: _currentConversationId!,
+              text: text,
+              sender: sender,
+              type: msgType,
+              isFaq: msg['source'] != null &&
+                  (msg['source'] as String).contains('firestore'),
+              faqSource: msg['source'] as String?,
+            );
+            // Actualizar el ID del mensaje en la copia local
+            msg['id'] = uploadedId;
+          }
+        } catch (e) {
+          // Registrar, pero no bloquear el proceso
+          print(
+              '❌ Error subiendo mensaje cacheado a Firestore (background): $e');
+        }
+      }
+
+      // Intentar persistir el cache actualizado localmente
+      try {
+        await _persistMessages();
+      } catch (e) {
+        print('⚠️ Error persistiendo cache tras subida background: $e');
+      }
+    });
   }
 
   /// Inicializa la conversación cargando mensajes existentes o creando una nueva
@@ -270,14 +321,17 @@ class _ChatbotScreenState extends State<ChatbotScreen>
         final correctlyTypedMessages = existingMessages
             .map((msg) => Map<String, dynamic>.from(msg))
             .toList();
-         // Normalizar campos que pueden venir nulos desde Firestore/caché
+        // Normalizar campos que pueden venir nulos desde Firestore/caché
         for (final m in correctlyTypedMessages) {
           // options siempre debe ser List<String>
           final rawOptions = m['options'];
           if (rawOptions == null) {
             m['options'] = <String>[];
           } else if (rawOptions is List) {
-            m['options'] = rawOptions.map((e) => e?.toString() ?? '').where((s) => s.isNotEmpty).toList();
+            m['options'] = rawOptions
+                .map((e) => e?.toString() ?? '')
+                .where((s) => s.isNotEmpty)
+                .toList();
           } else {
             m['options'] = <String>[];
           }
@@ -285,9 +339,10 @@ class _ChatbotScreenState extends State<ChatbotScreen>
           // Asegurar que 'type' existe (evita nulls inesperados)
           if (m['type'] == null) m['type'] = '';
 
-         // Normalizar timestamp si es String o DateTime (ya convertido en service)
-          if (m['timestamp'] == null) m['timestamp'] = DateTime.now().toIso8601String();
-       }
+          // Normalizar timestamp si es String o DateTime (ya convertido en service)
+          if (m['timestamp'] == null)
+            m['timestamp'] = DateTime.now().toIso8601String();
+        }
 
         setState(() {
           messages
@@ -316,21 +371,24 @@ class _ChatbotScreenState extends State<ChatbotScreen>
   }
 
   void _initializeChat() {
-    final welcomeMessage = ChatbotStrings.get('welcome.message', _currentLanguage);
+    final welcomeMessage =
+        ChatbotStrings.get('welcome.message', _currentLanguage);
     addMessage(
       sender: "bot",
       text: welcomeMessage,
       type: "welcome_message",
       language: _currentLanguage, // Pasar el idioma
       saveToDatabase: true, // Guardamos el mensaje de bienvenida
-    ).then((_) => _persistMessages()); // Cachea el mensaje de bienvenida
+    ).then((_) =>
+        _schedulePersistMessages()); // Cachea el mensaje de bienvenida (debounced)
   }
 
   void _clearChatHistory() async {
     // Intentar borra conversación en Firestore
     try {
       if (_currentConversationId != null) {
-        await _firestoreConnection.deleteConversationsByID(_currentConversationId!);
+        await _firestoreConnection
+            .deleteConversationsByID(_currentConversationId!);
         print('🗑️ Conversación remota borrada: $_currentConversationId');
         // Evitar usar el id eliminado para nuevos mensajes
         _currentConversationId = null;
@@ -348,7 +406,8 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       _initializeChat();
     });
     // Borrar historial local (usamos null si ya lo reiniciamos)
-    await _chatHistoryService.clearHistory(conversationId: _currentConversationId);
+    await _chatHistoryService.clearHistory(
+        conversationId: _currentConversationId);
   }
 
   // ===========================================================================
@@ -370,7 +429,8 @@ class _ChatbotScreenState extends State<ChatbotScreen>
   }) async {
     final newMessage = {
       "id": messageId, // El ID ahora vendrá de Firestore
-      "sender": sender, "text": text, "type": type, "options": options ?? <String>[],
+      "sender": sender, "text": text, "type": type,
+      "options": options ?? <String>[],
       "feedback": null, "visible": true, "source": source, "link": link,
       "extras": extras, "language": language, //parametro nuevo
     };
@@ -404,6 +464,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     }
 
     if (mounted) {
+      // Hacemos un único setState para modificar la lista de mensajes.
       setState(() {
         if (insertAtIndex != null) {
           messages.insert(insertAtIndex, newMessage);
@@ -411,18 +472,29 @@ class _ChatbotScreenState extends State<ChatbotScreen>
           messages.add(newMessage);
         }
       });
-      // Persistir historial local después de cada cambio
-      await _persistMessages();
+
+      // Persistimos de forma agrupada (debounced) para evitar IO excesivo.
+      _schedulePersistMessages();
     }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (autoScroll && _scrollController.hasClients) {
-        _scrollController.animateTo(
-          0.0, // Va al final de la lista porque está invertida
-          duration: const Duration(
-              milliseconds: 400), // <-- Puedes ajustar la duración
-          curve: Curves.easeOut, // <-- Esta curva da una sensación suave
-        );
+      if (!autoScroll || !_scrollController.hasClients) return;
+
+      try {
+        // Si el usuario ya está lejos del final, hacemos un jump para evitar la animación costosa.
+        final offset = _scrollController.offset;
+        // Si la diferencia es pequeña, animamos; si es grande, saltamos.
+        if ((offset - 0.0).abs() < 200) {
+          _scrollController.animateTo(
+            0.0,
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeOut,
+          );
+        } else {
+          _scrollController.jumpTo(0.0);
+        }
+      } catch (e) {
+        // Ignorar errores de scroll si la posición cambia durante el frame
       }
     });
 
@@ -461,22 +533,22 @@ class _ChatbotScreenState extends State<ChatbotScreen>
   // PROCESAMIENTO DE MENSAJES Y IA
   // ===========================================================================
   void handleSendMessage(String text) async {
-    // **AGREGAR LOGS DE DEBUG COMPLETOS**
-    print("🎯🎯🎯 INICIANDO handleSendMessage 🎯🎯🎯");
-    print("📝 Mensaje recibido: '$text'");
+    // Debug logs guarded by kDebugMode
+    _log("🎯🎯🎯 INICIANDO handleSendMessage 🎯🎯🎯");
+    _log("📝 Mensaje recibido: '$text'");
 
     // **DETECTAR IDIOMA CON MÁS LOGS**
     try {
       _currentLanguage = await _languageService.detectLanguage(text);
-      print("🌐🌐🌐 IDIOMA DETECTADO: $_currentLanguage para mensaje: $text");
+      _log("🌐🌐🌐 IDIOMA DETECTADO: $_currentLanguage para mensaje: $text");
       // Verificar si es emergencia
       if (_emergencyService.detectEmergency(text, _currentLanguage)) {
-        print("🚨🚨🚨 EMERGENCIA DETECTADA! 🚨🚨🚨");
+        _log("🚨🚨🚨 EMERGENCIA DETECTADA! 🚨🚨🚨");
         await _activateEmergencyMode(text);
         return; // Detener procesamiento normal
       }
     } catch (e) {
-      print("❌ ERROR en detección de idioma: $e");
+      _log("❌ ERROR en detección de idioma: $e");
       _currentLanguage = 'es'; // Fallback a español
     }
 
@@ -497,8 +569,8 @@ class _ChatbotScreenState extends State<ChatbotScreen>
 
     try {
       // PLAN A: Intentar obtener una respuesta de la IA (Lógica online)
-      print("🌐 Intentando conectar con el servicio de IA...");
-      print("🤖 BUSCANDO FAQs PARA: '$text'");
+      _log("🌐 Intentando conectar con el servicio de IA...");
+      _log("🤖 BUSCANDO FAQs PARA: '$text'");
 
       List<Faq> contextFaqs = [];
       final cleanText =
@@ -506,29 +578,29 @@ class _ChatbotScreenState extends State<ChatbotScreen>
 
       if (!_contextualTriggers.contains(cleanText)) {
         contextFaqs = await _faqService.findContextFaqs(text);
-        print("📚 FAQs encontradas: ${contextFaqs.length}");
+        _log("📚 FAQs encontradas: ${contextFaqs.length}");
 
         // **DEBUG DETALLADO DE LAS FAQs CON IDIOMA**
         for (var i = 0; i < contextFaqs.length; i++) {
           var faq = contextFaqs[i];
-          print('📖 FAQ $i - ID: ${faq.id}');
-          print('📖 FAQ $i - Pregunta ES: ${faq.question}');
-          print('📖 FAQ $i - Pregunta EN: ${faq.questionEn}');
-          print('📖 FAQ $i - Respuesta ES: ${faq.answer}');
-          print('📖 FAQ $i - Respuesta EN: ${faq.answerEn}');
-          print('📖 FAQ $i - Categoría: ${faq.category}');
-          print('📖 FAQ $i - Tags: ${faq.tags}');
-          print('📖 FAQ $i - Link: ${faq.link}');
+          _log('📖 FAQ $i - ID: ${faq.id}');
+          _log('📖 FAQ $i - Pregunta ES: ${faq.question}');
+          _log('📖 FAQ $i - Pregunta EN: ${faq.questionEn}');
+          _log('📖 FAQ $i - Respuesta ES: ${faq.answer}');
+          _log('📖 FAQ $i - Respuesta EN: ${faq.answerEn}');
+          _log('📖 FAQ $i - Categoría: ${faq.category}');
+          _log('📖 FAQ $i - Tags: ${faq.tags}');
+          _log('📖 FAQ $i - Link: ${faq.link}');
         }
       }
       // **OBTENER LA URL REAL ANTES DE LLAMAR A OPENAI**
       String? realUrl;
       if (contextFaqs.isNotEmpty) {
         realUrl = contextFaqs.first.link;
-        print('🔗 URL real obtenida de la base de datos: $realUrl');
+        _log('🔗 URL real obtenida de la base de datos: $realUrl');
       }
 
-      print("🚀 LLAMANDO A OPENAI CON IDIOMA: $_currentLanguage");
+      _log("🚀 LLAMANDO A OPENAI CON IDIOMA: $_currentLanguage");
       final openAIResponse = await _openAIService.generateRAGResponse(
         userMessage: text,
         contextFaqs: contextFaqs,
@@ -546,9 +618,9 @@ class _ChatbotScreenState extends State<ChatbotScreen>
             finalUrl = openAIResponse.extractedUrls.isNotEmpty
                 ? openAIResponse.extractedUrls.first
                 : null;
-            print('🔗 Usando URL extraída como fallback: $finalUrl');
+            _log('🔗 Usando URL extraída como fallback: $finalUrl');
           }
-          print(
+          _log(
               "✅ RESPUESTA OPENAI: ${openAIResponse.message.substring(0, 100)}...");
           // Si tenemos una URL final separada, limpiamos el texto de la IA
           // para evitar mostrar el enlace inline y dejar solo el botón "Fuente".
@@ -576,7 +648,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
               displayMessage =
                   displayMessage.replaceAll(RegExp(r'\s+[,\.:;\)]+'), '');
             } catch (e) {
-              print('⚠️ Error limpiando el mensaje de la IA: $e');
+              _log('⚠️ Error limpiando el mensaje de la IA: $e');
               displayMessage = openAIResponse.message; // fallback
             }
           }
@@ -590,7 +662,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
             language: _currentLanguage,
             extras: {'showFeedback': true},
           );
-          print('✅ Respuesta procesada con URL: $realUrl');
+          _log('✅ Respuesta procesada con URL: $realUrl');
         } else {
           // La IA devolvió un error controlado, aquí también podríamos activar el fallback
           throw Exception(openAIResponse.message);
@@ -598,7 +670,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       }
     } catch (e) {
       // PLAN B: La conexión falló, buscar respuesta en la base de datos local (Lógica offline)
-      print(
+      _log(
           "🔴 Falló la conexión con la IA, iniciando fallback offline. Error: $e");
 
       // Reutilizamos el servicio de FAQs para buscar en la lista local (_allLoadedFaqs)
@@ -641,7 +713,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
         } else {
           // No se encontró respuesta local. Intentar un último reintento a la IA
           try {
-            print(
+            _log(
                 '🔁 Reintentando consulta a la IA sin contexto como último recurso...');
             final retryResponse = await _openAIService.sendSimpleMessage(text);
             if (mounted) {
@@ -658,8 +730,8 @@ class _ChatbotScreenState extends State<ChatbotScreen>
                 );
               } else {
                 // Si OpenAI respondió con error, mostrar mensaje de error amigable
-                final errorMessage =
-                  ChatbotStrings.get('fallback.error_message', _currentLanguage);
+                final errorMessage = ChatbotStrings.get(
+                    'fallback.error_message', _currentLanguage);
                 addMessage(
                   sender: "bot",
                   text: errorMessage,
@@ -669,9 +741,9 @@ class _ChatbotScreenState extends State<ChatbotScreen>
               }
             }
           } catch (e2) {
-            print('❌ Reintento a la IA falló: $e2');
+            _log('❌ Reintento a la IA falló: $e2');
             final errorMessage =
-                  ChatbotStrings.get('fallback.error_message', _currentLanguage);
+                ChatbotStrings.get('fallback.error_message', _currentLanguage);
             addMessage(
               sender: "bot",
               text: errorMessage,
@@ -689,7 +761,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
         _typingController.stop();
       }
     }
-    print("🏁🏁🏁 FINALIZANDO handleSendMessage 🏁🏁🏁");
+    _log("🏁🏁🏁 FINALIZANDO handleSendMessage 🏁🏁🏁");
   }
 
   // ===========================================================================
@@ -710,7 +782,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
 
     /// Mensaje automático del bot
     final emergencyMessage =
-      ChatbotStrings.get('emergency.alert_message', _currentLanguage);
+        ChatbotStrings.get('emergency.alert_message', _currentLanguage);
 
     await addMessage(
       sender: "bot",
@@ -817,8 +889,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
   Widget _buildEmergencyHeader() {
     return Center(
       child: Text(
-        ChatbotStrings.get('emergency.modal.title',
-        _currentLanguage),
+        ChatbotStrings.get('emergency.modal.title', _currentLanguage),
         style: TextStyle(
           color: Colors.red[700],
           fontSize: 28,
@@ -882,7 +953,8 @@ class _ChatbotScreenState extends State<ChatbotScreen>
                 const Icon(Icons.phone, size: 16),
                 const SizedBox(width: 4),
                 Text(
-                  ChatbotStrings.get('emergency.modal.call_button', _currentLanguage),
+                  ChatbotStrings.get(
+                      'emergency.modal.call_button', _currentLanguage),
                   style: const TextStyle(
                     fontWeight: FontWeight.w600,
                     fontFamily: 'Poppins',
@@ -912,7 +984,8 @@ class _ChatbotScreenState extends State<ChatbotScreen>
               padding: const EdgeInsets.symmetric(vertical: 12),
             ),
             child: Text(
-              ChatbotStrings.get('emergency.modal.close_button', _currentLanguage),
+              ChatbotStrings.get(
+                  'emergency.modal.close_button', _currentLanguage),
               style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
@@ -961,8 +1034,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
           faqBloc.add(ToggleFaqsEvent(newFaqs: randomFaqs));
 
           // Texto dinámico según idioma para la introducción de FAQs
-          final introText =
-            ChatbotStrings.get('faq.intro', _currentLanguage);
+          final introText = ChatbotStrings.get('faq.intro', _currentLanguage);
 
           // Insertar las FAQs justo después del mensaje de bienvenida
           addMessage(
@@ -1047,8 +1119,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       if (!mounted) return; // <-- Añade esta línea de seguridad
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content:
-              Text(ChatbotStrings.get('whatsapp.error', _currentLanguage)),
+          content: Text(ChatbotStrings.get('whatsapp.error', _currentLanguage)),
         ),
       );
     }
