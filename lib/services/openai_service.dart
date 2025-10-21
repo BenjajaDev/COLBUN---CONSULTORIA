@@ -6,6 +6,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter/foundation.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:consultoria_chat_bot/services/firestore_faq_service.dart'; // Importamos el modelo Faq
 
 // ============================================================================
@@ -206,13 +207,13 @@ IMPORTANT ABOUT SOURCES AND LINKS:
 - If there are multiple sources, use the most relevant one for the question.
 - Required format for links: [Descriptive text](Specific_URL)
 '''
-        :  language == 'pt'
+        : language == 'pt'
             ? '''IMPORTANTE SOBRE FONTES E LINKS:
 - Se o contexto incluir uma "Fonte específica", VOCÊ DEVE usar essa URL exata
 - NÃO invente URLs ou mencione sites genéricos.
 - Se houver várias fontes, use a mais relevante para a pergunta.
 '''
-        : '''
+            : '''
 IMPORTANTE SOBRE FUENTES Y ENLACES:
 - Si el contexto incluye una "Fuente específica", DEBES usar esa URL exacta.
 - NO inventes URLs ni menciones sitios web genéricos.
@@ -347,7 +348,12 @@ include the specific link provided using the format [Text](URL). You may supplem
       } else {
         return _parseErrorResponse(response);
       }
-    } catch (e) {
+    } catch (e, st) {
+      // Reportar a Crashlytics y devolver mensaje de error amigable
+      try {
+        FirebaseCrashlytics.instance
+            .recordError(e, st, reason: 'OpenAIService._sendMessage');
+      } catch (_) {}
       print('❌ Error en OpenAI Service: $e');
       return OpenAIResponse(
           success: false,

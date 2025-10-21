@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:consultoria_chat_bot/models/user_model.dart';
 
 class AuthService {
@@ -37,6 +38,10 @@ class AuthService {
 
       return credential;
     } catch (e) {
+      try {
+        FirebaseCrashlytics.instance
+            .recordError(e, StackTrace.current, reason: 'AuthService.register');
+      } catch (_) {}
       rethrow;
     }
   }
@@ -50,6 +55,10 @@ class AuthService {
         password: password,
       );
     } catch (e) {
+      try {
+        FirebaseCrashlytics.instance
+            .recordError(e, StackTrace.current, reason: 'AuthService.signIn');
+      } catch (_) {}
       rethrow;
     }
   }
@@ -66,7 +75,7 @@ class AuthService {
       if (user == null) return null;
 
       final doc = await _firestore.collection('users').doc(user.uid).get();
-      
+
       if (doc.exists) {
         return UserModel.fromMap(doc.data()!);
       } else {
@@ -79,6 +88,10 @@ class AuthService {
         );
       }
     } catch (e) {
+      try {
+        FirebaseCrashlytics.instance.recordError(e, StackTrace.current,
+            reason: 'AuthService.getCurrentUserData');
+      } catch (_) {}
       print('Error obteniendo datos del usuario: $e');
       return null;
     }

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../bloc/theme_bloc.dart';
@@ -109,6 +110,23 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     }
   }
 
+  Future<void> _reportErrorToCrashlytics(Object error, StackTrace? stack,
+      {Map<String, dynamic>? context}) async {
+    try {
+      final crash = FirebaseCrashlytics.instance;
+      // Añadir información contextual si está disponible
+      if (context != null) {
+        context.forEach((key, value) {
+          crash.setCustomKey(key, value?.toString() ?? '');
+        });
+      }
+      await crash.recordError(error, stack,
+          reason: 'Captured in ChatbotScreen');
+    } catch (_) {
+      // No bloquear ni re-lanzar: esto es solo telemetry
+    }
+  }
+
   @override
   void dispose() {
     _scrollController.dispose();
@@ -207,7 +225,12 @@ class _ChatbotScreenState extends State<ChatbotScreen>
         }
       }
     } catch (e) {
-      print('❌ Error verificando conversación remota: $e');
+      _log('❌ Error verificando conversación remota: $e');
+      // Reportar a Crashlytics (no bloqueante)
+      _reportErrorToCrashlytics(e, StackTrace.current, context: {
+        'where': 'restoreCachedHistory_checkRemote',
+        'conversationId': _currentConversationId ?? 'null',
+      });
     }
   }
 
@@ -281,8 +304,12 @@ class _ChatbotScreenState extends State<ChatbotScreen>
           }
         } catch (e) {
           // Registrar, pero no bloquear el proceso
-          print(
+          _log(
               '❌ Error subiendo mensaje cacheado a Firestore (background): $e');
+          _reportErrorToCrashlytics(e, StackTrace.current, context: {
+            'where': 'uploadCachedMessagesInBackground',
+            'conversationId': _currentConversationId ?? 'null',
+          });
         }
       }
 
@@ -290,7 +317,11 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       try {
         await _persistMessages();
       } catch (e) {
-        print('⚠️ Error persistiendo cache tras subida background: $e');
+        _log('⚠️ Error persistiendo cache tras subida background: $e');
+        _reportErrorToCrashlytics(e, StackTrace.current, context: {
+          'where': 'persist_after_uploadCached',
+          'conversationId': _currentConversationId ?? 'null',
+        });
       }
     });
   }
@@ -357,7 +388,11 @@ class _ChatbotScreenState extends State<ChatbotScreen>
         _initializeChat();
       }
     } catch (e) {
-      print('❌ Error al inicializar conversación: $e');
+      _log('❌ Error al inicializar conversación: $e');
+      _reportErrorToCrashlytics(e, StackTrace.current, context: {
+        'where': 'initializeConversation',
+        'conversationId': _currentConversationId ?? 'null',
+      });
       if (!_hasRestoredLocalHistory && messages.isEmpty) {
         _initializeChat();
       }
@@ -397,7 +432,11 @@ class _ChatbotScreenState extends State<ChatbotScreen>
         await _firestoreConnection.deleteAllUserConversations();
       }
     } catch (e) {
-      print('❌ Error al borrar historial de chat: $e');
+      _log('❌ Error al borrar historial de chat: $e');
+      _reportErrorToCrashlytics(e, StackTrace.current, context: {
+        'where': 'clearChatHistory',
+        'conversationId': _currentConversationId ?? 'null',
+      });
     }
 
     //Limpiar UI y cache local
@@ -1161,6 +1200,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
                     onClearHistory: _clearChatHistory,
                     onContactWhatsApp: _launchWhatsApp,
                   ),
+                  // Test buttons removed after verification
                   Expanded(
                     child: _isLoadingConversation
                         ? _buildLoadingIndicator(state.isDarkMode)

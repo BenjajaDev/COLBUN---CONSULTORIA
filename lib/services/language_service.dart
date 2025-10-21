@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:google_mlkit_language_id/google_mlkit_language_id.dart';
 
 class LanguageService {
@@ -9,8 +10,12 @@ class LanguageService {
     if (!kIsWeb) {
       try {
         _languageIdentifier = LanguageIdentifier(confidenceThreshold: 0.5);
-      } catch (e) {
+      } catch (e, st) {
         // En caso de error, lo registramos y seguiremos con la heurística
+        try {
+          FirebaseCrashlytics.instance
+              .recordError(e, st, reason: 'LanguageService.init');
+        } catch (_) {}
         print('⚠️ No se pudo inicializar MLKit LanguageIdentifier: $e');
         _languageIdentifier = null;
       }
@@ -30,8 +35,8 @@ class LanguageService {
       return 'es';
     }
     final containsAsciiLetters = RegExp(r'[A-Za-z]').hasMatch(text);
-        final containsSpanishChars = RegExp(r'[áéíóúñüÁÉÍÓÚÑ]').hasMatch(text);
-        final containsPortugueseChars =
+    final containsSpanishChars = RegExp(r'[áéíóúñüÁÉÍÓÚÑ]').hasMatch(text);
+    final containsPortugueseChars =
         RegExp(r'[ãõâêôáéíóúçÁÉÍÓÚÂÊÔÃÕÇ]').hasMatch(text);
 
     // Si no hay implementacion del plugin (p. ej. web) usar heurística simple
@@ -47,7 +52,11 @@ class LanguageService {
         }
         print("🔤 LANGUAGE SERVICE (heurística) - Detectado: ES");
         return 'es';
-      } catch (e) {
+      } catch (e, st) {
+        try {
+          FirebaseCrashlytics.instance
+              .recordError(e, st, reason: 'LanguageService.heuristic');
+        } catch (_) {}
         print('❌ Error en heurística de idioma: $e');
         return 'es';
       }
@@ -71,7 +80,11 @@ class LanguageService {
             "🔤 LANGUAGE SERVICE - Idioma no reconocido: '$response', usando español");
         return 'es';
       }
-    } catch (e) {
+    } catch (e, st) {
+      try {
+        FirebaseCrashlytics.instance
+            .recordError(e, st, reason: 'LanguageService.detectLanguage_mlkit');
+      } catch (_) {}
       print('❌ Error en detección de idioma (ML Kit): $e');
       // Fallback a heurística
       final containsAsciiLetters = RegExp(r'[A-Za-z]').hasMatch(text);
