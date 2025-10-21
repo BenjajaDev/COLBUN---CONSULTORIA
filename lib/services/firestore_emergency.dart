@@ -133,9 +133,13 @@ class EmergencyService {
     // Buscar en palabras clave del idioma detectado
     final keywords = _emergencyKeywords[language] ?? _emergencyKeywords['es']!;
     
+    // Match keywords as whole words to avoid false positives (e.g., 'obrigado')
     for (final keyword in keywords) {
-      if (cleanMessage.contains(keyword.toLowerCase())) {
-        print('🚨 Emergency detected: $keyword');
+      final k = keyword.toLowerCase().trim();
+      if (k.isEmpty) continue;
+      final pattern = RegExp(r"\b" + RegExp.escape(k) + r"\b", caseSensitive: false);
+      if (pattern.hasMatch(cleanMessage)) {
+        print('🚨 Emergency detected by keyword: $keyword');
         return true;
       }
     }
@@ -144,7 +148,10 @@ class EmergencyService {
     for (final contact in _emergencyContacts) {
       final contactKeywords = contact.getKeyWords(language); // ✅ USAR getKeyWords CON IDIOMA
       for (final keyword in contactKeywords) {
-        if (keyword.isNotEmpty && cleanMessage.contains(keyword.toLowerCase())) {
+        final k = keyword.toLowerCase().trim();
+        if (k.isEmpty) continue;
+        final pattern = RegExp(r"\b" + RegExp.escape(k) + r"\b", caseSensitive: false);
+        if (pattern.hasMatch(cleanMessage)) {
           print('🚨 Emergency contact match: ${contact.getName(language)} - Keyword: $keyword');
           return true;
         }
