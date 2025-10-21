@@ -44,38 +44,147 @@ class ChatbotHeader extends StatelessWidget implements PreferredSizeWidget {
               state.isDarkMode ? AppColors.darkprimary : AppColors.lightprimary,
           iconTheme: const IconThemeData(color: AppColors.lightbackground),
           title: const Text(
-            'Asistente Colbún',
+            'Asistente',
             style: TextStyle(
-              fontSize: 28,
+              fontSize: 22,
               fontWeight: FontWeight.w600,
               fontFamily: 'Poppins',
               color: Color(0xFFFFFFFF),
             ),
           ),
           actions: [
+            // Botón de tamaño de fuente
+            Semantics(
+              label: 'Cambiar tamaño de fuente',
+              hint: 'Toca para cambiar el tamaño de fuente',
+              button: true,
+              child: PopupMenuButton<FontSize>(
+                tooltip: 'Tamaño de fuente',
+                icon: const Icon(
+                  Icons.text_fields,
+                  color: Colors.white,
+                ),
+                color: state.isDarkMode
+                    ? AppColors.darkprimary
+                    : AppColors.lightprimary,
+                onSelected: (FontSize size) {
+                  context.read<ThemeBloc>().add(ChangeFontSizeEvent(size));
+                },
+                itemBuilder: (BuildContext context) => <PopupMenuEntry<FontSize>>[
+                  PopupMenuItem<FontSize>(
+                    value: FontSize.small,
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.text_fields,
+                          size: 16,
+                          color: state.fontSize == FontSize.small
+                              ? Colors.green
+                              : Colors.white,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Pequeño',
+                          style: TextStyle(
+                            color: state.fontSize == FontSize.small
+                                ? Colors.green
+                                : Colors.white,
+                            fontFamily: 'Poppins',
+                            fontWeight: state.fontSize == FontSize.small
+                                ? FontWeight.w600
+                                : FontWeight.w400,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem<FontSize>(
+                    value: FontSize.medium,
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.text_fields,
+                          size: 20,
+                          color: state.fontSize == FontSize.medium
+                              ? Colors.green
+                              : Colors.white,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Mediano',
+                          style: TextStyle(
+                            color: state.fontSize == FontSize.medium
+                                ? Colors.green
+                                : Colors.white,
+                            fontFamily: 'Poppins',
+                            fontWeight: state.fontSize == FontSize.medium
+                                ? FontWeight.w600
+                                : FontWeight.w400,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem<FontSize>(
+                    value: FontSize.large,
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.text_fields,
+                          size: 24,
+                          color: state.fontSize == FontSize.large
+                              ? Colors.green
+                              : Colors.white,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Grande',
+                          style: TextStyle(
+                            color: state.fontSize == FontSize.large
+                                ? Colors.green
+                                : Colors.white,
+                            fontFamily: 'Poppins',
+                            fontWeight: state.fontSize == FontSize.large
+                                ? FontWeight.w600
+                                : FontWeight.w400,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
             // Interruptor de cambio de tema (claro/oscuro)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8.0),
-              child: Row(
-                children: [
-                  // Icono que cambia según el tema actual
-                  Icon(
-                    state.isDarkMode ? Icons.nightlight_round : Icons.wb_sunny,
-                    color: Colors.white,
-                  ),
-                  const SizedBox(width: 4),
+              child: Semantics(
+                label: state.isDarkMode ? 'Tema oscuro activado' : 'Tema claro activado',
+                hint: 'Toca para cambiar entre tema oscuro y claro',
+                child: Row(
+                  children: [
+                    // Icono que cambia según el tema actual
+                    ExcludeSemantics(
+                      child: Icon(
+                        state.isDarkMode ? Icons.nightlight_round : Icons.wb_sunny,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
 
-                  // Interruptor para cambiar entre temas claro y oscuro
-                  Switch(
-                    value: state.isDarkMode,
-                    onChanged: (value) {
-                      // Dispara el evento para cambiar el tema
-                      context.read<ThemeBloc>().add(ToggleThemeEvent());
-                    },
-                    activeThumbColor: Colors.white,
-                    activeTrackColor: Colors.white.withValues(alpha: 0.5)
-                  ),
-                ],
+                    // Interruptor para cambiar entre temas claro y oscuro
+                    Switch(
+                      value: state.isDarkMode,
+                      onChanged: (value) {
+                        // Dispara el evento para cambiar el tema
+                        context.read<ThemeBloc>().add(ToggleThemeEvent());
+                      },
+                      activeThumbColor: Colors.white,
+                      activeTrackColor: Colors.white.withValues(alpha: 0.5)
+                    ),
+                  ],
+                ),
               ),
             ),
 
@@ -83,18 +192,23 @@ class ChatbotHeader extends StatelessWidget implements PreferredSizeWidget {
             SizedBox(
               width: 44,
               height: 44,
-              child: PopupMenuButton(
-                icon: const Icon(Icons.more_vert, color: Color(0xFFFFFFFF)),
-                color: state.isDarkMode
-                    ? AppColors.darkprimary
-                    : AppColors.lightprimary,
-                iconSize: 32,
-                position: PopupMenuPosition.under,
-                elevation: 8,
-                offset: const Offset(0, 15),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8.0),
-                ),
+              child: Semantics(
+                label: 'Menú de opciones',
+                hint: 'Toca dos veces para abrir el menú con más opciones',
+                button: true,
+                child: PopupMenuButton(
+                  icon: const Icon(Icons.more_vert, color: Color(0xFFFFFFFF)),
+                  tooltip: 'Menú de opciones',
+                  color: state.isDarkMode
+                      ? AppColors.darkprimary
+                      : AppColors.lightprimary,
+                  iconSize: 32,
+                  position: PopupMenuPosition.under,
+                  elevation: 8,
+                  offset: const Offset(0, 15),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8.0),
+                  ),
                 // Maneja la selección de opciones del menú
                 onSelected: (value) async {
                   if (value == 'Whatsapp') {
@@ -218,6 +332,7 @@ class ChatbotHeader extends StatelessWidget implements PreferredSizeWidget {
                   ];
                 },
               ),
+            ),
             ),
           ],
         );

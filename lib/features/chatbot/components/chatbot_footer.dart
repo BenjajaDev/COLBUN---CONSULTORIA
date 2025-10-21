@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../bloc/theme_bloc.dart';
 import '../utils/app_colors.dart';
 
 // =============================================================================
@@ -63,16 +65,20 @@ class _ChatbotFooterState extends State<ChatbotFooter> {
   /// Construye la interfaz de usuario del pie de página del chat
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: widget.isDarkMode
-          ? AppColors.darkBackground
-          : AppColors.lightbackground,
-      padding: const EdgeInsets.all(16.0),
-      child: Row(
-        children: [
-          // Campo de texto expandido para escribir mensajes
-          Expanded(
-            child: Container(
+    return BlocBuilder<ThemeBloc, ThemeState>(
+      builder: (context, themeState) {
+        final fontMultiplier = themeState.fontSizeMultiplier;
+        
+        return Container(
+          color: widget.isDarkMode
+              ? AppColors.darkBackground
+              : AppColors.lightbackground,
+          padding: const EdgeInsets.all(16.0),
+          child: Row(
+            children: [
+              // Campo de texto expandido para escribir mensajes
+              Expanded(
+                child: Container(
               constraints: const BoxConstraints(
                 minHeight: 44,  // Altura mínima para el campo de texto
                 maxHeight: 120, // Altura máxima para el campo de texto
@@ -89,34 +95,40 @@ class _ChatbotFooterState extends State<ChatbotFooter> {
                 ),
               ),
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: TextField(
-                controller: _textController,
-                style: TextStyle(
-                  color: widget.isDarkMode ? Colors.white : Colors.black,
-                  fontFamily: 'Poppins',
-                  fontWeight: FontWeight.w400,
-                ),
-                maxLines: null, // Permite múltiples líneas,
-                minLines: 1,
-                keyboardType: TextInputType.multiline, // Teclado para múltiples líneas
-                textInputAction: TextInputAction.newline, // Acción de nueva línea
-                decoration: InputDecoration(
-                  hintText: 'Escribe un mensaje',
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(vertical: 8.0),
-                  isDense: true, //Compacta el campo de texto
-                  hintStyle: TextStyle(
-                    color: widget.isDarkMode
-                        ? Colors.grey[400]
-                        : const Color(0xFF828282),
+              child: Semantics(
+                label: 'Campo de mensaje',
+                hint: 'Escribe tu pregunta sobre servicios municipales de Colbún',
+                textField: true,
+                child: TextField(
+                  controller: _textController,
+                  style: TextStyle(
+                    color: widget.isDarkMode ? Colors.white : Colors.black,
                     fontFamily: 'Poppins',
                     fontWeight: FontWeight.w400,
-
-                    fontSize: 16,
+                    fontSize: 16 * fontMultiplier,
                   ),
+                  maxLines: null, // Permite múltiples líneas,
+                  minLines: 1,
+                  keyboardType: TextInputType.multiline, // Teclado para múltiples líneas
+                  textInputAction: TextInputAction.newline, // Acción de nueva línea
+                  decoration: InputDecoration(
+                    hintText: 'Escribe un mensaje',
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 8.0),
+                    isDense: true, //Compacta el campo de texto
+                    hintStyle: TextStyle(
+                      color: widget.isDarkMode
+                          ? Colors.grey[400]
+                          : const Color(0xFF828282),
+                      fontFamily: 'Poppins',
+                      fontWeight: FontWeight.w400,
+
+                      fontSize: 16 * fontMultiplier,
+                    ),
+                  ),
+                  // Envía el mensaje al presionar Enter/Submit en el teclado
+                  onSubmitted: (_) => _sendMessage(),
                 ),
-                // Envía el mensaje al presionar Enter/Submit en el teclado
-                onSubmitted: (_) => _sendMessage(),
               ),
             ),
           ),
@@ -135,19 +147,27 @@ class _ChatbotFooterState extends State<ChatbotFooter> {
                   
             ),
             // Botón de enviar mensaje
-            child: IconButton(
-              icon: Icon(
-                Icons.send,
-                color: widget.isDarkMode
-                    ? Colors.white
-                    : const Color(0XFF1d1b20),
+            child: Semantics(
+              label: 'Enviar mensaje',
+              hint: 'Toca dos veces para enviar tu mensaje',
+              button: true,
+              child: IconButton(
+                tooltip: 'Enviar mensaje',
+                icon: Icon(
+                  Icons.send,
+                  color: widget.isDarkMode
+                      ? Colors.white
+                      : const Color(0XFF1d1b20),
+                ),
+                iconSize: 32,
+                onPressed: _sendMessage,
               ),
-              iconSize: 32,
-              onPressed: _sendMessage,
             ),
           ),
-        ],
-      ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

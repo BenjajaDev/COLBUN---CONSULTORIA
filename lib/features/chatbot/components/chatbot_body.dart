@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../bloc/faq_bloc.dart';
+import '../bloc/theme_bloc.dart';
 import '../utils/app_colors.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -51,32 +52,36 @@ class ChatbotBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      color: isDarkMode ? AppColors.darkBackground : Colors.grey[50],
-      padding: const EdgeInsets.symmetric(
-          horizontal: 16.0), // quite padding vertical
-      child: ListView.builder(
-        controller: scrollController,
-        reverse: true,
-        itemCount: messages.length + (isTyping ? 1 : 0),
-        itemBuilder: (context, index) {
-          if (isTyping && index == 0) {
-            return _buildTypingIndicator().animate().fadeIn(duration: 300.ms);
-          }
+    return BlocBuilder<ThemeBloc, ThemeState>(
+      builder: (context, themeState) {
+        final fontMultiplier = themeState.fontSizeMultiplier;
+        
+        return Container(
+          width: double.infinity,
+          color: isDarkMode ? AppColors.darkBackground : Colors.grey[50],
+          padding: const EdgeInsets.symmetric(
+              horizontal: 16.0), // quite padding vertical
+          child: ListView.builder(
+            controller: scrollController,
+            reverse: true,
+            itemCount: messages.length + (isTyping ? 1 : 0),
+            itemBuilder: (context, index) {
+              if (isTyping && index == 0) {
+                return _buildTypingIndicator().animate().fadeIn(duration: 300.ms);
+              }
 
-          final messageIndex = isTyping ? index - 1 : index;
-          final reversedIndex = messages.length - 1 - messageIndex;
-          final message = messages[reversedIndex];
+              final messageIndex = isTyping ? index - 1 : index;
+              final reversedIndex = messages.length - 1 - messageIndex;
+              final message = messages[reversedIndex];
 
-          // Si el mensaje no es visible, muestra un widget vacío
-          if (!(message['visible'] as bool? ?? true)) {
-            return const SizedBox.shrink();
-          }
-          Widget messageWidget;
+              // Si el mensaje no es visible, muestra un widget vacío
+              if (!(message['visible'] as bool? ?? true)) {
+                return const SizedBox.shrink();
+              }
+              Widget messageWidget;
 
-          // 2. El switch ahora ASIGNA el widget a la variable, en lugar de retornarlo directamente.
-          switch (message['type']) {
+              // 2. El switch ahora ASIGNA el widget a la variable, en lugar de retornarlo directamente.
+              switch (message['type']) {
             case 'faq_options':
               final options =
               (message['options'] as List?)?.cast<String>() ?? const <String>[];
@@ -87,22 +92,25 @@ class ChatbotBody extends StatelessWidget {
           }
             break;
           default: // 'text' y 'feedback' (mensajes de texto normales)
-            messageWidget = _buildTextMessage(context, message);
+            messageWidget = _buildTextMessage(context, message, fontMultiplier);
             break;
         }
-          // 3. Aplicamos la animación al widget guardado y retornamos el resultado final.
-          if (index == 0) {
-            // Es el mensaje más reciente, ¡anímalo!
-            return messageWidget
-                .animate()
-                .fadeIn(duration: 500.ms)
-                .slideY(begin: 0.5, end: 0.0, curve: Curves.easeOutCubic);
-          } else {
-            // Es un mensaje antiguo, muéstralo sin animación.
-            return messageWidget;
-          }
-        },
-      ),
+
+              // 3. Aplicamos la animación al widget guardado y retornamos el resultado final.
+              if (index == 0) {
+                // Es el mensaje más reciente, ¡anímalo!
+                return messageWidget
+                    .animate()
+                    .fadeIn(duration: 500.ms)
+                    .slideY(begin: 0.5, end: 0.0, curve: Curves.easeOutCubic);
+              } else {
+                // Es un mensaje antiguo, muéstralo sin animación.
+                return messageWidget;
+              }
+            },
+          ),
+        );
+      },
     );
   }
 
@@ -149,7 +157,7 @@ class ChatbotBody extends StatelessWidget {
   }
 
 
-  Widget _buildTextMessage(BuildContext context, Map<String, dynamic> message) {
+  Widget _buildTextMessage(BuildContext context, Map<String, dynamic> message, double fontMultiplier) {
     final isUser = message['sender'] == 'user';
     final hasLink = message['link'] != null && message['link'].isNotEmpty;
 
@@ -183,15 +191,16 @@ class ChatbotBody extends StatelessWidget {
             children: [
               // Avatar del bot (solo para mensajes del bot)
               if (!isUser) ...[
-                CircleAvatar(
-                  radius: 16,
-                  backgroundColor: isDarkMode
-                      ? AppColors.darkprimary
-                      : AppColors.lightprimary,
-                  child: const Icon(
-                    Icons.smart_toy,
-                    color: Colors.white,
-                    size: 18,
+                Semantics(
+                  label: 'Avatar del asistente Colbún',
+                  image: true,
+                  excludeSemantics: true,
+                  child: CircleAvatar(
+                    radius: 20,
+                    backgroundColor: isDarkMode
+                        ? AppColors.darkprimary
+                        : AppColors.lightprimary,
+                    backgroundImage: const AssetImage('assets/images/Avatar.png'),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -199,7 +208,13 @@ class ChatbotBody extends StatelessWidget {
               // Contenedor principal del mensaje
               if (message['text'] != null && message['text'].isNotEmpty)
                 Flexible(
-                  child: Container(
+                  child: Semantics(
+                    label: isUser
+                        ? 'Tú dijiste: ${message['text']}'
+                        : 'Asistente Colbún respondió: ${message['text']}',
+                    readOnly: true,
+                    container: true,
+                    child: Container(
                       constraints: BoxConstraints(
                         maxWidth: MediaQuery.of(context).size.width * 0.7,
                       ),
@@ -229,8 +244,9 @@ class ChatbotBody extends StatelessWidget {
                         ],
                       ),
                       // Columna interna para apilar texto, links y botones
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      child: ExcludeSemantics(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           // 1. Texto del mensaje
                           Text(
@@ -241,7 +257,7 @@ class ChatbotBody extends StatelessWidget {
                                   : (isDarkMode
                                       ? Colors.white
                                       : Colors.black87),
-                              fontSize: 16,
+                              fontSize: 16 * fontMultiplier,
                               fontFamily: 'Poppins',
                               fontWeight: FontWeight.w400,
                             ),
@@ -288,7 +304,7 @@ class ChatbotBody extends StatelessWidget {
                                           color: isDarkMode
                                               ? const Color(0xFF5AA1E8)
                                               : const Color(0xFF1976D2),
-                                          fontSize: 16,
+                                          fontSize: 16 * fontMultiplier,
                                           fontFamily: 'Poppins',
                                           fontWeight: FontWeight.w600,
                                         ),
@@ -323,10 +339,10 @@ class ChatbotBody extends StatelessWidget {
                                           onShowFrequentlyAskedQuestions(),
                                       child: Text(
                                         faqText,// **TEXTO DINÁMICO**
-                                        style: const TextStyle(
-                                          color: Color(0xff4861DB),
+                                        style: TextStyle(
+                                          color: const Color(0xff4861DB),
                                           fontFamily: 'Poppins',
-                                          fontSize: 16,
+                                          fontSize: 16 * fontMultiplier,
                                           fontWeight: FontWeight.w600,
                                         ),
                                       ));
@@ -334,19 +350,27 @@ class ChatbotBody extends StatelessWidget {
                               ],
                             )
                         ],
-                      )),
+                      ),
+                    ),
+                  ),
                 ),
+              ),
 
               // Avatar del usuario (solo para mensajes del usuario)
               if (isUser) ...[
                 const SizedBox(width: 8),
-                const CircleAvatar(
-                  radius: 16,
-                  backgroundColor: Colors.grey,
-                  child: Icon(
-                    Icons.person,
-                    color: Colors.white,
-                    size: 18,
+                Semantics(
+                  label: 'Tu avatar',
+                  image: true,
+                  excludeSemantics: true,
+                  child: CircleAvatar(
+                    radius: 20,
+                    backgroundColor: Colors.grey,
+                    child: Icon(
+                      Icons.person,
+                      color: Colors.white,
+                      size: 24,
+                    ),
                   ),
                 ),
               ],
@@ -361,30 +385,40 @@ class ChatbotBody extends StatelessWidget {
             padding: const EdgeInsets.only(left:48.0, top: 4.0, bottom: 8.0),
             child: Row(
               children: [
-                ActionChip(
-                  avatar: const Icon(Icons.thumb_up_alt_outlined,
-                      size: 16, color: Colors.green),
-                  label: Text(yesText, // **TEXTO DINÁMICO**
-                      style: const TextStyle(
-                          color: Colors.green,
-                          fontFamily: 'Poppins',
-                          fontWeight: FontWeight.w600)),
-                  onPressed: () => onFeedback(messageId, true),
-                  backgroundColor: isDarkMode ? Colors.grey[800] : Colors.white,
-                  side: const BorderSide(color: Colors.green),
+                Semantics(
+                  label: 'Respuesta útil',
+                  hint: 'Toca dos veces para indicar que la respuesta fue útil',
+                  button: true,
+                  child: ActionChip(
+                    avatar: const Icon(Icons.thumb_up_alt_outlined,
+                        size: 16, color: Colors.green),
+                    label: Text(yesText, // **TEXTO DINÁMICO**
+                        style: const TextStyle(
+                            color: Colors.green,
+                            fontFamily: 'Poppins',
+                            fontWeight: FontWeight.w600)),
+                    onPressed: () => onFeedback(messageId, true),
+                    backgroundColor: isDarkMode ? Colors.grey[800] : Colors.white,
+                    side: const BorderSide(color: Colors.green),
+                  ),
                 ),
                 const SizedBox(width: 8),
-                ActionChip(
-                  avatar: const Icon(Icons.thumb_down_alt_outlined,
-                      size: 16, color: Colors.red),
-                  label: Text(noText, // **TEXTO DINÁMICO**
-                      style: const TextStyle(
-                          color: Colors.red,
-                          fontFamily: 'Poppins',
-                          fontWeight: FontWeight.w600)),
-                  onPressed: () => onFeedback(messageId, false),
-                  backgroundColor: isDarkMode ? Colors.grey[800] : Colors.white,
-                  side: const BorderSide(color: Colors.red),
+                Semantics(
+                  label: 'Respuesta no útil',
+                  hint: 'Toca dos veces para indicar que la respuesta no fue útil',
+                  button: true,
+                  child: ActionChip(
+                    avatar: const Icon(Icons.thumb_down_alt_outlined,
+                        size: 16, color: Colors.red),
+                    label: Text(noText, // **TEXTO DINÁMICO**
+                        style: const TextStyle(
+                            color: Colors.red,
+                            fontFamily: 'Poppins',
+                            fontWeight: FontWeight.w600)),
+                    onPressed: () => onFeedback(messageId, false),
+                    backgroundColor: isDarkMode ? Colors.grey[800] : Colors.white,
+                    side: const BorderSide(color: Colors.red),
+                  ),
                 ),
               ],
             ),
@@ -407,21 +441,27 @@ class ChatbotBody extends StatelessWidget {
   }
 
   Widget _buildTypingIndicator() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.start,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const CircleAvatar(
-            radius: 16,
-            backgroundColor: AppColors.lightprimary,
-            child: Icon(Icons.smart_toy, color: Colors.white, size: 18),
-          ),
-          const SizedBox(width: 8),
+    return Semantics(
+      label: 'El asistente está escribiendo',
+      liveRegion: true,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8.0),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ExcludeSemantics(
+              child: CircleAvatar(
+                radius: 20,
+                backgroundColor: AppColors.lightprimary,
+                backgroundImage: AssetImage('assets/images/Avatar.png'),
+              ),
+            ),
+            const SizedBox(width: 8),
 
-          // Contenedor con los puntos de animación
-          Container(
+            // Contenedor con los puntos de animación
+            ExcludeSemantics(
+              child: Container(
             padding: const EdgeInsets.symmetric(
               horizontal: 16.0,
               vertical: 12.0,
@@ -459,7 +499,9 @@ class ChatbotBody extends StatelessWidget {
               },
             ),
           ),
-        ],
+            ),
+          ],
+        ),
       ),
     );
   }
