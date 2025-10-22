@@ -1,10 +1,18 @@
+// ===========================================================================
+// IMPORTACIONES
+// ===========================================================================
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:consultoria_chat_bot/features/auth/bloc/auth_bloc.dart';
 import 'package:consultoria_chat_bot/features/auth/bloc/auth_event.dart';
 
+// ===========================================================================
+// FORMULARIO DE INICIO DE SESION
+// ===========================================================================
+/// Widget que presenta el formulario de inicio de sesion con email y password
+/// Incluye validacion de campos y toggle de visibilidad de password
 class LoginForm extends StatefulWidget {
-  final VoidCallback onRegisterToggle;
+  final VoidCallback onRegisterToggle; // Callback para cambiar a registro
   
   const LoginForm({Key? key, required this.onRegisterToggle}) : super(key: key);
 
@@ -13,18 +21,29 @@ class LoginForm extends StatefulWidget {
 }
 
 class _LoginFormState extends State<LoginForm> {
+  // ===========================================================================
+  // CONTROLADORES Y ESTADO
+  // ===========================================================================
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  bool _isPasswordVisible = false;
+  bool _isPasswordVisible = false; // Controla si la password es visible
 
+  // ===========================================================================
+  // CICLO DE VIDA
+  // ===========================================================================
   @override
   void dispose() {
+    // Liberar recursos de los controladores
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
+  // ===========================================================================
+  // METODOS DE VALIDACION Y ENVIO
+  // ===========================================================================
+  /// Valida el formulario y envia el evento de inicio de sesion
   void _submitForm() {
     if (_formKey.currentState?.validate() ?? false) {
       context.read<AuthBloc>().add(
@@ -36,6 +55,9 @@ class _LoginFormState extends State<LoginForm> {
     }
   }
 
+  // ===========================================================================
+  // BUILD
+  // ===========================================================================
   @override
   Widget build(BuildContext context) {
     return Form(
@@ -43,39 +65,45 @@ class _LoginFormState extends State<LoginForm> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          // Titulo del formulario
           Text(
-            'Iniciar Sesión',
+            'Iniciar Sesion',
             style: Theme.of(context).textTheme.headlineMedium?.copyWith(
               fontWeight: FontWeight.bold,
             ),
           ),
           const SizedBox(height: 24),
+          
+          // Campo de email con validacion
           TextFormField(
             controller: _emailController,
             keyboardType: TextInputType.emailAddress,
             decoration: const InputDecoration(
-              labelText: 'Correo electrónico',
+              labelText: 'Correo electronico',
               hintText: 'ejemplo@correo.com',
               prefixIcon: Icon(Icons.email),
               border: OutlineInputBorder(),
             ),
             validator: (value) {
               if (value == null || value.isEmpty) {
-                return 'Por favor ingresa tu correo electrónico';
+                return 'Por favor ingresa tu correo electronico';
               }
+              // Validar formato de email con expresion regular
               if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
-                return 'Ingresa un correo electrónico válido';
+                return 'Ingresa un correo electronico valido';
               }
               return null;
             },
           ),
           const SizedBox(height: 16),
+          
+          // Campo de password con toggle de visibilidad
           TextFormField(
             controller: _passwordController,
             obscureText: !_isPasswordVisible,
             decoration: InputDecoration(
-              labelText: 'Contraseña',
-              hintText: 'Ingresa tu contraseña',
+              labelText: 'Contrasena',
+              hintText: 'Ingresa tu contrasena',
               prefixIcon: const Icon(Icons.lock),
               suffixIcon: IconButton(
                 icon: Icon(
@@ -91,12 +119,14 @@ class _LoginFormState extends State<LoginForm> {
             ),
             validator: (value) {
               if (value == null || value.isEmpty) {
-                return 'Por favor ingresa tu contraseña';
+                return 'Por favor ingresa tu contrasena';
               }
               return null;
             },
           ),
           const SizedBox(height: 24),
+          
+          // Boton de envio
           ElevatedButton(
             onPressed: _submitForm,
             style: ElevatedButton.styleFrom(
@@ -108,9 +138,11 @@ class _LoginFormState extends State<LoginForm> {
             child: const Text('Ingresar'),
           ),
           const SizedBox(height: 16),
+          
+          // Boton para cambiar a registro
           TextButton(
             onPressed: widget.onRegisterToggle,
-            child: const Text('¿No tienes cuenta? Regístrate'),
+            child: const Text('¿No tienes cuenta? Registrate'),
           ),
         ],
       ),

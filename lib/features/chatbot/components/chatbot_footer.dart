@@ -1,21 +1,26 @@
+// ===========================================================================
+// IMPORTACIONES
+// ===========================================================================
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../bloc/theme_bloc.dart';
 import '../utils/app_colors.dart';
 
-// =============================================================================
+// ===========================================================================
 // COMPONENTE CHATBOT FOOTER
-// =============================================================================
-
-/// Componente que representa el pie de página del chat, conteniendo el campo
-/// de entrada de texto y el botón para enviar mensajes.
+// ===========================================================================
+/// Componente que representa el pie de pagina del chat, conteniendo el campo
+/// de entrada de texto y el boton para enviar mensajes
 class ChatbotFooter extends StatefulWidget {
-  // ============================ PROPIEDADES ==================================
-  
-  final bool isDarkMode;
-  final Function(String) onSendMessage;
+  // ===========================================================================
+  // PROPIEDADES
+  // ===========================================================================
+  final bool isDarkMode;                  // Indica si el tema oscuro esta activo
+  final Function(String) onSendMessage;   // Callback para enviar mensajes
 
-  /// Constructor del componente ChatbotFooter
+  // ===========================================================================
+  // CONSTRUCTOR
+  // ===========================================================================
   const ChatbotFooter({
     super.key,
     required this.isDarkMode,
@@ -26,24 +31,25 @@ class ChatbotFooter extends StatefulWidget {
   State<ChatbotFooter> createState() => _ChatbotFooterState();
 }
 
-// =============================================================================
+// ===========================================================================
 // ESTADO DEL COMPONENTE CHATBOT FOOTER
-// =============================================================================
-
-/// Estado que gestiona la lógica y los datos del componente ChatbotFooter
+// ===========================================================================
+/// Estado que gestiona la logica y los datos del componente ChatbotFooter
 class _ChatbotFooterState extends State<ChatbotFooter> {
-  // ============================ CONTROLADORES ================================
-  
+  // ===========================================================================
+  // CONTROLADORES
+  // ===========================================================================
   /// Controlador para el campo de texto de entrada de mensajes
   final TextEditingController _textController = TextEditingController();
 
-  // ============================ MÉTODOS DE GESTIÓN ===========================
-
-  /// Envía el mensaje escrito por el usuario y limpia el campo de texto
+  // ===========================================================================
+  // METODOS DE GESTION
+  // ===========================================================================
+  /// Envia el mensaje escrito por el usuario y limpia el campo de texto
   void _sendMessage() {
     final messageText = _textController.text.trim();
     
-    // Solo envía el mensaje si no está vacío
+    // Solo envia el mensaje si no esta vacio
     if (messageText.isNotEmpty) {
       widget.onSendMessage(messageText);
       _textController.clear();
@@ -51,8 +57,9 @@ class _ChatbotFooterState extends State<ChatbotFooter> {
     }
   }
 
-  // ============================ MÉTODOS DE CICLO DE VIDA =====================
-
+  // ===========================================================================
+  // METODOS DE CICLO DE VIDA
+  // ===========================================================================
   /// Se ejecuta cuando el widget es eliminado, liberando recursos
   @override
   void dispose() {
@@ -60,9 +67,10 @@ class _ChatbotFooterState extends State<ChatbotFooter> {
     super.dispose();
   }
 
-  // ============================ CONSTRUCCIÓN DE LA UI ========================
-
-  /// Construye la interfaz de usuario del pie de página del chat
+  // ===========================================================================
+  // BUILD - CONSTRUCCION DE LA UI
+  // ===========================================================================
+  /// Construye la interfaz de usuario del pie de pagina del chat
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<ThemeBloc, ThemeState>(
@@ -80,8 +88,8 @@ class _ChatbotFooterState extends State<ChatbotFooter> {
               Expanded(
                 child: Container(
               constraints: const BoxConstraints(
-                minHeight: 44,  // Altura mínima para el campo de texto
-                maxHeight: 120, // Altura máxima para el campo de texto
+                minHeight: 44,  // Altura minima para el campo de texto
+                maxHeight: 120, // Altura maxima para el campo de texto
               ),
               decoration: BoxDecoration(
                 color: widget.isDarkMode
@@ -97,7 +105,7 @@ class _ChatbotFooterState extends State<ChatbotFooter> {
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Semantics(
                 label: 'Campo de mensaje',
-                hint: 'Escribe tu pregunta sobre servicios municipales de Colbún',
+                hint: 'Escribe tu pregunta sobre servicios municipales de Colbun',
                 textField: true,
                 child: TextField(
                   controller: _textController,
@@ -107,36 +115,35 @@ class _ChatbotFooterState extends State<ChatbotFooter> {
                     fontWeight: FontWeight.w400,
                     fontSize: 16 * fontMultiplier,
                   ),
-                  maxLines: null, // Permite múltiples líneas,
+                  maxLines: null, // Permite multiples lineas
                   minLines: 1,
-                  keyboardType: TextInputType.multiline, // Teclado para múltiples líneas
-                  textInputAction: TextInputAction.newline, // Acción de nueva línea
+                  keyboardType: TextInputType.multiline, // Teclado para multiples lineas
+                  textInputAction: TextInputAction.newline, // Accion de nueva linea
                   decoration: InputDecoration(
                     hintText: 'Escribe un mensaje',
                     border: InputBorder.none,
                     contentPadding: const EdgeInsets.symmetric(vertical: 8.0),
-                    isDense: true, //Compacta el campo de texto
+                    isDense: true, // Compacta el campo de texto
                     hintStyle: TextStyle(
                       color: widget.isDarkMode
                           ? Colors.grey[400]
                           : const Color(0xFF828282),
                       fontFamily: 'Poppins',
                       fontWeight: FontWeight.w400,
-
                       fontSize: 16 * fontMultiplier,
                     ),
                   ),
-                  // Envía el mensaje al presionar Enter/Submit en el teclado
+                  // Envia el mensaje al presionar Enter/Submit en el teclado
                   onSubmitted: (_) => _sendMessage(),
                 ),
               ),
             ),
           ),
           
-          // Espaciado entre el campo de texto y el botón de enviar
+          // Espaciado entre el campo de texto y el boton de enviar
           const SizedBox(width: 12.0),
           
-          // Contenedor del botón de enviar
+          // Contenedor del boton de enviar
           Container(
             width: 44,
             height: 44,
@@ -144,9 +151,8 @@ class _ChatbotFooterState extends State<ChatbotFooter> {
               color: widget.isDarkMode
                   ? AppColors.darkBackground
                   : AppColors.lightbackground
-                  
             ),
-            // Botón de enviar mensaje
+            // Boton de enviar mensaje
             child: Semantics(
               label: 'Enviar mensaje',
               hint: 'Toca dos veces para enviar tu mensaje',

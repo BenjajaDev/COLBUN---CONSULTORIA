@@ -1,3 +1,6 @@
+// ===========================================================================
+// IMPORTACIONES
+// ===========================================================================
 import 'package:consultoria_chat_bot/features/auth/screen/auth_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -13,8 +16,12 @@ import 'package:consultoria_chat_bot/features/chatbot/bloc/theme_bloc.dart';
 import 'package:consultoria_chat_bot/features/chatbot/bloc/faq_bloc.dart';
 import 'firebase_options.dart';
 
+// ===========================================================================
+// PUNTO DE ENTRADA PRINCIPAL DE LA APLICACION
+// ===========================================================================
+/// Funcion principal que inicializa Firebase, servicios globales y ejecuta la app
 void main() async {
-  // Asegura que todos los bindings de Flutter estén inicializados
+  // Asegura que todos los bindings de Flutter esten inicializados
   WidgetsFlutterBinding.ensureInitialized();
 
   // Carga las variables de entorno desde el archivo .env
@@ -25,16 +32,19 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // --- INICIALIZACIÓN DE SERVICIOS ---
+  // ===========================================================================
+  // INICIALIZACION DE SERVICIOS GLOBALES
+  // ===========================================================================
   final faqService = FaqService();
   final openAIService = OpenAIService();
   final authService = AuthService();
 
-  // Carga las FAQs y calcula los puntajes de búsqueda al iniciar la app.
+  // Carga las FAQs y calcula los puntajes de busqueda al iniciar la app
   await faqService.loadFaqsAndCalculateScores();
 
+  // Ejecuta la aplicacion con los servicios provistos globalmente
   runApp(
-    // Provee los servicios a toda la aplicación para que sean accesibles.
+    // Provee los servicios a toda la aplicacion para que sean accesibles
     MultiRepositoryProvider(
       providers: [
         RepositoryProvider.value(value: faqService),
@@ -46,28 +56,35 @@ void main() async {
   );
 }
 
+// ===========================================================================
+// WIDGET PRINCIPAL DE LA APLICACION
+// ===========================================================================
+/// Widget raiz que configura el tema, rutas y autenticacion
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // MultiBlocProvider sigue siendo la raíz para los Blocs
+    // MultiBlocProvider provee los BLoCs a toda la aplicacion
     return MultiBlocProvider(
       providers: [
+        // BLoC para gestion de tema (modo claro/oscuro)
         BlocProvider(create: (context) => ThemeBloc()),
+        // BLoC para gestion de FAQs
         BlocProvider(create: (context) => FaqBloc()),
+        // BLoC para gestion de autenticacion
         BlocProvider(
           create: (context) => AuthBloc(
             authService: context.read<AuthService>(),
           ),
-          // NOTA: Ya no disparamos CheckAuthStatus aquí.
-          // El StreamBuilder se encargará de la lógica inicial.
+          // NOTA: No disparamos CheckAuthStatus aqui
+          // El StreamBuilder se encargara de la logica inicial
         ),
       ],
       child: BlocBuilder<ThemeBloc, ThemeState>(
         builder: (context, themeState) {
           return MaterialApp(
-            title: 'Asistente Colbún',
+            title: 'Asistente Colbun',
             theme: ThemeData(
               colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
               fontFamily: 'Poppins',
@@ -76,30 +93,33 @@ class MyApp extends StatelessWidget {
             darkTheme: ThemeData.dark(),
             themeMode: themeState.isDarkMode ? ThemeMode.dark : ThemeMode.light,
             debugShowCheckedModeBanner: false,
-            // Usamos un StreamBuilder para decidir qué pantalla mostrar
+            
+            // ===========================================================================
+            // MANEJO DE AUTENTICACION CON STREAMBUILDER
+            // ===========================================================================
+            // Usamos un StreamBuilder para decidir que pantalla mostrar
             home: StreamBuilder(
-              // Escuchamos el stream que nos dice si el usuario está logueado
+              // Escuchamos el stream que nos dice si el usuario esta logueado
               stream: context.read<AuthService>().authStateChanges,
               builder: (context, snapshot) {
-                // MIENTRAS ESPERA: Muestra un indicador de carga.
-                // Esto es crucial en el segundo arranque.
+                // MIENTRAS ESPERA: Muestra un indicador de carga
+                // Esto es crucial en el segundo arranque
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Scaffold(
                     body: Center(child: CircularProgressIndicator()),
                   );
                 }
 
-                // SI HAY UN USUARIO: El usuario está logueado.
+                // SI HAY UN USUARIO: El usuario esta logueado
                 if (snapshot.hasData) {
                   // Disparamos el evento para que el AuthBloc sepa del usuario
                   context.read<AuthBloc>().add(AuthUserChanged(snapshot.data));
                   return const HomeScreen();
                 }
 
-                // SI NO HAY USUARIO: Nadie está logueado.
-                // Aquí deberías mostrar tu pantalla de Login.
-                // Por ahora, usamos un placeholder.
-                return const AuthScreen(); // ¡Asegúrate de tener esta pantalla!
+                // SI NO HAY USUARIO: Nadie esta logueado
+                // Mostramos la pantalla de autenticacion
+                return const AuthScreen();
               },
             ),
           );

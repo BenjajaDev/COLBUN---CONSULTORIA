@@ -1,5 +1,15 @@
+// ===========================================================================
+// CLASE DE CADENAS DE TEXTO MULTIIDIOMA
+// ===========================================================================
+/// Clase que maneja las cadenas de texto de la aplicacion en multiples idiomas
+/// Soporta espanol (es), ingles (en) y portugues (pt)
 class ChatbotStrings {
-  static const String _defaultLanguage = 'es';
+  // ===========================================================================
+  // CONFIGURACION DE IDIOMA
+  // ===========================================================================
+  static const String _defaultLanguage = 'es'; // Idioma por defecto: espanol
+  
+  /// Normaliza el codigo de idioma a valores validos (es, en, pt)
   static String _normalizeLanguage(String? language) {
     switch (language?.toLowerCase()) {
       case 'en':
@@ -12,6 +22,10 @@ class ChatbotStrings {
     }
   }
 
+  // ===========================================================================
+  // DICCIONARIO DE CADENAS MULTIIDIOMA
+  // ===========================================================================
+  /// Mapa de cadenas de texto organizadas por clave y idioma
   static const Map<String, Map<String, String>> _strings = {
     'welcome.message': {
       'es': '¡Hola! Soy el asistente virtual de Colbún. ¿En qué puedo ayudarte?',
@@ -105,12 +119,22 @@ class ChatbotStrings {
     }
   };
 
+  // ===========================================================================
+  // METODO DE OBTENCION DE CADENAS
+  // ===========================================================================
+  /// Obtiene una cadena de texto segun la clave y el idioma especificado
+  /// Soporta parametros de reemplazo en formato {nombreParametro}
+  /// Retorna la cadena en el idioma solicitado o en espanol si no existe
   static String get(String key, String? language, {Map<String, String>? params}) {
     final lang = _normalizeLanguage(language);
     final value = _strings[key]?[lang] ?? _strings[key]?[_defaultLanguage] ?? '';
+    
+    // Si no hay parametros, retornar el valor directamente
     if (params == null || params.isEmpty) {
       return value;
     }
+    
+    // Reemplazar todos los parametros en la cadena
     return params.entries.fold<String>(
       value,
       (current, entry) => current.replaceAll('{${entry.key}}', entry.value),

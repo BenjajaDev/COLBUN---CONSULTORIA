@@ -1,3 +1,6 @@
+// ===========================================================================
+// IMPORTACIONES
+// ===========================================================================
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -7,20 +10,32 @@ import '../utils/app_colors.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
+// ===========================================================================
+// COMPONENTE CHATBOT BODY
+// ===========================================================================
+/// Componente principal que muestra el cuerpo del chat
+/// Renderiza la lista de mensajes, indicador de escritura y opciones de FAQ
+/// Soporta diferentes tipos de mensajes (texto, emergencia, FAQ)
 class ChatbotBody extends StatelessWidget {
-  final bool isDarkMode;
-  final List<Map<String, dynamic>> messages;
-  final ScrollController scrollController;
-  final bool isTyping;
-  final Animation<double> typingAnimation;
-  final Function(String, bool) onFeedback;
-  final Function(String) onSendMessage;
-  final VoidCallback onShowFrequentlyAskedQuestions;
-  final Function(String) onFaqSelected;
-  final List<Map<String, dynamic>> emergencyContacts;
-  final Function(String) onEmergencyCall;
-  final VoidCallback onCloseEmergency;
+  // ===========================================================================
+  // PROPIEDADES
+  // ===========================================================================
+  final bool isDarkMode;                                   // Estado del tema (claro/oscuro)
+  final List<Map<String, dynamic>> messages;               // Lista de mensajes del chat
+  final ScrollController scrollController;                 // Controlador de scroll
+  final bool isTyping;                                     // Indica si el bot esta escribiendo
+  final Animation<double> typingAnimation;                 // Animacion del indicador de escritura
+  final Function(String, bool) onFeedback;                // Callback para feedback de mensajes
+  final Function(String) onSendMessage;                   // Callback para enviar mensaje
+  final VoidCallback onShowFrequentlyAskedQuestions;      // Callback para mostrar FAQs
+  final Function(String) onFaqSelected;                   // Callback cuando se selecciona una FAQ
+  final List<Map<String, dynamic>> emergencyContacts;     // Lista de contactos de emergencia
+  final Function(String) onEmergencyCall;                 // Callback para llamada de emergencia
+  final VoidCallback onCloseEmergency;                    // Callback para cerrar emergencia
 
+  // ===========================================================================
+  // CONSTRUCTOR
+  // ===========================================================================
   const ChatbotBody({
     super.key,
     required this.isDarkMode,
@@ -37,7 +52,11 @@ class ChatbotBody extends StatelessWidget {
     required this.onCloseEmergency,
   });
 
-// Método para abrir URLs
+  // ===========================================================================
+  // METODOS AUXILIARES
+  // ===========================================================================
+  /// Abre una URL en el navegador externo
+  /// Muestra un mensaje de error si no se puede abrir el enlace
   void _launchUrl(String url, BuildContext context) async {
     final Uri uri = Uri.parse(url);
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
@@ -49,7 +68,9 @@ class ChatbotBody extends StatelessWidget {
     }
   }
 
-
+  // ===========================================================================
+  // BUILD
+  // ===========================================================================
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<ThemeBloc, ThemeState>(
@@ -59,30 +80,34 @@ class ChatbotBody extends StatelessWidget {
         return Container(
           width: double.infinity,
           color: isDarkMode ? AppColors.darkBackground : Colors.grey[50],
-          padding: const EdgeInsets.symmetric(
-              horizontal: 16.0), // quite padding vertical
+          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+          // ListView invertido para mostrar mensajes mas recientes abajo
           child: ListView.builder(
             controller: scrollController,
-            reverse: true,
+            reverse: true, // Invertir lista para scroll natural de chat
             itemCount: messages.length + (isTyping ? 1 : 0),
             itemBuilder: (context, index) {
+              // Mostrar indicador de escritura como primer elemento
               if (isTyping && index == 0) {
                 return _buildTypingIndicator().animate().fadeIn(duration: 300.ms);
               }
 
+              // Calcular indices correctos por la lista invertida
               final messageIndex = isTyping ? index - 1 : index;
               final reversedIndex = messages.length - 1 - messageIndex;
               final message = messages[reversedIndex];
 
-              // Si el mensaje no es visible, muestra un widget vacío
+              // Ocultar mensajes marcados como no visibles
               if (!(message['visible'] as bool? ?? true)) {
                 return const SizedBox.shrink();
               }
+              
               Widget messageWidget;
 
-              // 2. El switch ahora ASIGNA el widget a la variable, en lugar de retornarlo directamente.
+              // Determinar tipo de mensaje y construir widget correspondiente
               switch (message['type']) {
             case 'faq_options':
+              // Mensaje con opciones de preguntas frecuentes
               final options =
               (message['options'] as List?)?.cast<String>() ?? const <String>[];
           if (options.isEmpty) {
@@ -91,20 +116,20 @@ class ChatbotBody extends StatelessWidget {
             messageWidget = _buildFaqOptions(context, options);
           }
             break;
-          default: // 'text' y 'feedback' (mensajes de texto normales)
+          default: // Mensajes de texto normales (texto, feedback, etc)
             messageWidget = _buildTextMessage(context, message, fontMultiplier);
             break;
         }
 
-              // 3. Aplicamos la animación al widget guardado y retornamos el resultado final.
+              // Aplicar animacion de entrada al mensaje mas reciente
               if (index == 0) {
-                // Es el mensaje más reciente, ¡anímalo!
+                // Es el mensaje mas reciente, animarlo
                 return messageWidget
                     .animate()
                     .fadeIn(duration: 500.ms)
                     .slideY(begin: 0.5, end: 0.0, curve: Curves.easeOutCubic);
               } else {
-                // Es un mensaje antiguo, muéstralo sin animación.
+                // Es un mensaje antiguo, mostrarlo sin animacion
                 return messageWidget;
               }
             },
@@ -114,6 +139,10 @@ class ChatbotBody extends StatelessWidget {
     );
   }
 
+  // ===========================================================================
+  // CONSTRUCCION DE OPCIONES FAQ
+  // ===========================================================================
+  /// Construye la lista de botones con opciones de preguntas frecuentes
   Widget _buildFaqOptions(BuildContext context, List<String> options) {
     return Padding(
       padding: const EdgeInsets.only(top: 8, bottom: 8, left: 48),
@@ -124,7 +153,7 @@ class ChatbotBody extends StatelessWidget {
             margin: const EdgeInsets.symmetric(vertical: 4.0),
             child: ElevatedButton(
               onPressed: () {
-                onFaqSelected(option);
+                onFaqSelected(option); // Enviar pregunta seleccionada
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor:
@@ -156,22 +185,26 @@ class ChatbotBody extends StatelessWidget {
     );
   }
 
-
+  // ===========================================================================
+  // CONSTRUCCION DE MENSAJE DE TEXTO
+  // ===========================================================================
+  /// Construye una burbuja de mensaje de texto con avatar, link y feedback
+  /// Maneja mensajes del usuario y del bot con estilos diferentes
   Widget _buildTextMessage(BuildContext context, Map<String, dynamic> message, double fontMultiplier) {
     final isUser = message['sender'] == 'user';
     final hasLink = message['link'] != null && message['link'].isNotEmpty;
 
-    //Obtener el idioma del mensaje para textos dinámicos**
+    // Obtener el idioma del mensaje para textos dinamicos
     final messageLanguage = message['language'] ?? 'es';
     final sourceText = messageLanguage == 'en' ? 'Source' : messageLanguage == 'pt' ?
     'Fonte' : 'Fuente';
 
-    // Lógica para el feedback
+    // Logica para el feedback
     final bool shouldShowFeedback =
         message['extras']?['showFeedback'] as bool? ?? false;
     final String? messageId = message['id'];
 
-    //Textos dinámicos para feedback según idioma**
+    // Textos dinamicos para feedback segun idioma
     final yesText = messageLanguage == 'en' ? 'Yes, helpful' : messageLanguage == 'pt' ? 'Sim, útil' : 'Sí, fue útil';
     final noText = messageLanguage == 'en' ? 'No, Not helpful' : messageLanguage == 'pt' ? 'Não, não foi útil' : 'No, no fue útil';
     final thankYouText = messageLanguage == 'en' ? 'Thank you for your feedback!' : messageLanguage == 'pt' ? 'Obrigado pelo seu feedback!' : '¡Gracias por tu feedback!';
@@ -192,7 +225,7 @@ class ChatbotBody extends StatelessWidget {
               // Avatar del bot (solo para mensajes del bot)
               if (!isUser) ...[
                 Semantics(
-                  label: 'Avatar del asistente Colbún',
+                  label: 'Avatar del asistente Colbun',
                   image: true,
                   excludeSemantics: true,
                   child: CircleAvatar(
@@ -205,13 +238,13 @@ class ChatbotBody extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
               ],
-              // Contenedor principal del mensaje
+              // Contenedor principal del mensaje con texto, links y botones
               if (message['text'] != null && message['text'].isNotEmpty)
                 Flexible(
                   child: Semantics(
                     label: isUser
-                        ? 'Tú dijiste: ${message['text']}'
-                        : 'Asistente Colbún respondió: ${message['text']}',
+                        ? 'Tu dijiste: ${message['text']}'
+                        : 'Asistente Colbun respondio: ${message['text']}',
                     readOnly: true,
                     container: true,
                     child: Container(
@@ -248,7 +281,7 @@ class ChatbotBody extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // 1. Texto del mensaje
+                          // Texto del mensaje
                           Text(
                             message['text'] ?? '',
                             style: TextStyle(
@@ -262,7 +295,7 @@ class ChatbotBody extends StatelessWidget {
                               fontWeight: FontWeight.w400,
                             ),
                           ),
-                          // 2. LÓGICA DEL LINK dinamicos listos
+                          // Link de fuente (si existe)
                           if (hasLink) ...[
                             const SizedBox(height: 8),
                             GestureDetector(
@@ -363,7 +396,7 @@ class ChatbotBody extends StatelessWidget {
                   label: 'Tu avatar',
                   image: true,
                   excludeSemantics: true,
-                  child: CircleAvatar(
+                  child: const CircleAvatar(
                     radius: 20,
                     backgroundColor: Colors.grey,
                     child: Icon(
@@ -378,21 +411,22 @@ class ChatbotBody extends StatelessWidget {
           ),
         ),
 
-        // 4. LÓGICA DE LOS BOTONES DE FEEDBACK idioma dinamico listo
+        // Botones de feedback (solo para mensajes del bot que lo requieren)
         if (shouldShowFeedback && messageId != null)
-          // Opción 1: Muestra los botones si se debe pedir feedback
+          // Opcion 1: Muestra los botones si se debe pedir feedback
           Padding(
             padding: const EdgeInsets.only(left:48.0, top: 4.0, bottom: 8.0),
             child: Row(
               children: [
+                // Boton de feedback positivo
                 Semantics(
-                  label: 'Respuesta útil',
-                  hint: 'Toca dos veces para indicar que la respuesta fue útil',
+                  label: 'Respuesta util',
+                  hint: 'Toca dos veces para indicar que la respuesta fue util',
                   button: true,
                   child: ActionChip(
                     avatar: const Icon(Icons.thumb_up_alt_outlined,
                         size: 16, color: Colors.green),
-                    label: Text(yesText, // **TEXTO DINÁMICO**
+                    label: Text(yesText, // Texto dinamico segun idioma
                         style: const TextStyle(
                             color: Colors.green,
                             fontFamily: 'Poppins',
@@ -403,14 +437,15 @@ class ChatbotBody extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
+                // Boton de feedback negativo
                 Semantics(
-                  label: 'Respuesta no útil',
-                  hint: 'Toca dos veces para indicar que la respuesta no fue útil',
+                  label: 'Respuesta no util',
+                  hint: 'Toca dos veces para indicar que la respuesta no fue util',
                   button: true,
                   child: ActionChip(
                     avatar: const Icon(Icons.thumb_down_alt_outlined,
                         size: 16, color: Colors.red),
-                    label: Text(noText, // **TEXTO DINÁMICO**
+                    label: Text(noText, // Texto dinamico segun idioma
                         style: const TextStyle(
                             color: Colors.red,
                             fontFamily: 'Poppins',
@@ -424,11 +459,11 @@ class ChatbotBody extends StatelessWidget {
             ),
           )
         else if (message['extras']?['feedbackMessage'] != null)
-          // Opción 2: Muestra el mensaje de agradecimiento si ya se dio feedback
+          // Opcion 2: Muestra el mensaje de agradecimiento si ya se dio feedback
           Padding(
             padding: const EdgeInsets.only(left: 56.0, top: 8.0, bottom: 8.0),
             child: Text(
-              thankYouText, // **TEXTO DINÁMICO**
+              thankYouText, // Texto dinamico segun idioma
               style: TextStyle(
                 color: isDarkMode ? Colors.green[300] : Colors.green[700],
                 fontFamily: 'Poppins',
@@ -440,9 +475,13 @@ class ChatbotBody extends StatelessWidget {
     );
   }
 
+  // ===========================================================================
+  // INDICADOR DE ESCRITURA
+  // ===========================================================================
+  /// Construye el indicador animado que muestra que el bot esta escribiendo
   Widget _buildTypingIndicator() {
     return Semantics(
-      label: 'El asistente está escribiendo',
+      label: 'El asistente esta escribiendo',
       liveRegion: true,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -450,7 +489,8 @@ class ChatbotBody extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.start,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ExcludeSemantics(
+            // Avatar del bot
+            const ExcludeSemantics(
               child: CircleAvatar(
                 radius: 20,
                 backgroundColor: AppColors.lightprimary,
@@ -459,7 +499,7 @@ class ChatbotBody extends StatelessWidget {
             ),
             const SizedBox(width: 8),
 
-            // Contenedor con los puntos de animación
+            // Contenedor con los puntos de animacion
             ExcludeSemantics(
               child: Container(
             padding: const EdgeInsets.symmetric(
@@ -483,17 +523,18 @@ class ChatbotBody extends StatelessWidget {
                 ),
               ],
             ),
+            // AnimatedBuilder para animar los puntos
             child: AnimatedBuilder(
               animation: typingAnimation,
               builder: (context, child) {
                 return Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    _buildTypingDot(0),
+                    _buildTypingDot(0), // Primer punto
                     const SizedBox(width: 4),
-                    _buildTypingDot(1),
+                    _buildTypingDot(1), // Segundo punto
                     const SizedBox(width: 4),
-                    _buildTypingDot(2),
+                    _buildTypingDot(2), // Tercer punto
                   ],
                 );
               },
@@ -506,12 +547,17 @@ class ChatbotBody extends StatelessWidget {
     );
   }
 
+  // ===========================================================================
+  // PUNTO ANIMADO DEL INDICADOR DE ESCRITURA
+  // ===========================================================================
+  /// Construye un punto individual del indicador de escritura con animacion
+  /// Cada punto tiene un retraso diferente para crear efecto de onda
   Widget _buildTypingDot(int index) {
-    // Calcula el retraso y valor de animación para cada punto
+    // Calcular el retraso y valor de animacion para cada punto
     double delay = index * 0.2;
     double animationValue = (typingAnimation.value - delay).clamp(0.0, 1.0);
 
-    // Calcula la escala basada en una función coseno para efecto de rebote
+    // Calcular la escala basada en una funcion coseno para efecto de rebote
     double scale =
         0.5 + (0.5 * (1 + math.cos(animationValue * 2 * math.pi)) / 2);
 

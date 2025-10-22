@@ -1,45 +1,49 @@
+// ===========================================================================
+// IMPORTACIONES
+// ===========================================================================
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../bloc/theme_bloc.dart';
 import '../utils/app_colors.dart';
 
-// =============================================================================
+// ===========================================================================
 // COMPONENTE CHATBOT HEADER
-// =============================================================================
-
-/// Componente que representa la barra de aplicación (AppBar) personalizada
-/// del chatbot, incluyendo el título, interruptor de tema y menú de opciones.
+// ===========================================================================
+/// Componente que representa la barra de aplicacion (AppBar) personalizada
+/// del chatbot, incluyendo el titulo, interruptor de tema y menu de opciones
 class ChatbotHeader extends StatelessWidget implements PreferredSizeWidget {
-  // ============================ PROPIEDADES ==================================
+  // ===========================================================================
+  // PROPIEDADES
+  // ===========================================================================
+  final VoidCallback onClearHistory;      // Callback para borrar el historial
+  final VoidCallback onContactWhatsApp;   // Callback para contactar por WhatsApp
 
-  final VoidCallback onClearHistory;
-  final VoidCallback onContactWhatsApp;
-
-  /// Constructor del componente ChatbotHeader
+  // ===========================================================================
+  // CONSTRUCTOR
+  // ===========================================================================
   const ChatbotHeader({
     super.key,
     required this.onClearHistory,
     required this.onContactWhatsApp,
   });
 
-  // ============================ CONSTRUCCIÓN DE LA UI ========================
-
-  /// Construye la interfaz de usuario de la barra de aplicación del chatbot
+  // ===========================================================================
+  // BUILD - CONSTRUCCION DE LA UI
+  // ===========================================================================
+  /// Construye la interfaz de usuario de la barra de aplicacion del chatbot
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<ThemeBloc, ThemeState>(
       builder: (context, state) {
         return AppBar(
+          // Configuracion del estilo de la barra de estado del sistema
           systemOverlayStyle: SystemUiOverlayStyle(
-            // Hacemos que la barra de estado sea transparente
-            statusBarColor: Colors.transparent,
-
-            // Ponemos los iconos (hora, batería) en color claro para que se lean bien
+            statusBarColor: Colors.transparent, // Barra de estado transparente
             statusBarIconBrightness:
                 state.isDarkMode ? Brightness.light : Brightness.dark,
           ),
-          elevation: 0, // Sin sombra para un diseño más plano
+          elevation: 0, // Sin sombra para un diseno mas plano
           backgroundColor:
               state.isDarkMode ? AppColors.darkprimary : AppColors.lightprimary,
           iconTheme: const IconThemeData(color: AppColors.lightbackground),
@@ -53,13 +57,15 @@ class ChatbotHeader extends StatelessWidget implements PreferredSizeWidget {
             ),
           ),
           actions: [
-            // Botón de tamaño de fuente
+            // ==================================================================
+            // MENU DE TAMANO DE FUENTE
+            // ==================================================================
             Semantics(
-              label: 'Cambiar tamaño de fuente',
-              hint: 'Toca para cambiar el tamaño de fuente',
+              label: 'Cambiar tamano de fuente',
+              hint: 'Toca para cambiar el tamano de fuente',
               button: true,
               child: PopupMenuButton<FontSize>(
-                tooltip: 'Tamaño de fuente',
+                tooltip: 'Tamano de fuente',
                 icon: const Icon(
                   Icons.text_fields,
                   color: Colors.white,
@@ -71,6 +77,7 @@ class ChatbotHeader extends StatelessWidget implements PreferredSizeWidget {
                   context.read<ThemeBloc>().add(ChangeFontSizeEvent(size));
                 },
                 itemBuilder: (BuildContext context) => <PopupMenuEntry<FontSize>>[
+                  // Opcion de fuente pequena
                   PopupMenuItem<FontSize>(
                     value: FontSize.small,
                     child: Row(
@@ -84,7 +91,7 @@ class ChatbotHeader extends StatelessWidget implements PreferredSizeWidget {
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          'Pequeño',
+                          'Pequeno',
                           style: TextStyle(
                             color: state.fontSize == FontSize.small
                                 ? Colors.green
@@ -98,6 +105,7 @@ class ChatbotHeader extends StatelessWidget implements PreferredSizeWidget {
                       ],
                     ),
                   ),
+                  // Opcion de fuente mediana
                   PopupMenuItem<FontSize>(
                     value: FontSize.medium,
                     child: Row(
@@ -125,6 +133,7 @@ class ChatbotHeader extends StatelessWidget implements PreferredSizeWidget {
                       ],
                     ),
                   ),
+                  // Opcion de fuente grande
                   PopupMenuItem<FontSize>(
                     value: FontSize.large,
                     child: Row(
@@ -156,7 +165,9 @@ class ChatbotHeader extends StatelessWidget implements PreferredSizeWidget {
               ),
             ),
 
-            // Interruptor de cambio de tema (claro/oscuro)
+            // ==================================================================
+            // INTERRUPTOR DE TEMA CLARO/OSCURO
+            // ==================================================================
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8.0),
               child: Semantics(
@@ -164,7 +175,7 @@ class ChatbotHeader extends StatelessWidget implements PreferredSizeWidget {
                 hint: 'Toca para cambiar entre tema oscuro y claro',
                 child: Row(
                   children: [
-                    // Icono que cambia según el tema actual
+                    // Icono que cambia segun el tema actual
                     ExcludeSemantics(
                       child: Icon(
                         state.isDarkMode ? Icons.nightlight_round : Icons.wb_sunny,
@@ -173,11 +184,10 @@ class ChatbotHeader extends StatelessWidget implements PreferredSizeWidget {
                     ),
                     const SizedBox(width: 4),
 
-                    // Interruptor para cambiar entre temas claro y oscuro
+                    // Switch para alternar entre tema claro y oscuro
                     Switch(
                       value: state.isDarkMode,
                       onChanged: (value) {
-                        // Dispara el evento para cambiar el tema
                         context.read<ThemeBloc>().add(ToggleThemeEvent());
                       },
                       activeThumbColor: Colors.white,
@@ -188,17 +198,19 @@ class ChatbotHeader extends StatelessWidget implements PreferredSizeWidget {
               ),
             ),
 
-            // Menú de opciones adicionales (tres puntos verticales)
+            // ==================================================================
+            // MENU DE OPCIONES ADICIONALES
+            // ==================================================================
             SizedBox(
               width: 44,
               height: 44,
               child: Semantics(
-                label: 'Menú de opciones',
-                hint: 'Toca dos veces para abrir el menú con más opciones',
+                label: 'Menu de opciones',
+                hint: 'Toca dos veces para abrir el menu con mas opciones',
                 button: true,
                 child: PopupMenuButton(
                   icon: const Icon(Icons.more_vert, color: Color(0xFFFFFFFF)),
-                  tooltip: 'Menú de opciones',
+                  tooltip: 'Menu de opciones',
                   color: state.isDarkMode
                       ? AppColors.darkprimary
                       : AppColors.lightprimary,
@@ -209,12 +221,12 @@ class ChatbotHeader extends StatelessWidget implements PreferredSizeWidget {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8.0),
                   ),
-                // Maneja la selección de opciones del menú
+                // Maneja la seleccion de opciones del menu
                 onSelected: (value) async {
                   if (value == 'Whatsapp') {
                     onContactWhatsApp();
                   } else if (value == 'Borrar Historial') {
-                    // Mostrar diálogo de confirmación antes de borrar
+                    // Mostrar dialogo de confirmacion antes de borrar
                     final confirmed = await showDialog<bool>(
                       context: context,
                       barrierDismissible: false,
@@ -223,13 +235,12 @@ class ChatbotHeader extends StatelessWidget implements PreferredSizeWidget {
                             ? AppColors.darkprimary
                             : AppColors.lightprimary;
                         return AlertDialog(
-                          // Reduce horizontal inset para dar más espacio al título
                           insetPadding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 24.0),
                           titlePadding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
                           contentPadding: const EdgeInsets.fromLTRB(24, 12, 24, 12),
                           actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                           title: const Text(
-                            '¿Desea borrar el historial?',
+                            'Desea borrar el historial?',
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 16,
@@ -242,7 +253,7 @@ class ChatbotHeader extends StatelessWidget implements PreferredSizeWidget {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                // 'No, volver' on the left
+                                // Boton 'No, volver'
                                 Expanded(
                                   child: ElevatedButton(
                                     style: ElevatedButton.styleFrom(
@@ -257,7 +268,7 @@ class ChatbotHeader extends StatelessWidget implements PreferredSizeWidget {
                                   ),
                                 ),
                                 const SizedBox(width: 12),
-                                // 'Si, Eliminar' on the right
+                                // Boton 'Si, Eliminar'
                                 Expanded(
                                   child: FilledButton(
                                     style: FilledButton.styleFrom(
@@ -277,18 +288,18 @@ class ChatbotHeader extends StatelessWidget implements PreferredSizeWidget {
                       },
                     );
 
+                    // Si el usuario confirma, ejecutar callback de borrado
                     if (confirmed == true) {
                       onClearHistory();
                     }
                   }
                 },
-                // Construye los ítems del menú desplegable
+                // Construye los items del menu desplegable
                 itemBuilder: (BuildContext context) {
-                  FocusScope.of(context)
-                      .unfocus(); // Cierra el teclado si está abierto
+                  FocusScope.of(context).unfocus(); // Cierra el teclado si esta abierto
 
                   return [
-                    // Opción para contactar por WhatsApp
+                    // Opcion para contactar por WhatsApp
                     const PopupMenuItem(
                       value: 'Whatsapp',
                       child: ListTile(
@@ -314,13 +325,13 @@ class ChatbotHeader extends StatelessWidget implements PreferredSizeWidget {
                       ),
                     ),
 
-                    // Opción para borrar el historial de conversación
+                    // Opcion para borrar el historial de conversacion
                     const PopupMenuItem(
                       value: 'Borrar Historial',
                       child: ListTile(
                         leading: Icon(Icons.delete, color: Colors.red),
                         title: Text(
-                          'Borrar Historial de conversación',
+                          'Borrar Historial de conversacion',
                           style: TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.w400,
@@ -340,9 +351,10 @@ class ChatbotHeader extends StatelessWidget implements PreferredSizeWidget {
     );
   }
 
-  // ============================ PROPIEDADES DEL WIDGET =======================
-
-  /// Define la altura preferida para la AppBar (altura estándar de toolbar)
+  // ===========================================================================
+  // PROPIEDADES DEL WIDGET
+  // ===========================================================================
+  /// Define la altura preferida para la AppBar (altura estandar de toolbar)
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
 }
