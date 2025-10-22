@@ -3,6 +3,8 @@
 import 'package:consultoria_chat_bot/blocs/map_bloc.dart';
 import 'package:consultoria_chat_bot/events/map_event.dart';
 import 'package:consultoria_chat_bot/screens/poi_screen.dart';
+import 'package:consultoria_chat_bot/screens/emergency_screen.dart';
+import 'package:consultoria_chat_bot/services/local_storage.dart';
 import 'package:consultoria_chat_bot/screens/favorites_screen.dart';
 import 'package:consultoria_chat_bot/states/map_state.dart';
 import 'package:flutter/material.dart';
@@ -11,6 +13,9 @@ import 'available_pois_routes.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'dart:async';
+import 'dart:io';
+
 import 'package:consultoria_chat_bot/theme.dart';
 import 'package:provider/provider.dart';
 import 'package:consultoria_chat_bot/l10n/app_localizations.dart';
@@ -38,6 +43,9 @@ class _MapPageState extends State<MapPage> {
   Type? _lastStateType;
   bool _centeredOnNavStart = false; // Center map once when navigation starts
 
+  bool _isOffline = false;
+  Timer? _netTimer;
+
   final double _fabPositionPadding = 10;
   @override
   void initState() {
@@ -49,13 +57,38 @@ class _MapPageState extends State<MapPage> {
             _initialSheetChildSize * MediaQuery.of(context).size.height;
       });
     });
+
+    _startNetworkMonitoring();
   }
 
   @override
   void dispose() {
     mapController.dispose();
     searchController.dispose();
+    _netTimer?.cancel();
     super.dispose();
+  }
+
+  void _startNetworkMonitoring() {
+    _checkConnectivity();
+    _netTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      _checkConnectivity();
+    });
+  }
+
+  Future<void> _checkConnectivity() async {
+    try {
+      final result = await InternetAddress.lookup('one.one.one.one')
+          .timeout(const Duration(seconds: 3));
+      final online = result.isNotEmpty && result.first.rawAddress.isNotEmpty;
+      if (mounted && _isOffline == online) {
+        setState(() => _isOffline = !online);
+      } else if (mounted && _isOffline != !online) {
+        setState(() => _isOffline = !online);
+      }
+    } catch (_) {
+      if (mounted && !_isOffline) setState(() => _isOffline = true);
+    }
   }
 
   void _openFilterSheet(MapLoaded state) {
@@ -350,10 +383,26 @@ class _MapPageState extends State<MapPage> {
                   ),
 
                   Positioned(
+                    bottom: _fabPosition + _fabPositionPadding + 72,
+                    right: 16,
+                    child: FloatingActionButton(heroTag: 'emergency_fab',
+                      backgroundColor: Colors.red,
+                      onPressed: () { if (state.userLocation == null) return; 
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const EmergencyScreen(),
+                          ),
+                        );
+                      },
+                      child: const Icon(Icons.sos, color: Colors.white),
+                    ),
+                  ),
+
+                  Positioned(
                     bottom: _fabPosition + _fabPositionPadding,
                     right: 16,
-                    child: FloatingActionButton(
-                      heroTag: 'centerFab',
+                    child: FloatingActionButton(heroTag: 'location_fab',
                       backgroundColor: const Color(0xFF4D67AE),
                       onPressed: () {
                         // Use the user's location when available, otherwise fall back to a default center
@@ -529,6 +578,50 @@ class _MapPageState extends State<MapPage> {
                                                   color: Theme.of(context).colorScheme.onSurface,
                                                 ),
                                               ),
+                                          ),
+                                      )
+                                      : ListView(
+                                          controller: scrollController,
+                                          children: [
+                                              ...filteredRoutes.asMap().entries.map((entry) {
+                                                  final index = entry.key;
+                                                  final route = entry.value;
+                                                  return ListTile(
+                                                      leading: const Icon(Icons.alt_route, color: Color(0xFF4D67AE)),
+                                                      title: Text('${AppLocalizations.of(context)!.ruta} ${route.name}'),
+                                                      selected: selectedRouteIndex == index,
+                                                      selectedTileColor: _primaryColor.withOpacity(0.12),
+                                                      onTap: () async {
+                                                          final center = LatLng(
+                                                              (route.initialLatitude + route.finalLatitude) / 2,
+                                                              (route.initialLongitude + route.finalLongitude) / 2,
+                                                          );
+                                                          setState(() {
+                                                              selectedRouteIndex = index;
+                                                          });
+                                                          mapController.move(center, 14);
+                                                          await LocalStorage.setLastRouteName(route.name);
+                                                          await LocalStorage.setLastRouteWithPois(route);
+                                                      },
+                                                  );
+                                              }),
+                                              ...filteredPois.map(
+                                                  (poi) => ListTile(
+                                                      leading: const Icon(Icons.location_on, color: Colors.red, size: 28),
+                                                      title: Text(poi.nombre),
+                                                      subtitle: poi.categorias.isNotEmpty ? Text(poi.categorias.first) : null,
+                                                      onTap: () {
+                                                          mapController.move(LatLng(poi.latitud, poi.longitud), 16);
+                                                      },
+                                                      trailing: GestureDetector(
+                                                          onTap: () {
+                                                              Navigator.push(
+                                                                  context,
+                                                                  MaterialPageRoute(builder: (context) => PoiScreen(poi)),
+                                                              );
+                                                          },
+                                                          child: const Icon(Icons.add),
+                                                      ),
                                               const SizedBox(height: 8),
                                               Row(
                                                 children: [
@@ -607,6 +700,44 @@ class _MapPageState extends State<MapPage> {
                       ),
                     ),
 
+                  if (_isOffline)
+                    Positioned(
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      child: Container(
+                        height: 36,
+                        color: Colors.red,
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        alignment: Alignment.centerLeft,
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.max,
+                          children: [
+                            Icon(Icons.wifi_off, color: Colors.white),
+                            SizedBox(width: 8),
+                            Text('Modo sin conexión',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                )),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                  Positioned(
+                    top: _isOffline ? 36 : 0,
+                    right: 0,
+                    left: 0,
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Row(
+                        children: [
+                          IconButton(
+                            style: buttonStyle,
+                            onPressed: () {},
+                            icon: const Icon(Icons.arrow_back_rounded),
+                          ),
                   if (state is MapLoaded)
                     Positioned(
                       top: 0,
