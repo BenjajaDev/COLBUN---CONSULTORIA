@@ -89,7 +89,7 @@ class _PoiScreenState extends State<PoiScreen> {
         );
       },
       child: Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).colorScheme.background,
         body: SafeArea(
           child: LayoutBuilder(
             builder: (context, constraints) {
@@ -115,9 +115,9 @@ class _PoiScreenState extends State<PoiScreen> {
                                 padding: const EdgeInsets.all(16),
                                 child: Text(
                                   widget.poi.nombre,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 25,
-                                    color: Colors.black,
+                                    color: Theme.of(context).colorScheme.onSurface,
                                   ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
@@ -125,9 +125,9 @@ class _PoiScreenState extends State<PoiScreen> {
                               ),
                             ),
                             IconButton(
-                              icon: const Icon(
+                              icon: Icon(
                                 Icons.close,
-                                color: Colors.black,
+                                color: Theme.of(context).colorScheme.onSurface,
                               ),
                               onPressed: () => Navigator.pop(context),
                             ),
@@ -236,16 +236,22 @@ class _PoiScreenState extends State<PoiScreen> {
                               Container(
                                 decoration: BoxDecoration(
                                   border: Border.all(
-                                    color: Colors.black,
+                                    color: Theme.of(context).colorScheme.outlineVariant,
                                     width: 1.3,
                                   ),
                                   borderRadius: BorderRadius.circular(18),
-                                  color: Colors.white,
+                                  color: Theme.of(context).colorScheme.surface,
                                 ),
                                 child: DropdownButton<String>(
                                   value: valorSeleccionado,
                                   underline: SizedBox(),
                                   borderRadius: BorderRadius.circular(18),
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.onSurface,
+                                  ),
+                                  dropdownColor: Theme.of(context).colorScheme.surface,
+                                  iconEnabledColor: Theme.of(context).colorScheme.onSurface,
+                                  iconDisabledColor: Theme.of(context).colorScheme.onSurface.withOpacity(0.38),
                                   items: opciones.map((String opcion) {
                                     IconData icon;
                                     Color iconColor;
@@ -277,9 +283,9 @@ class _PoiScreenState extends State<PoiScreen> {
                                         (vistas[opcion] != null && vistas[opcion].toString().trim().isNotEmpty);
 
                                     // Visually dim disabled options
-                                    final textStyle = hasImage
-                                        ? const TextStyle(color: Colors.black)
-                                        : TextStyle(color: Colors.black.withOpacity(0.35));
+                  final textStyle = hasImage
+                    ? TextStyle(color: Theme.of(context).colorScheme.onSurface)
+                    : TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.35));
                                     final iconColorEffective = hasImage ? iconColor : iconColor.withOpacity(0.35);
 
                                     // localized label for display (falls back to Spanish via AppLocalizations)
@@ -388,19 +394,20 @@ class _PoiScreenState extends State<PoiScreen> {
                                   );
                                 },
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: colbunBlue,
+                                  backgroundColor: Theme.of(context).colorScheme.primary,
+                                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
                                 ),
                                 child: Text(
                                   AppLocalizations.of(context)!.vista360,
-                                  style: TextStyle(color: Colors.white),
+                                  style: const TextStyle(color: null),
                                 ),
                               ),
                               Tooltip(
                                 message: AppLocalizations.of(context)!.vistas_modificadas_ia,
                                 child: IconButton(
-                                  icon: const Icon(
+                                  icon: Icon(
                                     Icons.info_outline,
-                                    color: Colors.black,
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                                   ),
                                   onPressed: () {
                                     // show localized SnackBar for accessibility
@@ -415,11 +422,12 @@ class _PoiScreenState extends State<PoiScreen> {
                                 onPressed: () {},
                                 style: ElevatedButton.styleFrom(
                                   shape: const CircleBorder(),
-                                  backgroundColor: Colors.red,
+                                  backgroundColor: Theme.of(context).colorScheme.error,
+                                  foregroundColor: Theme.of(context).colorScheme.onError,
                                 ),
                                 label: const Icon(
                                   Icons.call,
-                                  color: Colors.white,
+                                  color: null,
                                 ),
                               ),
                             ],
@@ -437,14 +445,14 @@ class _PoiScreenState extends State<PoiScreen> {
                                 child: Container(
                                   padding: const EdgeInsets.all(8),
                                   decoration: BoxDecoration(
-                                    color: Colors.blue.shade50,
+                                    color: Theme.of(context).colorScheme.secondaryContainer,
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Text(
                                     "Temporada actual: Primavera \nClima templado, flora abundante, ideal para trekking",
                                     style: TextStyle(
                                       fontSize: 16,
-                                      color: colbunBlue,
+                                      color: Theme.of(context).colorScheme.onSecondaryContainer,
                                     ),
                                   ),
                                 ),
@@ -457,9 +465,10 @@ class _PoiScreenState extends State<PoiScreen> {
                                 ),
                                 child: Text(
                                   AppLocalizations.of(context)!.descripcion,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 20,
                                     fontWeight: FontWeight.bold,
+                                    color: Theme.of(context).colorScheme.onSurface,
                                   ),
                                 ),
                               ),
@@ -491,8 +500,8 @@ class _PoiScreenState extends State<PoiScreen> {
                                         border: Border(
                                           bottom: BorderSide(
                                             color: _selectedIndex == 0
-                                                ? colbunBlue
-                                                : Colors.black,
+                                                ? Theme.of(context).colorScheme.primary
+                                                : Theme.of(context).colorScheme.onSurface,
                                             width: _selectedIndex == 0 ? 3 : 1,
                                           ),
                                         ),
@@ -517,8 +526,8 @@ class _PoiScreenState extends State<PoiScreen> {
                                           )!.recomendados,
                                           style: TextStyle(
                                             color: _selectedIndex == 0
-                                                ? colbunBlue
-                                                : Colors.black,
+                                                ? Theme.of(context).colorScheme.primary
+                                                : Theme.of(context).colorScheme.onSurface,
                                             fontSize: 18,
                                           ),
                                         ),
@@ -529,8 +538,8 @@ class _PoiScreenState extends State<PoiScreen> {
                                         border: Border(
                                           bottom: BorderSide(
                                             color: _selectedIndex == 1
-                                                ? colbunBlue
-                                                : Colors.black,
+                                                ? Theme.of(context).colorScheme.primary
+                                                : Theme.of(context).colorScheme.onSurface,
                                             width: _selectedIndex == 1 ? 3 : 1,
                                           ),
                                         ),
@@ -554,8 +563,8 @@ class _PoiScreenState extends State<PoiScreen> {
                                           )!.cercanos,
                                           style: TextStyle(
                                             color: _selectedIndex == 1
-                                                ? colbunBlue
-                                                : Colors.black,
+                                                ? Theme.of(context).colorScheme.primary
+                                                : Theme.of(context).colorScheme.onSurface,
                                             fontSize: 18,
                                           ),
                                         ),
@@ -636,9 +645,7 @@ class _PoiScreenState extends State<PoiScreen> {
                                                   },
                                                   child: Card(
                                                     margin: EdgeInsets.zero,
-                                                    color: const Color(
-                                                      0xFFF4F4F4,
-                                                    ),
+                                                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
                                                     child: Padding(
                                                       padding:
                                                           const EdgeInsets.symmetric(
@@ -671,19 +678,15 @@ class _PoiScreenState extends State<PoiScreen> {
                                                               return Chip(
                                                                 label: Text(
                                                                   cat,
+                                                                  style: TextStyle(
+                                                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                                                  ),
                                                                 ),
-                                                                backgroundColor:
-                                                                    Colors
-                                                                        .white,
+                                                                backgroundColor: Theme.of(context).colorScheme.surface,
                                                                 shape: RoundedRectangleBorder(
-                                                                  borderRadius:
-                                                                      BorderRadius.circular(
-                                                                        16,
-                                                                      ),
+                                                                  borderRadius: BorderRadius.circular(16),
                                                                   side: BorderSide(
-                                                                    color: Colors
-                                                                        .grey
-                                                                        .shade300,
+                                                                    color: Theme.of(context).colorScheme.outlineVariant,
                                                                   ),
                                                                 ),
                                                               );
@@ -716,8 +719,8 @@ class _PoiScreenState extends State<PoiScreen> {
                                           decoration: BoxDecoration(
                                             shape: BoxShape.circle,
                                             color: _recomendadosPage == i
-                                                ? colbunBlue
-                                                : Colors.grey.shade400,
+                                                ? Theme.of(context).colorScheme.primary
+                                                : Theme.of(context).colorScheme.onSurfaceVariant,
                                           ),
                                         ),
                                       ),
@@ -761,11 +764,9 @@ class _PoiScreenState extends State<PoiScreen> {
                                                       context,
                                                     ).size.width -
                                                     48,
-                                                child: Card(
+                                                  child: Card(
                                                   margin: EdgeInsets.zero,
-                                                  color: const Color(
-                                                    0xFFF4F4F4,
-                                                  ),
+                                                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
                                                   child: ListTile(
                                                     title: Text(p.nombre),
                                                     subtitle:
@@ -834,8 +835,8 @@ class _PoiScreenState extends State<PoiScreen> {
                                           decoration: BoxDecoration(
                                             shape: BoxShape.circle,
                                             color: _cercanosPage == i
-                                                ? colbunBlue
-                                                : Colors.grey.shade400,
+                                                ? Theme.of(context).colorScheme.primary
+                                                : Theme.of(context).colorScheme.onSurfaceVariant,
                                           ),
                                         ),
                                       ),

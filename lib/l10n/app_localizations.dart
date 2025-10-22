@@ -201,6 +201,36 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Ir'**
   String get ir;
+
+  /// Título del panel de navegación activa
+  ///
+  /// In es, this message translates to:
+  /// **'Ruta en curso'**
+  String get ruta_en_curso;
+
+  /// Etiqueta de distancia con valor formateado
+  ///
+  /// In es, this message translates to:
+  /// **'Distancia: {distance}'**
+  String distancia_fmt(Object distance);
+
+  /// Etiqueta de tiempo aproximado con valor
+  ///
+  /// In es, this message translates to:
+  /// **'Tiempo aprox.: {duration}'**
+  String tiempo_aprox_fmt(Object duration);
+
+  /// Etiqueta de llegada aproximada con hora
+  ///
+  /// In es, this message translates to:
+  /// **'Llegada aprox.: {eta}'**
+  String llegada_aprox_fmt(Object eta);
+
+  /// Texto para el botón de cancelar navegación
+  ///
+  /// In es, this message translates to:
+  /// **'Cancelar'**
+  String get cancelar;
 }
 
 class _AppLocalizationsDelegate

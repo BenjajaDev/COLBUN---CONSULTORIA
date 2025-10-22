@@ -12,17 +12,25 @@ import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:http/http.dart' as http;
 
+// OpenRouteService API key is read from a compile-time environment define.
+// Pass it using: --dart-define=ORS_API_KEY=YOUR_KEY
+const String kOpenRouteServiceApiKey = String.fromEnvironment('ORS_API_KEY');
+
+/// Bloc que gestiona el estado del mapa: carga de rutas y POIs, filtros,
+/// navegación paso a paso, recálculo por desvío y seguimiento de
+/// ubicación y orientación del usuario.
 class MapBloc extends Bloc<MapEvent, MapState> {
   final FireStoreService _firebaseService;
   final Distance _distanceCalculator = const Distance();
 
   // Variables internas para navegación
-  List<LatLng>? _currentRoutePoints;
-  LatLng? _currentDestination;
-  DateTime? _lastRecalculation;
-  MapLoaded? _previousLoadedState;
-  double? _originalRouteDistanceMeters;
-  double? _instructionsTotalDurationSeconds;
+  List<LatLng>? _currentRoutePoints; // Puntos de la polilínea restante
+  LatLng? _currentDestination;       // Destino actual de la navegación
+  DateTime? _lastRecalculation;      // Último timestamp de recálculo por desvío
+  MapLoaded? _previousLoadedState;   // Snapshot para restaurar tras cancelar
+  double? _originalRouteDistanceMeters;      // Distancia total original (m)
+  double? _instructionsTotalDurationSeconds; // Duración total original (s)
+  String? _currentLanguageCode; // Código de idioma actual para navegación
 
   MapBloc(this._firebaseService) : super(MapInitial()) {
     on<AddMarker>(_onAddMarker);
@@ -41,6 +49,7 @@ class MapBloc extends Bloc<MapEvent, MapState> {
   // =============================
   // 🔹 CARGA INICIAL DE DATOS
   // =============================
+  /// Carga inicial de rutas y POIs desde Firestore y emite el estado base.
   Future<void> _onLoadRoute(LoadRoute event, Emitter<MapState> emit) async {
     emit(MapLoading());
     try {
@@ -78,6 +87,7 @@ class MapBloc extends Bloc<MapEvent, MapState> {
   // =============================
   // 🔹 EVENTOS DE UI
   // =============================
+  /// Agrega un marcador manual en el mapa (solo a nivel de UI).
   void _onAddMarker(AddMarker event, Emitter<MapState> emit) {
     if (state is! MapLoaded) return;
     final current = state as MapLoaded;
@@ -86,6 +96,11 @@ class MapBloc extends Bloc<MapEvent, MapState> {
     emit(current.copyWith(markers: updatedMarkers));
   }
 
+  /// Procesa actualizaciones de ubicación del usuario.
+  ///
+  /// - En MapLoaded: centra y recalcula filtros.
+  /// - En MapNavigating: recorta polilínea, actualiza instrucción actual
+  ///   (distancia/duración), calcula distancia/tiempo/ETA y verifica desvíos.
   void _onUpdateUserLocation(UpdateUserLocation event, Emitter<MapState> emit) {
   if (state is! MapLoaded && state is! MapNavigating) return;
 
@@ -115,17 +130,17 @@ class MapBloc extends Bloc<MapEvent, MapState> {
       nextPoint,
     );
 
-    // Build updated lists first (no early emits)
+  // Construir listas actualizadas primero (sin emitir antes de tiempo)
     List<LatLng> updatedRoute = current.routePoints;
     List<Map<String, dynamic>> updatedInstructions = current.instructions;
 
-    // Trim polyline when near next vertex
+  // Recortar la polilínea cuando estamos cerca del siguiente vértice
     if (distanceToNext < 25 && updatedRoute.length > 1) {
       updatedRoute = updatedRoute.skip(1).toList();
       _currentRoutePoints = updatedRoute;
     }
 
-    // Consume instruction when near its representative point
+  // Consumir la instrucción cuando estamos cerca de su punto representativo
     if (updatedInstructions.isNotEmpty) {
       final firstIns = updatedInstructions.first;
       final insPoint = firstIns['point'] as LatLng?;
@@ -136,7 +151,7 @@ class MapBloc extends Bloc<MapEvent, MapState> {
           insPoint,
         );
         const instructionConsumeThreshold = 25.0; // meters
-        // Decrease current instruction distance/duration proportionally
+  // Disminuir distancia/duración de la instrucción actual proporcionalmente
         final double origDist = (firstIns['originalDistance'] as num?)?.toDouble() ?? (firstIns['distance'] as num?)?.toDouble() ?? 0.0;
         final double origDur = (firstIns['originalDuration'] as num?)?.toDouble() ?? (firstIns['duration'] as num?)?.toDouble() ?? 0.0;
         final double travelled = (origDist - distToIns).clamp(0.0, origDist);
@@ -144,7 +159,7 @@ class MapBloc extends Bloc<MapEvent, MapState> {
         final double remainingStepDist = (origDist - travelled).clamp(0.0, origDist);
         // Simple proportional time reduction
         final double remainingStepDur = origDist > 0 ? (origDur * (remainingStepDist / origDist)) : 0.0;
-        // Update the current step in-place
+  // Actualizar la instrucción actual dentro de la lista
         updatedInstructions[0] = {
           ...firstIns,
           'distance': remainingStepDist,
@@ -157,20 +172,20 @@ class MapBloc extends Bloc<MapEvent, MapState> {
       }
     }
 
-    // Recompute bearing towards next remaining point (if any)
+  // Recalcular el rumbo hacia el siguiente punto restante (si existe)
     final LatLng bearingTarget = updatedRoute.isNotEmpty ? updatedRoute.first : nextPoint;
     final bearing = _calculateBearing(currentPos, bearingTarget);
 
-    // compute remaining distance along remaining route points
+  // Calcular la distancia restante a lo largo de los puntos restantes
     double remainingDistance = 0.0;
     if (updatedRoute.isNotEmpty) {
-      // from current position to first point
+  // Desde la posición actual al primer punto
       remainingDistance += _distanceCalculator.as(
         LengthUnit.Meter,
         currentPos,
         updatedRoute.first,
       );
-      // along the rest of the polyline
+  // A lo largo del resto de la polilínea
       for (var i = 0; i < updatedRoute.length - 1; i++) {
         remainingDistance += _distanceCalculator.as(
           LengthUnit.Meter,
@@ -180,7 +195,7 @@ class MapBloc extends Bloc<MapEvent, MapState> {
       }
     }
 
-    // remaining duration from instructions (sum durations of remaining instructions)
+  // Duración restante (suma de las duraciones de las instrucciones restantes)
     double remainingDuration = 0.0;
     for (final ins in updatedInstructions) {
       remainingDuration += (ins['duration'] as num?)?.toDouble() ?? 0.0;
@@ -210,12 +225,13 @@ class MapBloc extends Bloc<MapEvent, MapState> {
 
     if (isOffRoute && _shouldRecalculate() && _currentDestination != null) {
       _lastRecalculation = DateTime.now();
-      add(RequestNavigation(_currentDestination!));
+      add(RequestNavigation(_currentDestination!, _currentLanguageCode ?? 'en'));
     }
   }
 }
 
 
+  /// Actualiza el heading (brújula) del usuario en modo exploración.
   void _onUpdateHeading(UpdateHeading event, Emitter<MapState> emit) {
     if (state is! MapLoaded) return;
     final current = state as MapLoaded;
@@ -226,6 +242,7 @@ class MapBloc extends Bloc<MapEvent, MapState> {
   // 🔹 BÚSQUEDA Y FILTRO CENTRALIZADO
   // =============================
 
+  /// Actualiza la cadena de búsqueda y recalcula filtros.
   void _onSearchQueryUpdated(SearchQueryUpdated event, Emitter<MapState> emit) {
     if (state is! MapLoaded) return;
     final current = state as MapLoaded;
@@ -234,6 +251,7 @@ class MapBloc extends Bloc<MapEvent, MapState> {
     emit(_recalculateFilters(updatedState));
   }
 
+  /// Aplica filtros (categoría, temporada, distancia) y recalcula resultados.
   void _onApplyFilters(ApplyFilters event, Emitter<MapState> emit) {
     if (state is! MapLoaded) return;
     final current = state as MapLoaded;
@@ -258,6 +276,7 @@ class MapBloc extends Bloc<MapEvent, MapState> {
     emit(_recalculateFilters(updatedState));
   }
 
+  /// Recalcula rutas/POIs filtrados y los marcadores visibles.
   MapLoaded _recalculateFilters(MapLoaded base) {
     final filteredRoutes = _filterRoutes(
       base.allRoutes,
@@ -285,6 +304,7 @@ class MapBloc extends Bloc<MapEvent, MapState> {
   // 🔹 FILTRO Y CÁLCULOS AUXILIARES
   // =============================
 
+  /// Filtra rutas según búsqueda, categoría, temporada y distancia al usuario.
   List<MapRoute> _filterRoutes(
     List<MapRoute> routes, {
     required String query,
@@ -365,6 +385,7 @@ class MapBloc extends Bloc<MapEvent, MapState> {
         .toList();
   }
 
+  /// Calcula la menor distancia (km) entre el usuario y cualquier punto de la ruta.
   double _routeDistanceFrom(MapRoute route, LatLng userLocation) {
     final points = <LatLng>[];
     if (route.pois.isNotEmpty) {
@@ -390,6 +411,7 @@ class MapBloc extends Bloc<MapEvent, MapState> {
     return minDistance;
   }
 
+  /// Reúne los POIs de las rutas tras aplicar filtros de búsqueda/categoría.
   List<POI> _collectFilteredPois(
     List<MapRoute> routes, {
     required String query,
@@ -413,10 +435,12 @@ class MapBloc extends Bloc<MapEvent, MapState> {
     }).toList();
   }
 
+  /// Construye los marcadores (LatLng) a partir de los POIs.
   List<LatLng> _buildMarkers(List<POI> pois) {
     return pois.map((poi) => LatLng(poi.latitud, poi.longitud)).toList();
   }
 
+  /// Normaliza valores de filtro (trim, 'todas' -> null).
   String? _normalizeFilterValue(String? value) {
     if (value == null) return null;
     final trimmed = value.trim();
@@ -428,6 +452,10 @@ class MapBloc extends Bloc<MapEvent, MapState> {
   // =============================
   // 🔹 NAVEGACIÓN / ROUTING
   // =============================
+  /// Inicia navegación o recalcula la ruta si ya está navegando.
+  ///
+  /// - En MapLoaded: guarda snapshot para restaurar en cancelación y muestra carga breve.
+  /// - En MapNavigating: usa la ubicación actual como inicio y evita flicker (sin MapLoading).
   Future<void> _onRequestNavigation(
     RequestNavigation event,
     Emitter<MapState> emit,
@@ -476,12 +504,14 @@ class MapBloc extends Bloc<MapEvent, MapState> {
       return;
     }
     try {
-      const apiKey =
-          'eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjljYTA0MTkzZjE2NTQ4ZDdhMjA3OTc1ZGE5NWNjMmE1IiwiaCI6Im11cm11cjY0In0=';
+      // Leer API Key desde variable de entorno de Dart (ver kOpenRouteServiceApiKey)
+      final apiKey = kOpenRouteServiceApiKey.trim();
 
-      // Detectar idioma del sistema
-
-      final lang = 'es';
+  // Usar el idioma del evento (con respaldo a 'en')
+  final lang = (event.languageCode.isNotEmpty)
+      ? event.languageCode
+      : 'en';
+  _currentLanguageCode = lang;
 
       final url = Uri.parse(
         'https://api.openrouteservice.org/v2/directions/driving-car/geojson',
@@ -502,6 +532,21 @@ class MapBloc extends Bloc<MapEvent, MapState> {
         headers: {'Authorization': apiKey, 'Content-Type': 'application/json'},
         body: body,
       );
+
+      // Validar que exista una API key configurada
+      if (apiKey.isEmpty) {
+        emit(
+          MapError(
+            'Falta configurar la API Key de OpenRouteService. Define ORS_API_KEY con --dart-define.',
+          ),
+        );
+        // Si veníamos desde MapLoaded, restaurar el snapshot para evitar pantalla de carga permanente
+        if (!isReroute) {
+          final snap = loadedSnapshotToRestore ?? _previousLoadedState;
+          if (snap != null) emit(snap);
+        }
+        return;
+      }
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -532,7 +577,7 @@ class MapBloc extends Bloc<MapEvent, MapState> {
             return;
           }
           for (final s in steps) {
-            // try to resolve a representative LatLng for this step from way_points
+            // Intentar obtener un LatLng representativo del paso desde way_points
             LatLng? stepPoint;
             try {
               final wp = s['way_points'] as List?;
@@ -543,14 +588,14 @@ class MapBloc extends Bloc<MapEvent, MapState> {
                 }
               }
             } catch (_) {
-              // ignore; leave stepPoint null
+              // Ignorar errores; dejar stepPoint en null
             }
 
             instructions.add(<String, dynamic>{
               'instruction': s['instruction'],
-              'distance': s['distance'], // metros (will be updated live for the current step)
-              'duration': s['duration'], // segundos (will be updated live for the current step)
-              'originalDistance': s['distance'], // keep originals for recompute
+              'distance': s['distance'], // metros (se actualizara en al llegar al siguiente paso)
+              'duration': s['duration'], // segundos (se actualizara en al llegar al siguiente paso)
+              'originalDistance': s['distance'], // Se mantienen los originales para calculos
               'originalDuration': s['duration'],
               'point': stepPoint,
             });
@@ -563,7 +608,7 @@ class MapBloc extends Bloc<MapEvent, MapState> {
         _currentRoutePoints = coords;
         _currentDestination = event.destination;
 
-        // compute original route distance (meters)
+        // calcula la distancia original de la ruta
         double routeDist = 0.0;
         for (var i = 0; i < coords.length - 1; i++) {
           routeDist += const Distance().as(
@@ -574,15 +619,15 @@ class MapBloc extends Bloc<MapEvent, MapState> {
         }
         _originalRouteDistanceMeters = routeDist;
 
-        // total instructions duration seconds
+        // duracion total de las instrucciones
         double totalDur = 0.0;
         for (final ins in instructions) {
           totalDur += (ins['duration'] as num?)?.toDouble() ?? 0.0;
         }
         _instructionsTotalDurationSeconds = totalDur;
 
-  // supply an initial userLocation so UI markers can render immediately
-  final LatLng initialUserLocation = start;
+    // Proveer una userLocation inicial para que los marcadores se rendericen de inmediato
+    final LatLng initialUserLocation = start;
 
         emit(
           MapNavigating(
@@ -612,9 +657,10 @@ class MapBloc extends Bloc<MapEvent, MapState> {
     }
   }
 
+  /// Verifica desvío de la ruta midiendo la distancia mínima al segmento más cercano.
   bool _checkDeviationFromRoute(LatLng currentPos, List<LatLng> routePoints) {
-    // Use distance to the nearest segment instead of nearest vertex
-    const deviationThreshold = 30.0; // meters (tighter than before)
+    // Usar la distancia al segmento más cercano en lugar del vértice más cercano
+    const deviationThreshold = 30.0; // metros (más estricto que antes)
 
     if (routePoints.isEmpty) return false;
     if (routePoints.length == 1) {
@@ -633,6 +679,7 @@ class MapBloc extends Bloc<MapEvent, MapState> {
     return minDistance > deviationThreshold;
   }
 
+  /// Controla la frecuencia de recálculo para evitar muchas solicitudes seguidas.
   bool _shouldRecalculate() {
     if (_lastRecalculation == null) return true;
     final diff = DateTime.now().difference(_lastRecalculation!).inSeconds;
@@ -640,9 +687,9 @@ class MapBloc extends Bloc<MapEvent, MapState> {
   }
 
   // =============================
-  // 🔹 GEOMETRY HELPERS
+  // 🔹 AYUDANTES DE GEOMETRÍA
   // =============================
-  // Compute closest point on segment AB to point P (linear on lat/lon)
+  /// Calcula el punto más cercano sobre el segmento AB al punto P (lineal en lat/lon).
   LatLng _closestPointOnSegment(LatLng p, LatLng a, LatLng b) {
     final ax = a.longitude;
     final ay = a.latitude;
@@ -667,7 +714,7 @@ class MapBloc extends Bloc<MapEvent, MapState> {
     return LatLng(cy, cx);
   }
 
-  // Distance from point P to segment AB in meters
+  /// Distancia desde el punto P al segmento AB en metros.
   double _distanceToSegmentMeters(LatLng p, LatLng a, LatLng b) {
     final c = _closestPointOnSegment(p, a, b);
     return _distanceCalculator.as(LengthUnit.Meter, p, c);
@@ -676,6 +723,8 @@ class MapBloc extends Bloc<MapEvent, MapState> {
   // =============================
   // 🔹 TRACKING UBICACIÓN Y HEADING
   // =============================
+  /// Inicia el seguimiento de ubicación con alta precisión y sin filtro de distancia
+  /// para navegación fluida.
   Future<void> _startTrackingLocation() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) return;
@@ -689,7 +738,7 @@ class MapBloc extends Bloc<MapEvent, MapState> {
 
     Geolocator.getPositionStream(
       locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.high,
+        accuracy: LocationAccuracy.bestForNavigation,
         distanceFilter: 0,
       ),
     ).listen((Position position) {
@@ -697,6 +746,7 @@ class MapBloc extends Bloc<MapEvent, MapState> {
     });
   }
 
+  /// Inicia el seguimiento de la brújula del dispositivo.
   void _startTrackingHeading() {
     FlutterCompass.events?.listen((event) {
       final heading = event.heading ?? 0.0;
@@ -704,6 +754,7 @@ class MapBloc extends Bloc<MapEvent, MapState> {
     });
   }
 
+  /// Calcula el rumbo (en grados 0-360) desde 'from' hacia 'to'.
   double _calculateBearing(LatLng from, LatLng to) {
     final lat1 = from.latitude * (3.1415926535 / 180.0);
     final lon1 = from.longitude * (3.1415926535 / 180.0);
@@ -721,6 +772,7 @@ class MapBloc extends Bloc<MapEvent, MapState> {
     return (bearing * 180.0 / 3.1415926535 + 360.0) % 360.0;
   }
 
+  /// Cancela la navegación, limpia el estado interno y restaura MapLoaded previo.
   FutureOr<void> _onCancelNavigation(CancelNavigation event, Emitter<MapState> emit) {
     // Clear internal navigation tracking
     _currentRoutePoints = null;

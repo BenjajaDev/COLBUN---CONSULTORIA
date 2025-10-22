@@ -29,5 +29,15 @@
     "@no_vista360_disponible": {
         "description": "Message shown when there is no 360 image available at all"
     },
-    "ir": "Go"
+    "ir": "Go",
+    "ruta_en_curso": "Route in progress",
+    "@ruta_en_curso": {"description": "Title for the active navigation panel"},
+    "distancia_fmt": "Distance: {distance}",
+    "@distancia_fmt": {"description": "Distance label with formatted value", "placeholders": {"distance": {}}},
+    "tiempo_aprox_fmt": "Approx. time: {duration}",
+    "@tiempo_aprox_fmt": {"description": "Approximate time label with value", "placeholders": {"duration": {}}},
+    "llegada_aprox_fmt": "Approx. arrival: {eta}",
+    "@llegada_aprox_fmt": {"description": "Approximate arrival label with time", "placeholders": {"eta": {}}},
+    "cancelar": "Cancel",
+    "@cancelar": {"description": "Text for the cancel navigation button"}
 }

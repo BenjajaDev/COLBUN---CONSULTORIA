@@ -71,6 +71,29 @@
   "ir": "Ir",
   "@ir": {
     "description": "Texto para el botón de ir a la ruta"
+  },
+  "ruta_en_curso": "Ruta en curso",
+  "@ruta_en_curso": {
+    "description": "Título del panel de navegación activa"
+  },
+  "distancia_fmt": "Distancia: {distance}",
+  "@distancia_fmt": {
+    "description": "Etiqueta de distancia con valor formateado",
+    "placeholders": {"distance": {}}
+  },
+  "tiempo_aprox_fmt": "Tiempo aprox.: {duration}",
+  "@tiempo_aprox_fmt": {
+    "description": "Etiqueta de tiempo aproximado con valor",
+    "placeholders": {"duration": {}}
+  },
+  "llegada_aprox_fmt": "Llegada aprox.: {eta}",
+  "@llegada_aprox_fmt": {
+    "description": "Etiqueta de llegada aproximada con hora",
+    "placeholders": {"eta": {}}
+  },
+  "cancelar": "Cancelar",
+  "@cancelar": {
+    "description": "Texto para el botón de cancelar navegación"
   }
   
 }

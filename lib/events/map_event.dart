@@ -48,7 +48,8 @@ class SearchQueryUpdated extends MapEvent {
 /// 🚗 Evento: solicitar navegación a un punto de interés
 class RequestNavigation extends MapEvent {
   final LatLng destination;
-  RequestNavigation(this.destination);
+  final String languageCode;
+  RequestNavigation(this.destination, this.languageCode);
 }
 
 /// 🚦 Evento: detener navegación

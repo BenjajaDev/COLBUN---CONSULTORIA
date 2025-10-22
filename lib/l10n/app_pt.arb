@@ -29,5 +29,15 @@
     "@no_vista360_disponible": {
         "description": "Mensagem exibida quando não há nenhuma imagem 360 disponível"
     },
-    "ir": "Ir"
+    "ir": "Ir",
+    "ruta_en_curso": "Rota em andamento",
+    "@ruta_en_curso": {"description": "Título do painel de navegação ativa"},
+    "distancia_fmt": "Distância: {distance}",
+    "@distancia_fmt": {"description": "Rótulo de distância com valor formatado", "placeholders": {"distance": {}}},
+    "tiempo_aprox_fmt": "Tempo aprox.: {duration}",
+    "@tiempo_aprox_fmt": {"description": "Rótulo de tempo aproximado com valor", "placeholders": {"duration": {}}},
+    "llegada_aprox_fmt": "Chegada aprox.: {eta}",
+    "@llegada_aprox_fmt": {"description": "Rótulo de chegada aproximada com hora", "placeholders": {"eta": {}}},
+    "cancelar": "Cancelar",
+    "@cancelar": {"description": "Texto para o botão de cancelar navegação"}
 }

@@ -11,6 +11,14 @@ import 'available_pois_routes.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:consultoria_chat_bot/theme.dart';
+import 'package:provider/provider.dart';
+import 'package:consultoria_chat_bot/l10n/app_localizations.dart';
+import 'package:flutter/services.dart';
+
+// Clave de API para MapTiler leída desde --dart-define
+// Ejemplo: --dart-define=MAPTILER_API_KEY=TU_CLAVE
+const String kMapTilerApiKey = String.fromEnvironment('MAPTILER_API_KEY');
 
 class MapPage extends StatefulWidget {
   const MapPage({super.key});
@@ -20,8 +28,6 @@ class MapPage extends StatefulWidget {
 }
 
 class _MapPageState extends State<MapPage> {
-  static const Color _primaryColor = Color(0xFF4D67AE);
-  final String apiKey = 'vuobOOmhVcspXRuOBRRs';
   final MapController mapController = MapController();
   final TextEditingController searchController = TextEditingController();
   int? selectedRouteIndex;
@@ -30,6 +36,7 @@ class _MapPageState extends State<MapPage> {
   double _widgetHeight = 0;
   double _fabPosition = 0;
   Type? _lastStateType;
+  bool _centeredOnNavStart = false; // Center map once when navigation starts
 
   final double _fabPositionPadding = 10;
   @override
@@ -106,7 +113,7 @@ class _MapPageState extends State<MapPage> {
           initialCategory: state.selectedCategory,
           initialDistance: state.selectedDistanceKm ?? 0,
           initialSeason: state.selectedSeason,
-          primaryColor: _primaryColor,
+          primaryColor: Theme.of(context).colorScheme.primary,
           searchController: searchController,
           onFiltersApplied: () {
             if (selectedRouteIndex != null && mounted) {
@@ -138,7 +145,7 @@ class _MapPageState extends State<MapPage> {
           },
           child: BlocBuilder<MapBloc, MapState>(
             builder: (context, state) {
-              // Recalculate FAB position when changing between MapLoaded/MapNavigating (or any state type)
+              // Recalculate FAB position on state type change and reset one-time centering on nav start
               final currentType = state.runtimeType;
               if (_lastStateType != currentType) {
                 _lastStateType = currentType;
@@ -149,6 +156,10 @@ class _MapPageState extends State<MapPage> {
                     _widgetHeight = height;
                     _dragScrollSheetExtent = _initialSheetChildSize;
                     _fabPosition = _initialSheetChildSize * height;
+                    // Reset one-time centering when entering navigation
+                    if (state is MapNavigating) {
+                      _centeredOnNavStart = false;
+                    }
                   });
                 });
               }
@@ -175,14 +186,19 @@ class _MapPageState extends State<MapPage> {
                 }
               }
               if (state is MapNavigating) {
-                final userPos = state.start;
                 final route = state.routePoints;
                 if (route.isNotEmpty) {
                   WidgetsBinding.instance.addPostFrameCallback((_) {
+                    // Keep rotating to current bearing during navigation
                     if (state.bearing != null) {
                       mapController.rotate(state.bearing!);
                     }
-                    mapController.move(userPos, 16.5); // zoom centrado
+                    // Center only once when navigation starts
+                    if (!_centeredOnNavStart) {
+                      final userPos = state.userLocation ?? state.start;
+                      mapController.move(userPos, 16.5);
+                      _centeredOnNavStart = true;
+                    }
                   });
                 }
               }
@@ -215,8 +231,7 @@ class _MapPageState extends State<MapPage> {
                       children: [
                         TileLayer(
                           urlTemplate:
-                              'https://api.maptiler.com/maps/streets/{z}/{x}/{y}.png?key=$apiKey',
-
+                              'https://api.maptiler.com/maps/streets/{z}/{x}/{y}.png?key=$kMapTilerApiKey',
                           userAgentPackageName: 'com.example.app',
                         ),
                         MarkerLayer(
@@ -338,6 +353,7 @@ class _MapPageState extends State<MapPage> {
                     bottom: _fabPosition + _fabPositionPadding,
                     right: 16,
                     child: FloatingActionButton(
+                      heroTag: 'centerFab',
                       backgroundColor: const Color(0xFF4D67AE),
                       onPressed: () {
                         // Use the user's location when available, otherwise fall back to a default center
@@ -349,6 +365,18 @@ class _MapPageState extends State<MapPage> {
                         ); // ðŸ‘ˆ Centrar
                       },
                       child: const Icon(Icons.my_location, color: Colors.white),
+                    ),
+                  ),
+                  // FAB de emergencia, ubicado encima del botón de centrar ubicación
+                  Positioned(
+                    bottom: _fabPosition + _fabPositionPadding + 72,
+                    right: 16,
+                    child: FloatingActionButton(
+                      heroTag: 'emergencyFab',
+                      backgroundColor: Theme.of(context).colorScheme.error,
+                      foregroundColor: Theme.of(context).colorScheme.onError,
+                      onPressed: () {},
+                      child: const Icon(Icons.call),
                     ),
                   ),
                   if (state is MapLoaded)
@@ -389,7 +417,7 @@ class _MapPageState extends State<MapPage> {
                               });
                             },
                             primaryColorOpacity: 0.12,
-                            primaryColor: _primaryColor,
+                            primaryColor: Theme.of(context).colorScheme.primary,
                             mapController: mapController,
                             scrollController: scrollController,
                           );
@@ -447,12 +475,10 @@ class _MapPageState extends State<MapPage> {
                           final etaText = TimeOfDay.fromDateTime(
                             eta,
                           ).format(context);
-                          print("📍 Posición actual: ${state.userLocation}");
-                          print("➡️ Instrucción: ${state.instructions.first}");
-                          print("🧭 Bearing: ${state.bearing}");
+                         
                           return Container(
-                            decoration: const BoxDecoration(
-                              color: Colors.white,
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.surface,
                               borderRadius: BorderRadius.vertical(
                                 top: Radius.circular(20),
                               ),
@@ -495,50 +521,62 @@ class _MapPageState extends State<MapPage> {
                                             crossAxisAlignment:
                                                 CrossAxisAlignment.start,
                                             children: [
-                                              const Text(
-                                                'Ruta en curso',
+                                              Text(
+                                                AppLocalizations.of(context)!.ruta_en_curso,
                                                 style: TextStyle(
                                                   fontSize: 18,
                                                   fontWeight: FontWeight.bold,
+                                                  color: Theme.of(context).colorScheme.onSurface,
                                                 ),
                                               ),
                                               const SizedBox(height: 8),
                                               Row(
                                                 children: [
-                                                  const Icon(
+                                                  Icon(
                                                     Icons.map,
-                                                    color: Colors.black54,
+                                                    color: Theme.of(context).colorScheme.onSurface,
                                                   ),
                                                   const SizedBox(width: 8),
-                                                  Text(
-                                                    'Distancia: $distanceText',
+                                                  // Toggle tema claro/oscuro
+                                                  IconButton(
+                                                    style: IconButton.styleFrom(
+                                                      backgroundColor: Theme.of(context).colorScheme.surface,
+                                                      foregroundColor: Theme.of(context).colorScheme.primary,
+                                                      shape: const CircleBorder(),
+                                                    ),
+                                                    onPressed: () {
+                                                      context.read<ThemeProvider>().toggleTheme();
+                                                    },
+                                                    icon: Icon(
+                                                      context.watch<ThemeProvider>().themeMode == ThemeMode.dark
+                                                          ? Icons.dark_mode
+                                                          : Icons.light_mode,
+                                                    ),
                                                   ),
+
+                                                  Text(AppLocalizations.of(context)!.distancia_fmt(distanceText)),
                                                 ],
                                               ),
                                               const SizedBox(height: 6),
                                               Row(
                                                 children: [
-                                                  const Icon(
+                                                  Icon(
                                                     Icons.access_time,
-                                                    color: Colors.black54,
+                                                    color: Theme.of(context).colorScheme.onSurface
                                                   ),
                                                   const SizedBox(width: 8),
-                                                  Text(
-                                                    'Tiempo aprox: $durationText',
-                                                  ),
+                                                  Text(AppLocalizations.of(context)!.tiempo_aprox_fmt(durationText)),
                                                 ],
                                               ),
                                               const SizedBox(height: 6),
                                               Row(
                                                 children: [
-                                                  const Icon(
+                                                  Icon(
                                                     Icons.schedule,
-                                                    color: Colors.black54,
+                                                    color: Theme.of(context).colorScheme.onSurface,
                                                   ),
                                                   const SizedBox(width: 8),
-                                                  Text(
-                                                    'Llegada aprox: $etaText',
-                                                  ),
+                                                  Text(AppLocalizations.of(context)!.llegada_aprox_fmt(etaText)),
                                                 ],
                                               ),
                                             ],
@@ -546,7 +584,8 @@ class _MapPageState extends State<MapPage> {
                                         ),
                                         ElevatedButton(
                                           style: ElevatedButton.styleFrom(
-                                            backgroundColor: Color(0xFF4D67AE),
+                                            backgroundColor: Theme.of(context).colorScheme.primary,
+                                            foregroundColor: Theme.of(context).colorScheme.onPrimary,
                                           ),
                                           onPressed: () {
                                             // cancel navigation
@@ -554,7 +593,7 @@ class _MapPageState extends State<MapPage> {
                                               CancelNavigation(),
                                             );
                                           },
-                                          child: const Text('Cancelar', style: TextStyle(color: Colors.white)),
+                                          child: Text(AppLocalizations.of(context)!.cancelar),
                                         ),
                                       ],
                                     ),
@@ -579,8 +618,8 @@ class _MapPageState extends State<MapPage> {
                           children: [
                             IconButton(
                               style: IconButton.styleFrom(
-                                backgroundColor: Colors.white,
-                                foregroundColor: _primaryColor,
+                                backgroundColor: Theme.of(context).colorScheme.surface,
+                                foregroundColor: Theme.of(context).colorScheme.primary,
                                 shape: const CircleBorder(),
                               ),
                               onPressed: () {},
@@ -607,7 +646,7 @@ class _MapPageState extends State<MapPage> {
                                       Radius.circular(32.0),
                                     ),
                                     borderSide: BorderSide(
-                                      color: Colors.grey.shade300,
+                                      color: Theme.of(context).colorScheme.outlineVariant,
                                     ),
                                   ),
                                   enabledBorder: OutlineInputBorder(
@@ -615,19 +654,19 @@ class _MapPageState extends State<MapPage> {
                                       Radius.circular(32.0),
                                     ),
                                     borderSide: BorderSide(
-                                      color: Colors.grey.shade300,
+                                      color: Theme.of(context).colorScheme.outlineVariant,
                                     ),
                                   ),
-                                  focusedBorder: const OutlineInputBorder(
+                                  focusedBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.all(
                                       Radius.circular(32.0),
                                     ),
                                     borderSide: BorderSide(
-                                      color: Color(0xFF4D67AE),
+                                      color: Theme.of(context).colorScheme.primary,
                                     ),
                                   ),
                                   filled: true,
-                                  fillColor: Colors.white,
+                                  fillColor: Theme.of(context).colorScheme.surface,
                                   contentPadding: const EdgeInsets.symmetric(
                                     horizontal: 12.0,
                                     vertical: 10.0,
@@ -639,12 +678,29 @@ class _MapPageState extends State<MapPage> {
                             const SizedBox(width: 4.0),
                             IconButton(
                               style: IconButton.styleFrom(
-                                backgroundColor: Colors.white,
-                                foregroundColor: _primaryColor,
+                                backgroundColor: Theme.of(context).colorScheme.surface,
+                                foregroundColor: Theme.of(context).colorScheme.primary,
                                 shape: const CircleBorder(),
                               ),
                               onPressed: () => _openFilterSheet(state),
                               icon: const Icon(Icons.filter_list),
+                            ),
+
+                            const SizedBox(width: 4.0),
+                            IconButton(
+                              style: IconButton.styleFrom(
+                                backgroundColor: Theme.of(context).colorScheme.surface,
+                                foregroundColor: Theme.of(context).colorScheme.primary,
+                                shape: const CircleBorder(),
+                              ),
+                              onPressed: () {
+                                context.read<ThemeProvider>().toggleTheme();
+                              },
+                              icon: Icon(
+                                context.watch<ThemeProvider>().themeMode == ThemeMode.dark
+                                    ? Icons.dark_mode
+                                    : Icons.light_mode,
+                              ),
                             ),
 
                             /* const SizedBox(width: 4.0),
@@ -659,7 +715,7 @@ class _MapPageState extends State<MapPage> {
                             const SizedBox(width: 4.0),
                             IconButton(
                               style: IconButton.styleFrom(
-                                backgroundColor: Colors.white,
+                                backgroundColor: Theme.of(context).colorScheme.surface,
                                 foregroundColor: Colors.pink,
                                 shape: const CircleBorder(),
                               ),
@@ -718,7 +774,7 @@ class _MapPageState extends State<MapPage> {
         margin: const EdgeInsets.all(12),
         padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 18),
         decoration: BoxDecoration(
-          color: const Color(0xFF4D67AE),
+          color: Theme.of(context).colorScheme.primary,
           borderRadius: BorderRadius.circular(16),
           boxShadow: const [
             BoxShadow(
@@ -731,7 +787,7 @@ class _MapPageState extends State<MapPage> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            const Icon(Icons.navigation, color: Colors.white, size: 32),
+            Icon(Icons.navigation, color: Theme.of(context).colorScheme.onPrimary, size: 32),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -739,8 +795,8 @@ class _MapPageState extends State<MapPage> {
                 children: [
                   Text(
                     instruction,
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onPrimary,
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                       height: 1.2,
@@ -749,7 +805,7 @@ class _MapPageState extends State<MapPage> {
                   const SizedBox(height: 4),
                   Text(
                     distanceText,
-                    style: const TextStyle(color: Colors.white70, fontSize: 14),
+                    style: TextStyle(color: Theme.of(context).colorScheme.onPrimary, fontSize: 14),
                   ),
                 ],
               ),

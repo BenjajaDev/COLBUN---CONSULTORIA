@@ -61,4 +61,25 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get ir => 'Ir';
+
+  @override
+  String get ruta_en_curso => 'Ruta en curso';
+
+  @override
+  String distancia_fmt(Object distance) {
+    return 'Distancia: $distance';
+  }
+
+  @override
+  String tiempo_aprox_fmt(Object duration) {
+    return 'Tiempo aprox.: $duration';
+  }
+
+  @override
+  String llegada_aprox_fmt(Object eta) {
+    return 'Llegada aprox.: $eta';
+  }
+
+  @override
+  String get cancelar => 'Cancelar';
 }
