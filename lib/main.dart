@@ -7,6 +7,8 @@ import 'package:consultoria_chat_bot/services/firestore_service.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:provider/provider.dart';
+import 'package:consultoria_chat_bot/theme.dart';
 import 'firebase_options.dart';
 import 'package:consultoria_chat_bot/services/local_storage.dart';
 
@@ -34,15 +36,53 @@ class MyApp extends StatelessWidget {
         BlocProvider(create: (context) => PoiBloc()),
         BlocProvider(create: (context) => FavoritesCubit()),
       ],
-      child: MaterialApp(
-        title: 'Flutter Demo',
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-          useMaterial3: true,
+      child: ChangeNotifierProvider(
+        create: (_) => ThemeProvider(),
+        child: Consumer<ThemeProvider>(
+          builder: (context, themeProvider, _) {
+            final ThemeData lightTheme = ThemeData(
+              useMaterial3: true,
+              colorScheme: ColorScheme.fromSeed(
+                seedColor: ThemeProvider.lightPrimary,
+                brightness: Brightness.light,
+                surface: ThemeProvider.lightBackground,
+              ),
+              scaffoldBackgroundColor: ThemeProvider.lightBackground,
+              primaryColor: ThemeProvider.lightPrimary,
+              appBarTheme: const AppBarTheme(
+                backgroundColor: ThemeProvider.lightBackground,
+                foregroundColor: ThemeProvider.lightText,
+                elevation: 0,
+              ),
+            );
+
+            final ThemeData darkTheme = ThemeData(
+              useMaterial3: true,
+              colorScheme: ColorScheme.fromSeed(
+                seedColor: ThemeProvider.darkPrimary,
+                brightness: Brightness.dark,
+                surface: ThemeProvider.darkBackground,
+              ),
+              scaffoldBackgroundColor: ThemeProvider.darkBackground,
+              primaryColor: ThemeProvider.darkPrimary,
+              appBarTheme: const AppBarTheme(
+                backgroundColor: ThemeProvider.darkSurface,
+                foregroundColor: ThemeProvider.darkText,
+                elevation: 0,
+              ),
+            );
+
+            return MaterialApp(
+              title: 'Consultoría',
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
+              theme: lightTheme,
+              darkTheme: darkTheme,
+              themeMode: themeProvider.themeMode,
+              home: const MapPage(),
+            );
+          },
         ),
-        home: MapPage(),
       ),
     );
   }

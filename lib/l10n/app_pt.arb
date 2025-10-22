@@ -13,4 +13,31 @@
     "rutas_disponibles": "Rotas disponíveis",
     "resultado_busqueda": "Resultado de busca",
     "sin_resultado": "Nenhum resultado encontrado"
+        ,
+    "vistas_modificadas_ia": "Inclui vistas modificadas com IA",
+    "@vistas_modificadas_ia": {
+        "description": "Texto do tooltip indicando que as vistas 360 foram modificadas com IA"
+    },
+    "no_vista360_temporada": "Não há imagem 360 para a temporada \"{season}\".",
+    "@no_vista360_temporada": {
+        "description": "Mensagem mostrada quando a temporada selecionada não tem imagem 360",
+        "placeholders": {
+            "season": {}
+        }
+    },
+    "no_vista360_disponible": "Não há imagem 360 disponível para a temporada selecionada.",
+    "@no_vista360_disponible": {
+        "description": "Mensagem exibida quando não há nenhuma imagem 360 disponível"
+    },
+    "ir": "Ir",
+    "ruta_en_curso": "Rota em andamento",
+    "@ruta_en_curso": {"description": "Título do painel de navegação ativa"},
+    "distancia_fmt": "Distância: {distance}",
+    "@distancia_fmt": {"description": "Rótulo de distância com valor formatado", "placeholders": {"distance": {}}},
+    "tiempo_aprox_fmt": "Tempo aprox.: {duration}",
+    "@tiempo_aprox_fmt": {"description": "Rótulo de tempo aproximado com valor", "placeholders": {"duration": {}}},
+    "llegada_aprox_fmt": "Chegada aprox.: {eta}",
+    "@llegada_aprox_fmt": {"description": "Rótulo de chegada aproximada com hora", "placeholders": {"eta": {}}},
+    "cancelar": "Cancelar",
+    "@cancelar": {"description": "Texto para o botão de cancelar navegação"}
 }

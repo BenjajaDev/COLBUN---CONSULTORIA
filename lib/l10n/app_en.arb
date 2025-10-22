@@ -13,5 +13,31 @@
     "rutas_disponibles": "Available routes",
     "resultado_busqueda": "Search result",
     "sin_resultado": "No results found"
-    
+        ,
+    "vistas_modificadas_ia": "Includes views modified with AI",
+    "@vistas_modificadas_ia": {
+        "description": "Tooltip text indicating 360 views were modified with AI"
+    },
+    "no_vista360_temporada": "No 360 image available for the \"{season}\" season.",
+    "@no_vista360_temporada": {
+        "description": "Message shown when the selected season has no 360 image",
+        "placeholders": {
+            "season": {}
+        }
+    },
+    "no_vista360_disponible": "No 360 image available for the selected season.",
+    "@no_vista360_disponible": {
+        "description": "Message shown when there is no 360 image available at all"
+    },
+    "ir": "Go",
+    "ruta_en_curso": "Route in progress",
+    "@ruta_en_curso": {"description": "Title for the active navigation panel"},
+    "distancia_fmt": "Distance: {distance}",
+    "@distancia_fmt": {"description": "Distance label with formatted value", "placeholders": {"distance": {}}},
+    "tiempo_aprox_fmt": "Approx. time: {duration}",
+    "@tiempo_aprox_fmt": {"description": "Approximate time label with value", "placeholders": {"duration": {}}},
+    "llegada_aprox_fmt": "Approx. arrival: {eta}",
+    "@llegada_aprox_fmt": {"description": "Approximate arrival label with time", "placeholders": {"eta": {}}},
+    "cancelar": "Cancel",
+    "@cancelar": {"description": "Text for the cancel navigation button"}
 }

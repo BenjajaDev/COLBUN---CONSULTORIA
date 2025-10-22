@@ -1,18 +1,29 @@
-﻿import 'package:consultoria_chat_bot/blocs/map_bloc.dart';
+﻿import 'dart:math' as math;
+
+import 'package:consultoria_chat_bot/blocs/map_bloc.dart';
 import 'package:consultoria_chat_bot/events/map_event.dart';
-import 'package:consultoria_chat_bot/l10n/app_localizations.dart';
 import 'package:consultoria_chat_bot/screens/poi_screen.dart';
 import 'package:consultoria_chat_bot/screens/emergency_screen.dart';
 import 'package:consultoria_chat_bot/services/local_storage.dart';
 import 'package:consultoria_chat_bot/screens/favorites_screen.dart';
 import 'package:consultoria_chat_bot/states/map_state.dart';
 import 'package:flutter/material.dart';
+import '../widget/filter_modal.dart';
+import 'available_pois_routes.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'dart:async';
 import 'dart:io';
 
+import 'package:consultoria_chat_bot/theme.dart';
+import 'package:provider/provider.dart';
+import 'package:consultoria_chat_bot/l10n/app_localizations.dart';
+import 'package:flutter/services.dart';
+
+// Clave de API para MapTiler leída desde --dart-define
+// Ejemplo: --dart-define=MAPTILER_API_KEY=TU_CLAVE
+const String kMapTilerApiKey = String.fromEnvironment('MAPTILER_API_KEY');
 
 class MapPage extends StatefulWidget {
   const MapPage({super.key});
@@ -22,8 +33,6 @@ class MapPage extends StatefulWidget {
 }
 
 class _MapPageState extends State<MapPage> {
-  static const Color _primaryColor = Color(0xFF4D67AE);
-  final String apiKey = 'vuobOOmhVcspXRuOBRRs';
   final MapController mapController = MapController();
   final TextEditingController searchController = TextEditingController();
   int? selectedRouteIndex;
@@ -31,6 +40,8 @@ class _MapPageState extends State<MapPage> {
   double _dragScrollSheetExtent = 0;
   double _widgetHeight = 0;
   double _fabPosition = 0;
+  Type? _lastStateType;
+  bool _centeredOnNavStart = false; // Center map once when navigation starts
 
   bool _isOffline = false;
   Timer? _netTimer;
@@ -42,7 +53,8 @@ class _MapPageState extends State<MapPage> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       setState(() {
-        _fabPosition = _initialSheetChildSize * context.size!.height;
+        _fabPosition =
+            _initialSheetChildSize * MediaQuery.of(context).size.height;
       });
     });
 
@@ -82,54 +94,41 @@ class _MapPageState extends State<MapPage> {
   void _openFilterSheet(MapLoaded state) {
     FocusScope.of(context).unfocus();
 
-    final categoryLookup = <String, String>{};
-    for (final route in state.allRoutes) {
-      if (route.category != null && route.category!.trim().isNotEmpty) {
-        final key = route.category!.trim();
-        categoryLookup.putIfAbsent(key.toLowerCase(), () => key);
-      }
-      for (final poi in route.pois) {
-        for (final category in poi.categorias) {
-          final trimmed = category.trim();
-          if (trimmed.isEmpty) {
-            continue;
-          }
-          categoryLookup.putIfAbsent(trimmed.toLowerCase(), () => trimmed);
-        }
-      }
-    }
-    final categories = categoryLookup.values.toList()..sort();
+    final categories =
+        state.allRoutes
+            .expand(
+              (r) => [
+                if (r.category != null && r.category!.trim().isNotEmpty)
+                  r.category!.trim(),
+                ...r.pois.expand((p) => p.categorias.map((c) => c.trim())),
+              ],
+            )
+            .where((c) => c.isNotEmpty)
+            .toSet()
+            .toList()
+          ..sort();
 
-    final seasonLookup = <String, String>{};
-    for (final route in state.allRoutes) {
-      if (route.season != null && route.season!.trim().isNotEmpty) {
-        final key = route.season!.trim();
-        seasonLookup.putIfAbsent(key.toLowerCase(), () => key);
-      }
-    }
-    final seasons = seasonLookup.values.toList()..sort();
+    final seasons =
+        state.allRoutes
+            .map((r) => r.season?.trim())
+            .whereType<String>()
+            .where((s) => s.isNotEmpty)
+            .toSet()
+            .toList()
+          ..sort();
 
-    double computedMaxDistance = state.allRoutes.fold<double>(0, (
-      previousValue,
-      route,
-    ) {
-      if (route.distanceKm != null && route.distanceKm! > previousValue) {
-        return route.distanceKm!;
-      }
-      return previousValue;
-    });
-    if (computedMaxDistance <= 0) {
-      computedMaxDistance = 100;
-    } else if (computedMaxDistance < 10) {
-      computedMaxDistance = 10;
-    } else if (computedMaxDistance > 200) {
-      computedMaxDistance = 200;
-    }
-    final int sliderDivisions = computedMaxDistance.round();
+    double computedMaxDistance = state.allRoutes.fold<double>(
+      0,
+      (prev, route) => route.distanceKm != null && route.distanceKm! > prev
+          ? route.distanceKm!
+          : prev,
+    );
 
-    String? tempCategory = state.selectedCategory;
-    double tempDistance = state.selectedDistanceKm ?? 0;
-    String? tempSeason = state.selectedSeason;
+    if (computedMaxDistance <= 0) computedMaxDistance = 100;
+    if (computedMaxDistance < 10) computedMaxDistance = 10;
+    if (computedMaxDistance > 200) computedMaxDistance = 200;
+
+    final sliderDivisions = computedMaxDistance.round();
 
     showModalBottomSheet(
       context: context,
@@ -139,398 +138,248 @@ class _MapPageState extends State<MapPage> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       builder: (context) {
-        return StatefulBuilder(
-          builder: (context, modalSetState) {
-            Widget buildDropdown({
-              required String? currentValue,
-              required List<String> values,
-              required ValueChanged<String?> onChanged,
-            }) {
-              return InputDecorator(
-                decoration: InputDecoration(
-                  hintText: 'Todas',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: _primaryColor),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 4,
-                  ),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String?>(
-                    value: currentValue,
-                    hint: const Text('Todas'),
-                    isExpanded: true,
-                    items: [
-                      const DropdownMenuItem<String?>(
-                        value: null,
-                        child: Text('Todas'),
-                      ),
-                      ...values.map(
-                        (value) => DropdownMenuItem<String?>(
-                          value: value,
-                          child: Text(value),
-                        ),
-                      ),
-                    ],
-                    onChanged: onChanged,
-                  ),
-                ),
-              );
+        return FilterModal(
+          categories: categories,
+          seasons: seasons,
+          computedMaxDistance: computedMaxDistance,
+          sliderDivisions: sliderDivisions,
+          initialCategory: state.selectedCategory,
+          initialDistance: state.selectedDistanceKm ?? 0,
+          initialSeason: state.selectedSeason,
+          primaryColor: Theme.of(context).colorScheme.primary,
+          searchController: searchController,
+          onFiltersApplied: () {
+            if (selectedRouteIndex != null && mounted) {
+              setState(() {
+                selectedRouteIndex = null;
+              });
             }
-
-            final labelStyle = Theme.of(context).textTheme.titleMedium
-                ?.copyWith(fontWeight: FontWeight.w600, color: _primaryColor);
-
-            final distanceLabel = tempDistance <= 0
-                ? 'Todas'
-                : tempDistance >= 10
-                ? '${tempDistance.toStringAsFixed(0)} km'
-                : '${tempDistance.toStringAsFixed(1)} km';
-
-            return Padding(
-              padding: MediaQuery.of(context).viewInsets,
-              child: SafeArea(
-                top: false,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Text(
-                            'Filtros',
-                            style:
-                                (Theme.of(context).textTheme.titleLarge ??
-                                        const TextStyle(
-                                          fontSize: 20,
-                                          fontWeight: FontWeight.w600,
-                                        ))
-                                    .copyWith(color: _primaryColor),
-                          ),
-                          const Spacer(),
-                          IconButton(
-                            onPressed: () => Navigator.of(context).pop(),
-                            icon: const Icon(Icons.close),
-                            color: _primaryColor,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Categoría',
-                        style:
-                            labelStyle ??
-                            const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF4D67AE),
-                            ),
-                      ),
-                      const SizedBox(height: 8),
-                      buildDropdown(
-                        currentValue: tempCategory,
-                        values: categories,
-                        onChanged: (value) {
-                          modalSetState(() {
-                            tempCategory = value;
-                          });
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Distancia (km)',
-                        style:
-                            labelStyle ??
-                            const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF4D67AE),
-                            ),
-                      ),
-                      const SizedBox(height: 8),
-                      SliderTheme(
-                        data: SliderTheme.of(context).copyWith(
-                          activeTrackColor: _primaryColor,
-                          inactiveTrackColor: _primaryColor.withValues(
-                            alpha: 0.2,
-                          ),
-                          thumbColor: _primaryColor,
-                          overlayColor: _primaryColor.withValues(alpha: 0.1),
-                          valueIndicatorColor: _primaryColor,
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Slider(
-                                value: tempDistance.clamp(
-                                  0,
-                                  computedMaxDistance,
-                                ),
-                                min: 0,
-                                max: computedMaxDistance,
-                                divisions: sliderDivisions > 0
-                                    ? sliderDivisions
-                                    : null,
-                                label: distanceLabel,
-                                onChanged: (value) {
-                                  modalSetState(() {
-                                    tempDistance = value;
-                                  });
-                                },
-                              ),
-                            ),
-                            Text(
-                              distanceLabel,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF4D67AE),
-                              ),
-                            ),
-                            IconButton(
-                              tooltip: 'Limpiar',
-                              onPressed: () {
-                                modalSetState(() {
-                                  tempDistance = 0;
-                                });
-                              },
-                              icon: const Icon(Icons.clear),
-                              color: _primaryColor,
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Temporada',
-                        style:
-                            labelStyle ??
-                            const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF4D67AE),
-                            ),
-                      ),
-                      const SizedBox(height: 8),
-                      buildDropdown(
-                        currentValue: tempSeason,
-                        values: seasons,
-                        onChanged: (value) {
-                          modalSetState(() {
-                            tempSeason = value;
-                          });
-                        },
-                      ),
-                      const SizedBox(height: 24),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _primaryColor,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          onPressed: () {
-                            Navigator.of(context).pop();
-                            context.read<MapBloc>().add(
-                              ApplyFilters(
-                                category: tempCategory,
-                                distanceKm: tempDistance > 0
-                                    ? tempDistance
-                                    : null,
-                                season: tempSeason,
-                                query: searchController.text.trim(),
-                              ),
-                            );
-                            if (selectedRouteIndex != null && mounted) {
-                              setState(() {
-                                selectedRouteIndex = null;
-                              });
-                            }
-                          },
-                          child: const Text('Aplicar filtros'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            );
           },
         );
       },
     );
   }
 
-  void _sendQueryUpdate(MapLoaded state, String query) {
-    final trimmedQuery = query.trim();
-    context.read<MapBloc>().add(
-      ApplyFilters(
-        category: state.selectedCategory,
-        distanceKm: state.selectedDistanceKm,
-        season: state.selectedSeason,
-        query: trimmedQuery,
-      ),
-    );
-    if (selectedRouteIndex != null && mounted) {
-      setState(() {
-        selectedRouteIndex = null;
-      });
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: BlocBuilder<MapBloc, MapState>(
-          builder: (context, state) {
-            if (state is MapLoaded) {
-              if (searchController.text != state.query) {
-                searchController.value = TextEditingValue(
-                  text: state.query,
-
-                  selection: TextSelection.collapsed(
-                    offset: state.query.length,
-                  ),
-                );
-              }
-
-              final filteredRoutes = state.filteredRoutes;
-
-              final filteredPois = state.filteredPois;
-
-              final hasSearch = state.query.trim().isNotEmpty;
-
-              final buttonStyle = IconButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: _primaryColor,
-                shape: const CircleBorder(),
+        child: BlocListener<MapBloc, MapState>(
+          listener: (context, state) {
+            if (state is MapError) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(state.message),
+                  backgroundColor: Colors.redAccent,
+                  duration: const Duration(seconds: 4),
+                ),
               );
-
-              if (selectedRouteIndex != null &&
-                  (selectedRouteIndex! < 0 ||
-                      selectedRouteIndex! >= filteredRoutes.length)) {
+            }
+          },
+          child: BlocBuilder<MapBloc, MapState>(
+            builder: (context, state) {
+              // Recalculate FAB position on state type change and reset one-time centering on nav start
+              final currentType = state.runtimeType;
+              if (_lastStateType != currentType) {
+                _lastStateType = currentType;
                 WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (mounted) {
-                    setState(() {
-                      selectedRouteIndex = null;
-                    });
-                  }
+                  if (!mounted) return;
+                  final height = MediaQuery.of(context).size.height;
+                  setState(() {
+                    _widgetHeight = height;
+                    _dragScrollSheetExtent = _initialSheetChildSize;
+                    _fabPosition = _initialSheetChildSize * height;
+                    // Reset one-time centering when entering navigation
+                    if (state is MapNavigating) {
+                      _centeredOnNavStart = false;
+                    }
+                  });
                 });
               }
+              if (state is MapLoaded) {
+                if (searchController.text != state.query) {
+                  searchController.value = TextEditingValue(
+                    text: state.query,
+                    selection: TextSelection.collapsed(
+                      offset: state.query.length,
+                    ),
+                  );
+                }
 
-              final selectedRoute =
-                  (selectedRouteIndex != null &&
-                      selectedRouteIndex! >= 0 &&
-                      selectedRouteIndex! < filteredRoutes.length)
-                  ? filteredRoutes[selectedRouteIndex!]
-                  : null;
+                if (selectedRouteIndex != null &&
+                    (selectedRouteIndex! < 0 ||
+                        selectedRouteIndex! >= state.filteredRoutes.length)) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (mounted) {
+                      setState(() {
+                        selectedRouteIndex = null;
+                      });
+                    }
+                  });
+                }
+              }
+              if (state is MapNavigating) {
+                final route = state.routePoints;
+                if (route.isNotEmpty) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    // Keep rotating to current bearing during navigation
+                    if (state.bearing != null) {
+                      mapController.rotate(state.bearing!);
+                    }
+                    // Center only once when navigation starts
+                    if (!_centeredOnNavStart) {
+                      final userPos = state.userLocation ?? state.start;
+                      mapController.move(userPos, 16.5);
+                      _centeredOnNavStart = true;
+                    }
+                  });
+                }
+              }
               return Stack(
                 children: [
-                  FlutterMap(
-                    mapController: mapController,
+                  Transform(
+                    alignment: Alignment.center,
+                    transform: Matrix4.identity()
+                      ..rotateX(state is MapNavigating ? 0.6 : 0.0),
+                    child: FlutterMap(
+                      mapController: mapController,
 
-                    options: MapOptions(
-                      initialCenter: state.center,
+                      options: MapOptions(
+                        initialCenter: LatLng(-35.6960057, -71.4060907),
 
-                      initialZoom: 15,
-                    ),
-                    children: [
-                      TileLayer(
-                        urlTemplate:
-                            'https://api.maptiler.com/maps/streets/{z}/{x}/{y}.png?key=$apiKey',
-
-                        userAgentPackageName: 'com.example.app',
+                        initialZoom: 15,
+                        // Testing helper: tap the map to update the user's position
+                        onTap: (tapPosition, point) {
+                          try {
+                            // Move the visible map to the tapped point
+                            // Use a fixed zoom when centering on tap for testing
+                            mapController.move(point, 15.0);
+                            // Dispatch an UpdateUserLocation for quick testing (not altering bloc structure)
+                            context.read<MapBloc>().add(UpdateUserLocation(point));
+                          } catch (e) {
+                            // ignore errors in testing hook
+                          }
+                        },
                       ),
-                      MarkerLayer(
-                        markers: [
-                          ...filteredPois.map(
-                            (poi) => Marker(
-                              point: LatLng(poi.latitud, poi.longitud),
-                              width: 80,
-                              height: 60,
-                              child: GestureDetector(
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => PoiScreen(poi),
-                                    ),
-                                  );
-                                },
+                      children: [
+                        TileLayer(
+                          urlTemplate:
+                              'https://api.maptiler.com/maps/streets/{z}/{x}/{y}.png?key=$kMapTilerApiKey',
+                          userAgentPackageName: 'com.example.app',
+                        ),
+                        MarkerLayer(
+                          markers: [
+                            if (state is MapLoaded)
+                              ...state.filteredPois.map(
+                                (poi) => Marker(
+                                  point: LatLng(poi.latitud, poi.longitud),
+                                  width: 80,
+                                  height: 60,
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => PoiScreen(poi),
+                                        ),
+                                      );
+                                    },
 
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: const [
-                                    Icon(
-                                      Icons.location_pin,
-                                      color: Colors.red,
-                                      size: 40,
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: const [
+                                        Icon(
+                                          Icons.location_pin,
+                                          color: Colors.red,
+                                          size: 40,
+                                        ),
+                                      ],
                                     ),
-                                  ],
+                                  ),
                                 ),
                               ),
-                            ),
+
+                            if (state is MapLoaded)
+                              if (state.userLocation != null)
+                                Marker(
+                                  point: state.userLocation!,
+                                  child: Transform.rotate(
+                                    angle:
+                                        state.heading *
+                                        (3.1415926535 /
+                                            180), //  Convertir a radianes
+
+                                    child: Container(
+                                      decoration: const BoxDecoration(
+                                        color: Color(0xFF4D67AE),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        Icons.navigation, // Flecha tipo brujula
+
+                                        color: Colors.white,
+                                        size: 24,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            if (state is MapNavigating)
+                              if (state.userLocation != null)
+                                Marker(
+                                  point: state.userLocation!,
+                                  child: Builder(builder: (context) {
+                                    // Use a safe bearing value; fall back to 0.0 if null
+                                    final double bearingDeg = state.bearing ?? 0.0;
+                                    final double angleRad = bearingDeg * (math.pi / 180);
+                                    return Transform.rotate(
+                                      angle: angleRad,
+                                      child: Container(
+                                        decoration: const BoxDecoration(
+                                          color: Color(0xFF4D67AE),
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: const Icon(
+                                          Icons.navigation, // Flecha tipo brujula
+                                          color: Colors.white,
+                                          size: 24,
+                                        ),
+                                      ),
+                                    );
+                                  }),
+                                ),
+                          ],
+                        ),
+                        if (state is MapLoaded)
+                          PolylineLayer(
+                            polylines: state.filteredRoutes.map((route) {
+                              return Polyline(
+                                points: [
+                                  LatLng(
+                                    route.initialLatitude,
+                                    route.initialLongitude,
+                                  ),
+                                  LatLng(
+                                    route.finalLatitude,
+                                    route.finalLongitude,
+                                  ),
+                                ],
+                                strokeWidth: 4.0,
+                                color: Colors.red,
+                              );
+                            }).toList(),
                           ),
-
-                          if (state.userLocation != null)
-                            Marker(
-                              point: state.userLocation!,
-                              child: Transform.rotate(
-                                angle:
-                                    state.heading *
-                                    (3.1415926535 /
-                                        180), //  Convertir a radianes
-
-                                child: Container(
-                                  decoration: const BoxDecoration(
-                                    color: Color(0xFF4D67AE),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(
-                                    Icons.navigation, // Flecha tipo brujula
-
-                                    color: Colors.white,
-                                    size: 24,
-                                  ),
-                                ),
+                        if (state is MapNavigating)
+                          PolylineLayer(
+                            polylines: [
+                              Polyline(
+                                points: state.routePoints,
+                                strokeWidth: 5.0,
+                                color: Colors.blueAccent,
                               ),
-                            ),
-                        ],
-                      ),
-
-                      PolylineLayer(
-                        polylines: filteredRoutes.map((route) {
-                          return Polyline(
-                            points: [
-                              LatLng(
-                                route.initialLatitude,
-                                route.initialLongitude,
-                              ),
-                              LatLng(route.finalLatitude, route.finalLongitude),
                             ],
-                            strokeWidth: 4.0,
-                            color: Colors.red,
-                          );
-                        }).toList(),
-                      ),
-                    ],
+                          ),
+                      ],
+                    ),
                   ),
 
                   Positioned(
@@ -556,128 +405,178 @@ class _MapPageState extends State<MapPage> {
                     child: FloatingActionButton(heroTag: 'location_fab',
                       backgroundColor: const Color(0xFF4D67AE),
                       onPressed: () {
+                        // Use the user's location when available, otherwise fall back to a default center
                         mapController.move(
-                          state.userLocation!,
+                          state is MapLoaded && state.userLocation != null
+                              ? state.userLocation!
+                              : LatLng(-35.6960057, -71.4060907),
                           15,
                         ); // ðŸ‘ˆ Centrar
                       },
                       child: const Icon(Icons.my_location, color: Colors.white),
                     ),
                   ),
+                  // FAB de emergencia, ubicado encima del botón de centrar ubicación
+                  Positioned(
+                    bottom: _fabPosition + _fabPositionPadding + 72,
+                    right: 16,
+                    child: FloatingActionButton(
+                      heroTag: 'emergencyFab',
+                      backgroundColor: Theme.of(context).colorScheme.error,
+                      foregroundColor: Theme.of(context).colorScheme.onError,
+                      onPressed: () {},
+                      child: const Icon(Icons.call),
+                    ),
+                  ),
+                  if (state is MapLoaded)
+                    NotificationListener<DraggableScrollableNotification>(
+                      onNotification: (notification) {
+                        setState(() {
+                          _widgetHeight = MediaQuery.of(context).size.height;
+                          _dragScrollSheetExtent = notification.extent;
+                          _fabPosition = _dragScrollSheetExtent * _widgetHeight;
+                        });
+                        return true;
+                      },
+                      child: DraggableScrollableSheet(
+                        initialChildSize: _initialSheetChildSize,
+                        minChildSize: 0.2,
+                        maxChildSize: 0.6,
+                        snap: true,
+                        builder: (context, scrollController) {
+                          return AvailablePoisRoutesSheet(
+                            state: state,
+                            selectedRouteIndex: selectedRouteIndex,
+                            onRouteSelected: (index) {
+                              setState(() {
+                                selectedRouteIndex = index;
+                              });
+                            },
+                            onClearSelectedRoute: () {
+                              setState(() {
+                                selectedRouteIndex = null;
+                              });
+                            },
+                            onMoveMap: (LatLng center, {double? zoom}) {
+                              mapController.move(center, zoom ?? 14);
+                            },
+                            setSelectedRouteIndex: (int? index) {
+                              setState(() {
+                                selectedRouteIndex = index;
+                              });
+                            },
+                            primaryColorOpacity: 0.12,
+                            primaryColor: Theme.of(context).colorScheme.primary,
+                            mapController: mapController,
+                            scrollController: scrollController,
+                          );
+                        },
+                      ),
+                    ),
+                  if (state is MapNavigating)
+                    NotificationListener<DraggableScrollableNotification>(
+                      onNotification: (notification) {
+                        setState(() {
+                          _widgetHeight = MediaQuery.of(context).size.height;
+                          _dragScrollSheetExtent = notification.extent;
+                          _fabPosition = _dragScrollSheetExtent * _widgetHeight;
+                        });
+                        return true;
+                      },
+                      child: DraggableScrollableSheet(
+                        initialChildSize: _initialSheetChildSize,
+                        minChildSize: 0.2,
+                        maxChildSize: 0.6,
+                        snap: true,
+                        builder: (context, scrollController) {
+                          // compute distance/time/eta from instructions
+                          final List<Map<String, dynamic>> instructions =
+                              state.instructions;
+                          double distanceMeters = 0.0;
+                          double durationSeconds = 0.0;
+                          for (final ins in instructions) {
+                            distanceMeters +=
+                                (ins['distance'] as num?)?.toDouble() ?? 0.0;
+                            durationSeconds +=
+                                (ins['duration'] as num?)?.toDouble() ?? 0.0;
+                          }
 
-                  NotificationListener<DraggableScrollableNotification>(
-                    onNotification: (notification) {
-                      setState(() {
-                        _widgetHeight = context.size!.height;
-                        _dragScrollSheetExtent = notification.extent;
-                        _fabPosition = _dragScrollSheetExtent * _widgetHeight;
-                      });
-                      return true;
-                    },
+                          String distanceText;
+                          if (distanceMeters < 1000) {
+                            distanceText = '${distanceMeters.round()} m';
+                          } else {
+                            distanceText =
+                                '${(distanceMeters / 1000).toStringAsFixed(1)} km';
+                          }
 
-                    child: DraggableScrollableSheet(
-                      initialChildSize:
-                          _initialSheetChildSize, // Altura inicial (25%)
-                      minChildSize: 0.2, // Altura mÃ­nima
-                      maxChildSize: 0.6, // Altura mÃ¡xima
+                          String durationText;
+                          final dur = Duration(
+                            seconds: durationSeconds.round(),
+                          );
+                          if (dur.inHours > 0) {
+                            durationText =
+                                '${dur.inHours}h ${dur.inMinutes.remainder(60)}m';
+                          } else {
+                            durationText = '${dur.inMinutes} min';
+                          }
 
-                      snap: true,
-                      builder: (context, scrollController) {
-                        return Container(
-                          decoration: const BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.vertical(
-                              top: Radius.circular(20),
-                            ),
-                            boxShadow: [
-                              BoxShadow(color: Colors.black26, blurRadius: 8),
-                            ],
-                          ),
-
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Center(
-                                child: Container(
-                                  margin: const EdgeInsets.only(top: 8),
-                                  width: 50,
-                                  height: 5,
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey.shade400,
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                ),
+                          final eta = DateTime.now().add(dur);
+                          final etaText = TimeOfDay.fromDateTime(
+                            eta,
+                          ).format(context);
+                         
+                          return Container(
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.surface,
+                              borderRadius: BorderRadius.vertical(
+                                top: Radius.circular(20),
                               ),
-
-                              const SizedBox(height: 10),
-
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16.0,
+                              boxShadow: [
+                                BoxShadow(color: Colors.black26, blurRadius: 8),
+                              ],
+                            ),
+                            child: SingleChildScrollView(
+                              controller: scrollController,
+                              child: Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  16,
+                                  12,
+                                  16,
+                                  20,
                                 ),
-                                child: Row(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    if (selectedRoute != null)
-                                      GestureDetector(
-                                        onTap: () {
-                                          setState(() {
-                                            selectedRouteIndex = null;
-                                          });
-                                        },
-                                        child: const Icon(
-                                          Icons.arrow_back,
-
-                                          size: 22,
+                                    Center(
+                                      child: Container(
+                                        margin: const EdgeInsets.only(top: 8),
+                                        width: 50,
+                                        height: 5,
+                                        decoration: BoxDecoration(
+                                          color: Colors.grey.shade400,
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
                                         ),
                                       ),
-                                    if (selectedRoute != null)
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: Text(
-                                            hasSearch
-                                                ? AppLocalizations.of(context)!.resultado_busqueda
-                                                : selectedRoute == null
-                                                    ? AppLocalizations.of(context)!.rutas_disponibles
-                                                    : selectedRoute.name,
-                                            style: const TextStyle(
-                                                fontSize: 18,
-                                                fontWeight: FontWeight.bold,
-                                            ),
-                                        ),
                                     ),
-                                      if (selectedRoute != null)
-                                        TextButton.icon(
-                                          onPressed: () {
-                                            setState(() {
-                                              selectedRouteIndex = null;
-                                            });
-                                          },
-                                          icon: const Icon(
-                                            Icons.list,
-                                            size: 18,
-                                            color: Color(0xFF4D67AE),
-                                          ),
-                                          label: const Text(
-                                            'Ver rutas',
-                                            style: TextStyle(
-                                              color: Color(0xFF4D67AE),
-                                            ),
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(height: 10),
-                                                        Expanded(
-                              child: hasSearch
-                                  ? (filteredRoutes.isEmpty && filteredPois.isEmpty)
-                                      ? Center(
-                                          child: Text(
-                                              AppLocalizations.of(context)!.sin_resultado,
-                                              style: const TextStyle(
-                                                  fontSize: 16,
-                                                  fontWeight: FontWeight.w500,
-                                                  color: Colors.grey,
+                                    const SizedBox(height: 10),
+                                    Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                AppLocalizations.of(context)!.ruta_en_curso,
+                                                style: TextStyle(
+                                                  fontSize: 18,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Theme.of(context).colorScheme.onSurface,
+                                                ),
                                               ),
                                           ),
                                       )
@@ -723,79 +622,83 @@ class _MapPageState extends State<MapPage> {
                                                           },
                                                           child: const Icon(Icons.add),
                                                       ),
+                                              const SizedBox(height: 8),
+                                              Row(
+                                                children: [
+                                                  Icon(
+                                                    Icons.map,
+                                                    color: Theme.of(context).colorScheme.onSurface,
                                                   ),
+                                                  const SizedBox(width: 8),
+                                                  // Toggle tema claro/oscuro
+                                                  IconButton(
+                                                    style: IconButton.styleFrom(
+                                                      backgroundColor: Theme.of(context).colorScheme.surface,
+                                                      foregroundColor: Theme.of(context).colorScheme.primary,
+                                                      shape: const CircleBorder(),
+                                                    ),
+                                                    onPressed: () {
+                                                      context.read<ThemeProvider>().toggleTheme();
+                                                    },
+                                                    icon: Icon(
+                                                      context.watch<ThemeProvider>().themeMode == ThemeMode.dark
+                                                          ? Icons.dark_mode
+                                                          : Icons.light_mode,
+                                                    ),
+                                                  ),
+
+                                                  Text(AppLocalizations.of(context)!.distancia_fmt(distanceText)),
+                                                ],
                                               ),
-                                          ],
-                                      )
-                                  : selectedRoute == null
-                                      ? ListView.builder(
-                                          controller: scrollController,
-                                          itemCount: filteredRoutes.length,
-                                          itemBuilder: (context, index) {
-                                              final route = filteredRoutes[index];
-                                              return ListTile(
-                                                  leading: const Icon(Icons.alt_route, color: Color(0xFF4D67AE)),
-                                                  title: Text('${AppLocalizations.of(context)!.ruta} ${route.name}'),
-                                                  trailing: const Icon(Icons.arrow_forward_ios, color: Colors.grey, size: 18),
-                                                  selected: selectedRouteIndex == index,
-                                                  selectedTileColor: _primaryColor.withOpacity(0.12),
-                                                  onTap: () async {
-                                                      final center = LatLng(
-                                                          (route.initialLatitude + route.finalLatitude) / 2,
-                                                          (route.initialLongitude + route.finalLongitude) / 2,
-                                                      );
-                                                      setState(() {
-                                                          selectedRouteIndex = index;
-                                                      });
-                                                      mapController.move(center, 14);
-                                                      await LocalStorage.setLastRouteName(route.name);
-                                                      await LocalStorage.setLastRouteWithPois(route);
-                                                  },
-                                              );
-                                          },
-                                      )
-                                      : selectedRoute.pois.isEmpty
-                                          ? Center(
-                                              child: Text(
-                                                  AppLocalizations.of(context)!.sin_resultado,
-                                                  style: const TextStyle(
-                                                      fontSize: 16,
-                                                      fontWeight: FontWeight.w500,
-                                                      color: Colors.grey,
+                                              const SizedBox(height: 6),
+                                              Row(
+                                                children: [
+                                                  Icon(
+                                                    Icons.access_time,
+                                                    color: Theme.of(context).colorScheme.onSurface
                                                   ),
+                                                  const SizedBox(width: 8),
+                                                  Text(AppLocalizations.of(context)!.tiempo_aprox_fmt(durationText)),
+                                                ],
                                               ),
-                                          )
-                                      : ListView.builder(
-                                          controller: scrollController,
-                                          itemCount: selectedRoute.pois.length,
-                                          itemBuilder: (context, index) {
-                                              final poi = selectedRoute.pois[index];
-                                              return ListTile(
-                                                  leading: const Icon(Icons.location_on, color: Colors.red, size: 28),
-                                                  title: Text(poi.nombre),
-                                                  subtitle: poi.categorias.isNotEmpty ? Text(poi.categorias.first) : null,
-                                                  onTap: () {
-                                                      mapController.move(LatLng(poi.latitud, poi.longitud), 16);
-                                                  },
-                                                  trailing: GestureDetector(
-                                                      onTap: () {
-                                                          Navigator.push(
-                                                              context,
-                                                              MaterialPageRoute(builder: (context) => PoiScreen(poi)),
-                                                          );
-                                                      },
-                                                      child: const Icon(Icons.add),
+                                              const SizedBox(height: 6),
+                                              Row(
+                                                children: [
+                                                  Icon(
+                                                    Icons.schedule,
+                                                    color: Theme.of(context).colorScheme.onSurface,
                                                   ),
-                                              );
+                                                  const SizedBox(width: 8),
+                                                  Text(AppLocalizations.of(context)!.llegada_aprox_fmt(etaText)),
+                                                ],
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        ElevatedButton(
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: Theme.of(context).colorScheme.primary,
+                                            foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                                          ),
+                                          onPressed: () {
+                                            // cancel navigation
+                                            context.read<MapBloc>().add(
+                                              CancelNavigation(),
+                                            );
                                           },
-                                      ),
-                          )
-                            ],
-                          ),
-                        );
-                      },
+                                          child: Text(AppLocalizations.of(context)!.cancelar),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 12),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
                     ),
-                  ),
 
                   if (_isOffline)
                     Positioned(
@@ -835,99 +738,210 @@ class _MapPageState extends State<MapPage> {
                             onPressed: () {},
                             icon: const Icon(Icons.arrow_back_rounded),
                           ),
+                  if (state is MapLoaded)
+                    Positioned(
+                      top: 0,
+                      right: 0,
+                      left: 0,
+                      child: Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Row(
+                          children: [
+                            IconButton(
+                              style: IconButton.styleFrom(
+                                backgroundColor: Theme.of(context).colorScheme.surface,
+                                foregroundColor: Theme.of(context).colorScheme.primary,
+                                shape: const CircleBorder(),
+                              ),
+                              onPressed: () {},
+                              icon: const Icon(Icons.arrow_back_rounded),
+                            ),
 
-                          const SizedBox(width: 4.0),
-                          Expanded(
-                            child: TextField(
-                              controller: searchController,
-                              onChanged: (value) {
-                                _sendQueryUpdate(state, value);
-                              },
-                              decoration: InputDecoration(
-                                hintText:
-                                    Localizations.of<MaterialLocalizations>(
-                                      context,
-                                      MaterialLocalizations,
-                                    )!.searchFieldLabel,
-                                border: OutlineInputBorder(
-                                  borderRadius: const BorderRadius.all(
-                                    Radius.circular(32.0),
+                            const SizedBox(width: 4.0),
+                            Expanded(
+                              child: TextField(
+                                controller: searchController,
+                                onChanged: (value) {
+                                  context.read<MapBloc>().add(
+                                    SearchQueryUpdated(value),
+                                  );
+                                },
+                                decoration: InputDecoration(
+                                  hintText:
+                                      Localizations.of<MaterialLocalizations>(
+                                        context,
+                                        MaterialLocalizations,
+                                      )!.searchFieldLabel,
+                                  border: OutlineInputBorder(
+                                    borderRadius: const BorderRadius.all(
+                                      Radius.circular(32.0),
+                                    ),
+                                    borderSide: BorderSide(
+                                      color: Theme.of(context).colorScheme.outlineVariant,
+                                    ),
                                   ),
-                                  borderSide: BorderSide(
-                                    color: Colors.grey.shade300,
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: const BorderRadius.all(
+                                      Radius.circular(32.0),
+                                    ),
+                                    borderSide: BorderSide(
+                                      color: Theme.of(context).colorScheme.outlineVariant,
+                                    ),
                                   ),
-                                ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: const BorderRadius.all(
-                                    Radius.circular(32.0),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.all(
+                                      Radius.circular(32.0),
+                                    ),
+                                    borderSide: BorderSide(
+                                      color: Theme.of(context).colorScheme.primary,
+                                    ),
                                   ),
-                                  borderSide: BorderSide(
-                                    color: Colors.grey.shade300,
+                                  filled: true,
+                                  fillColor: Theme.of(context).colorScheme.surface,
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 12.0,
+                                    vertical: 10.0,
                                   ),
-                                ),
-                                focusedBorder: const OutlineInputBorder(
-                                  borderRadius: BorderRadius.all(
-                                    Radius.circular(32.0),
-                                  ),
-                                  borderSide: BorderSide(
-                                    color: Color(0xFF4D67AE),
-                                  ),
-                                ),
-                                filled: true,
-                                fillColor: Colors.white,
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 12.0,
-                                  vertical: 10.0,
                                 ),
                               ),
                             ),
-                          ),
 
-                          const SizedBox(width: 4.0),
-                          IconButton(
-                            style: buttonStyle,
-                            onPressed: () => _openFilterSheet(state),
-                            icon: const Icon(Icons.filter_list),
-                          ),
-
-                          /* const SizedBox(width: 4.0),
-                          IconButton(
-                            style: buttonStyle,
-                            onPressed: () {
-                              FocusScope.of(context).unfocus();
-                              _sendQueryUpdate(state, searchController.text);
-                            },
-                            icon: const Icon(Icons.search),
-                          ),*/
-                          const SizedBox(width: 4.0),
-                          IconButton(
-                            style: IconButton.styleFrom(
-                              backgroundColor: Colors.white,
-                              foregroundColor: Colors.pink,
-                              shape: const CircleBorder(),
+                            const SizedBox(width: 4.0),
+                            IconButton(
+                              style: IconButton.styleFrom(
+                                backgroundColor: Theme.of(context).colorScheme.surface,
+                                foregroundColor: Theme.of(context).colorScheme.primary,
+                                shape: const CircleBorder(),
+                              ),
+                              onPressed: () => _openFilterSheet(state),
+                              icon: const Icon(Icons.filter_list),
                             ),
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const FavoritesScreen(),
-                                ),
-                              );
-                            },
-                            icon: const Icon(Icons.favorite),
-                          ),
-                        ],
+
+                            const SizedBox(width: 4.0),
+                            IconButton(
+                              style: IconButton.styleFrom(
+                                backgroundColor: Theme.of(context).colorScheme.surface,
+                                foregroundColor: Theme.of(context).colorScheme.primary,
+                                shape: const CircleBorder(),
+                              ),
+                              onPressed: () {
+                                context.read<ThemeProvider>().toggleTheme();
+                              },
+                              icon: Icon(
+                                context.watch<ThemeProvider>().themeMode == ThemeMode.dark
+                                    ? Icons.dark_mode
+                                    : Icons.light_mode,
+                              ),
+                            ),
+
+                            /* const SizedBox(width: 4.0),
+                            IconButton(
+                              style: buttonStyle,
+                              onPressed: () {
+                                FocusScope.of(context).unfocus();
+                                _sendQueryUpdate(state, searchController.text);
+                              },
+                              icon: const Icon(Icons.search),
+                            ),*/
+                            const SizedBox(width: 4.0),
+                            IconButton(
+                              style: IconButton.styleFrom(
+                                backgroundColor: Theme.of(context).colorScheme.surface,
+                                foregroundColor: Colors.pink,
+                                shape: const CircleBorder(),
+                              ),
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        const FavoritesScreen(),
+                                  ),
+                                );
+                              },
+                              icon: const Icon(Icons.favorite),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
+
+                  if (state is MapNavigating) ...[
+                    Positioned(
+                      top: 20,
+                      left: 16,
+                      right: 16,
+                      child: _buildCurrentInstructionBanner(state.instructions),
+                    ),
+                  ],
                 ],
               );
-            } else if (state is MapError) {
-              return Center(child: Text(state.message));
-            } else {
-              return const Center(child: CircularProgressIndicator());
-            }
-          },
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCurrentInstructionBanner(
+    List<Map<String, dynamic>> instructions,
+  ) {
+    if (instructions.isEmpty) return const SizedBox.shrink();
+
+    final current = instructions.first;
+    final instruction = current['instruction'] ?? '';
+    final distance = current['distance'] ?? 0.0;
+
+    String distanceText;
+    if (distance < 1000) {
+      distanceText = '${distance.toStringAsFixed(0)} m';
+    } else {
+      distanceText = '${(distance / 1000).toStringAsFixed(1)} km';
+    }
+
+    return Align(
+      alignment: Alignment.topCenter,
+      child: Container(
+        margin: const EdgeInsets.all(12),
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 18),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.primary,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black26,
+              blurRadius: 8,
+              offset: Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Icon(Icons.navigation, color: Theme.of(context).colorScheme.onPrimary, size: 32),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    instruction,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onPrimary,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      height: 1.2,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    distanceText,
+                    style: TextStyle(color: Theme.of(context).colorScheme.onPrimary, fontSize: 14),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );

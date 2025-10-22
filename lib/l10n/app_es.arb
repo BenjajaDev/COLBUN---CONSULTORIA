@@ -52,5 +52,48 @@
   "@sin_resultado":{
     "description": "Texto que aparece cuando no hay resultados"
   }
+  ,
+  "vistas_modificadas_ia": "Incluye vistas modificadas con IA",
+  "@vistas_modificadas_ia": {
+    "description": "Tooltip text indicating 360 views were modified with AI"
+  },
+  "no_vista360_temporada": "No hay imagen 360 para la temporada \"{season}\".",
+  "@no_vista360_temporada": {
+    "description": "Message shown when the selected season has no 360 image",
+    "placeholders": {
+      "season": {}
+    }
+  },
+  "no_vista360_disponible": "No hay imagen 360 disponible para la temporada seleccionada.",
+  "@no_vista360_disponible": {
+    "description": "Message shown when there is no 360 image available at all"
+  },
+  "ir": "Ir",
+  "@ir": {
+    "description": "Texto para el botón de ir a la ruta"
+  },
+  "ruta_en_curso": "Ruta en curso",
+  "@ruta_en_curso": {
+    "description": "Título del panel de navegación activa"
+  },
+  "distancia_fmt": "Distancia: {distance}",
+  "@distancia_fmt": {
+    "description": "Etiqueta de distancia con valor formateado",
+    "placeholders": {"distance": {}}
+  },
+  "tiempo_aprox_fmt": "Tiempo aprox.: {duration}",
+  "@tiempo_aprox_fmt": {
+    "description": "Etiqueta de tiempo aproximado con valor",
+    "placeholders": {"duration": {}}
+  },
+  "llegada_aprox_fmt": "Llegada aprox.: {eta}",
+  "@llegada_aprox_fmt": {
+    "description": "Etiqueta de llegada aproximada con hora",
+    "placeholders": {"eta": {}}
+  },
+  "cancelar": "Cancelar",
+  "@cancelar": {
+    "description": "Texto para el botón de cancelar navegación"
+  }
   
 }

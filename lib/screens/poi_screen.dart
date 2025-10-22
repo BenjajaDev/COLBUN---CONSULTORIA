@@ -3,6 +3,7 @@ import 'package:consultoria_chat_bot/blocs/favorites_cubit.dart';
 import 'package:consultoria_chat_bot/events/poi_event.dart';
 import 'package:consultoria_chat_bot/l10n/app_localizations.dart';
 import 'package:consultoria_chat_bot/model/poi_model.dart';
+import 'package:consultoria_chat_bot/states/panorama_screen.dart';
 import 'package:consultoria_chat_bot/states/poi_state.dart';
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
@@ -23,78 +24,9 @@ class _PoiScreenState extends State<PoiScreen> {
   int _selectedIndex = 0;
   String? valorSeleccionado = 'Otoño';
   final List<String> opciones = ['Otoño', 'Invierno', 'Primavera', 'Verano'];
-  final Map<String, Map<String, Color>> chipsColors = {
-    'naturaleza': {
-      'background': Colors.green.shade100,
-      'text': Colors.green.shade800,
-    },
-    'trekking': {
-      'background': Colors.brown.shade100,
-      'text': Colors.brown.shade800,
-    },
-  };
+  
 
-  // Overlay (info)
-  OverlayEntry? _overlayEntry;
-  final GlobalKey _iconKey = GlobalKey();
-
-  void _showOverlay() {
-    // remove any existing
-    _overlayEntry?.remove();
-    _overlayEntry = null;
-
-    final renderBox = _iconKey.currentContext?.findRenderObject() as RenderBox?;
-    if (renderBox == null) return;
-
-    final size = renderBox.size;
-    final offset = renderBox.localToGlobal(Offset.zero);
-    final screenWidth = MediaQuery.of(context).size.width;
-
-    // Compute left but clamp to screen edges
-    double left = offset.dx - 110; // center-ish to the left of the icon
-    if (left < 8) left = 8;
-    if (left + 220 > screenWidth - 8) {
-      left = screenWidth - 8 - 220;
-      if (left < 8) left = 8;
-    }
-
-    _overlayEntry = OverlayEntry(
-      builder: (ctx) => Positioned(
-        left: left,
-        top: offset.dy + size.height + 8,
-        child: Material(
-          color: Colors.transparent,
-          child: Container(
-            width: 220,
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade800,
-              borderRadius: BorderRadius.circular(8),
-              boxShadow: const [
-                BoxShadow(
-                  color: Colors.black26,
-                  blurRadius: 4,
-                  offset: Offset(2, 2),
-                ),
-              ],
-            ),
-            child: const Text(
-              'Incluye vistas modificadas con IA',
-              style: TextStyle(fontSize: 12, color: Colors.white),
-            ),
-          ),
-        ),
-      ),
-    );
-
-    Overlay.of(context).insert(_overlayEntry!);
-
-    // auto-dismiss after 3 seconds
-    Future.delayed(const Duration(seconds: 3), () {
-      _overlayEntry?.remove();
-      _overlayEntry = null;
-    });
-  }
+  // Tooltip text previously pulled from l10n; keep ARB updated and run `flutter gen-l10n` to generate accessors.
 
   // Add controllers and page state for pagination
   final PageController _recomendadosController = PageController();
@@ -157,7 +89,7 @@ class _PoiScreenState extends State<PoiScreen> {
         );
       },
       child: Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).colorScheme.background,
         body: SafeArea(
           child: LayoutBuilder(
             builder: (context, constraints) {
@@ -167,9 +99,9 @@ class _PoiScreenState extends State<PoiScreen> {
                     final recList = state.recommended;
                     final nearList = state.nearby;
                     final dkm = state.distancesKm;
-                    final List<String> items = [
-                      ...List<String>.from(widget.poi.categorias),
-                      ...List<String>.from(widget.poi.actividades),
+                    final List<Map<String, dynamic>> items = [
+                      ...state.categorias,
+                      ...state.actividades,
                     ];
 
                     return Column(
@@ -183,9 +115,9 @@ class _PoiScreenState extends State<PoiScreen> {
                                 padding: const EdgeInsets.all(16),
                                 child: Text(
                                   widget.poi.nombre,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 25,
-                                    color: Colors.black,
+                                    color: Theme.of(context).colorScheme.onSurface,
                                   ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
@@ -193,9 +125,9 @@ class _PoiScreenState extends State<PoiScreen> {
                               ),
                             ),
                             IconButton(
-                              icon: const Icon(
+                              icon: Icon(
                                 Icons.close,
-                                color: Colors.black,
+                                color: Theme.of(context).colorScheme.onSurface,
                               ),
                               onPressed: () => Navigator.pop(context),
                             ),
@@ -245,21 +177,21 @@ class _PoiScreenState extends State<PoiScreen> {
                                         const SizedBox(width: 8),
                                     itemBuilder: (context, index) {
                                       return ActionChip(
-                                        label: Text(
-                                          items[index],
-                                          style: TextStyle(
-                                            color:
-                                                chipsColors[items[index]]?['text'] ??
-                                                Colors.black,
-                                          ),
-                                        ),
-                                        backgroundColor:
-                                            chipsColors[items[index]]?['background'] ??
-                                            Colors.grey.shade200,
-                                        side: BorderSide.none,
-
-                                        onPressed: () {},
-                                      );
+                                    label: Text(
+                                      items[index]['nombre'][Localizations.localeOf(
+                                            context,
+                                          ).languageCode] ?? items[index]['nombre']['es'] 
+                                          ,
+                                      style: TextStyle(
+                                        color:
+                                            getColorFromHex(items[index]['text_color'].toString()),
+                                      ),
+                                    ),
+                                    backgroundColor:
+                                        getColorFromHex(items[index]['background_color'].toString()),
+                                    side: BorderSide.none,
+                                    onPressed: () {},
+                                  );
                                     },
                                   ),
                                 ),
@@ -304,16 +236,22 @@ class _PoiScreenState extends State<PoiScreen> {
                               Container(
                                 decoration: BoxDecoration(
                                   border: Border.all(
-                                    color: Colors.black,
+                                    color: Theme.of(context).colorScheme.outlineVariant,
                                     width: 1.3,
                                   ),
                                   borderRadius: BorderRadius.circular(18),
-                                  color: Colors.white,
+                                  color: Theme.of(context).colorScheme.surface,
                                 ),
                                 child: DropdownButton<String>(
                                   value: valorSeleccionado,
                                   underline: SizedBox(),
                                   borderRadius: BorderRadius.circular(18),
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.onSurface,
+                                  ),
+                                  dropdownColor: Theme.of(context).colorScheme.surface,
+                                  iconEnabledColor: Theme.of(context).colorScheme.onSurface,
+                                  iconDisabledColor: Theme.of(context).colorScheme.onSurface.withOpacity(0.38),
                                   items: opciones.map((String opcion) {
                                     IconData icon;
                                     Color iconColor;
@@ -338,22 +276,79 @@ class _PoiScreenState extends State<PoiScreen> {
                                         icon = Icons.circle;
                                         iconColor = Colors.black54;
                                     }
+
+                                    // Determine if this season has a non-empty panorama image
+                                    final Map<String, dynamic> vistas = widget.poi.vistas360;
+                                    final hasImage = vistas.containsKey(opcion) &&
+                                        (vistas[opcion] != null && vistas[opcion].toString().trim().isNotEmpty);
+
+                                    // Visually dim disabled options
+                  final textStyle = hasImage
+                    ? TextStyle(color: Theme.of(context).colorScheme.onSurface)
+                    : TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.35));
+                                    final iconColorEffective = hasImage ? iconColor : iconColor.withOpacity(0.35);
+
+                                    // localized label for display (falls back to Spanish via AppLocalizations)
+                                    String localizedLabel() {
+                                      final loc = AppLocalizations.of(context)!;
+                                      switch (opcion) {
+                                        case 'Otoño':
+                                          return loc.otono;
+                                        case 'Invierno':
+                                          return loc.invierno;
+                                        case 'Primavera':
+                                          return loc.primavera;
+                                        case 'Verano':
+                                          return loc.verano;
+                                        default:
+                                          return opcion;
+                                      }
+                                    }
+
                                     return DropdownMenuItem<String>(
                                       value: opcion,
+                                      enabled: hasImage,
                                       child: Row(
                                         children: [
                                           Icon(
                                             icon,
                                             size: 20,
-                                            color: iconColor,
+                                            color: iconColorEffective,
                                           ),
                                           const SizedBox(width: 8),
-                                          Text(opcion),
+                                          Text(localizedLabel(), style: textStyle),
                                         ],
                                       ),
                                     );
                                   }).toList(),
                                   onChanged: (String? nuevoValor) {
+                                    // If the user attempts to pick a season without an image, show a SnackBar and ignore
+                                    if (nuevoValor == null) return;
+                                    final Map<String, dynamic> vistas = widget.poi.vistas360;
+                                    final hasImage = vistas.containsKey(nuevoValor) &&
+                                        (vistas[nuevoValor] != null && vistas[nuevoValor].toString().trim().isNotEmpty);
+                                    if (!hasImage) {
+                                      final locLabel = () {
+                                        final loc = AppLocalizations.of(context)!;
+                                        switch (nuevoValor) {
+                                          case 'Otoño':
+                                            return loc.otono;
+                                          case 'Invierno':
+                                            return loc.invierno;
+                                          case 'Primavera':
+                                            return loc.primavera;
+                                          case 'Verano':
+                                            return loc.verano;
+                                          default:
+                                            return nuevoValor;
+                                        }
+                                      }();
+
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(content: Text('No hay imagen 360 para la temporada "$locLabel".')),
+                                      );
+                                      return;
+                                    }
                                     setState(() {
                                       valorSeleccionado = nuevoValor;
                                     });
@@ -362,40 +357,77 @@ class _PoiScreenState extends State<PoiScreen> {
                               ),
                               const SizedBox(width: 8),
                               ElevatedButton(
-                                onPressed: () {},
+                                onPressed: () {
+                                  // try to get the panorama for the selected season
+                                  final Map<String, dynamic> vistas = widget.poi.vistas360;
+                                  final seasonKey = valorSeleccionado ?? '';
+                                  String? imagePath;
+
+                                  if (seasonKey.isNotEmpty && vistas.containsKey(seasonKey)) {
+                                    final v = vistas[seasonKey];
+                                    if (v != null) imagePath = v.toString();
+                                  }
+
+                                  // fallback: take the first available image if any
+                                  if (imagePath == null && vistas.isNotEmpty) {
+                                    final first = vistas.values.firstWhere(
+                                      (v) => v != null,
+                                      orElse: () => null,
+                                    );
+                                    if (first != null) imagePath = first.toString();
+                                  }
+
+                                  if (imagePath == null || imagePath.isEmpty) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('No hay imagen 360 disponible para la temporada seleccionada.')),
+                                    );
+                                    return;
+                                  }
+
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => PanoramaScreen(
+                                        imagePath: imagePath!,
+                                      ),
+                                    ),
+                                  );
+                                },
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: colbunBlue,
+                                  backgroundColor: Theme.of(context).colorScheme.primary,
+                                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
                                 ),
                                 child: Text(
                                   AppLocalizations.of(context)!.vista360,
-                                  style: TextStyle(color: Colors.white),
+                                  style: const TextStyle(color: null),
                                 ),
                               ),
-                              IconButton(
-                                key: _iconKey,
-                                icon: const Icon(
-                                  Icons.info_outline,
-                                  color: Colors.black,
+                              Tooltip(
+                                message: AppLocalizations.of(context)!.vistas_modificadas_ia,
+                                child: IconButton(
+                                  icon: Icon(
+                                    Icons.info_outline,
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                  ),
+                                  onPressed: () {
+                                    // show localized SnackBar for accessibility
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text(AppLocalizations.of(context)!.vistas_modificadas_ia)),
+                                    );
+                                  },
                                 ),
-                                onPressed: () {
-                                  if (_overlayEntry == null) {
-                                    _showOverlay();
-                                  } else {
-                                    _overlayEntry?.remove();
-                                    _overlayEntry = null;
-                                  }
-                                },
                               ),
                               Spacer(),
                               ElevatedButton.icon(
                                 onPressed: () {},
                                 style: ElevatedButton.styleFrom(
                                   shape: const CircleBorder(),
-                                  backgroundColor: Colors.red,
+                                  backgroundColor: Theme.of(context).colorScheme.error,
+                                  foregroundColor: Theme.of(context).colorScheme.onError,
                                 ),
                                 label: const Icon(
                                   Icons.call,
-                                  color: Colors.white,
+                                  color: null,
                                 ),
                               ),
                             ],
@@ -413,14 +445,14 @@ class _PoiScreenState extends State<PoiScreen> {
                                 child: Container(
                                   padding: const EdgeInsets.all(8),
                                   decoration: BoxDecoration(
-                                    color: Colors.blue.shade50,
+                                    color: Theme.of(context).colorScheme.secondaryContainer,
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Text(
                                     "Temporada actual: Primavera \nClima templado, flora abundante, ideal para trekking",
                                     style: TextStyle(
                                       fontSize: 16,
-                                      color: colbunBlue,
+                                      color: Theme.of(context).colorScheme.onSecondaryContainer,
                                     ),
                                   ),
                                 ),
@@ -433,9 +465,10 @@ class _PoiScreenState extends State<PoiScreen> {
                                 ),
                                 child: Text(
                                   AppLocalizations.of(context)!.descripcion,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 20,
                                     fontWeight: FontWeight.bold,
+                                    color: Theme.of(context).colorScheme.onSurface,
                                   ),
                                 ),
                               ),
@@ -467,8 +500,8 @@ class _PoiScreenState extends State<PoiScreen> {
                                         border: Border(
                                           bottom: BorderSide(
                                             color: _selectedIndex == 0
-                                                ? colbunBlue
-                                                : Colors.black,
+                                                ? Theme.of(context).colorScheme.primary
+                                                : Theme.of(context).colorScheme.onSurface,
                                             width: _selectedIndex == 0 ? 3 : 1,
                                           ),
                                         ),
@@ -493,8 +526,8 @@ class _PoiScreenState extends State<PoiScreen> {
                                           )!.recomendados,
                                           style: TextStyle(
                                             color: _selectedIndex == 0
-                                                ? colbunBlue
-                                                : Colors.black,
+                                                ? Theme.of(context).colorScheme.primary
+                                                : Theme.of(context).colorScheme.onSurface,
                                             fontSize: 18,
                                           ),
                                         ),
@@ -505,8 +538,8 @@ class _PoiScreenState extends State<PoiScreen> {
                                         border: Border(
                                           bottom: BorderSide(
                                             color: _selectedIndex == 1
-                                                ? colbunBlue
-                                                : Colors.black,
+                                                ? Theme.of(context).colorScheme.primary
+                                                : Theme.of(context).colorScheme.onSurface,
                                             width: _selectedIndex == 1 ? 3 : 1,
                                           ),
                                         ),
@@ -530,8 +563,8 @@ class _PoiScreenState extends State<PoiScreen> {
                                           )!.cercanos,
                                           style: TextStyle(
                                             color: _selectedIndex == 1
-                                                ? colbunBlue
-                                                : Colors.black,
+                                                ? Theme.of(context).colorScheme.primary
+                                                : Theme.of(context).colorScheme.onSurface,
                                             fontSize: 18,
                                           ),
                                         ),
@@ -612,9 +645,7 @@ class _PoiScreenState extends State<PoiScreen> {
                                                   },
                                                   child: Card(
                                                     margin: EdgeInsets.zero,
-                                                    color: const Color(
-                                                      0xFFF4F4F4,
-                                                    ),
+                                                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
                                                     child: Padding(
                                                       padding:
                                                           const EdgeInsets.symmetric(
@@ -647,19 +678,15 @@ class _PoiScreenState extends State<PoiScreen> {
                                                               return Chip(
                                                                 label: Text(
                                                                   cat,
+                                                                  style: TextStyle(
+                                                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                                                  ),
                                                                 ),
-                                                                backgroundColor:
-                                                                    Colors
-                                                                        .white,
+                                                                backgroundColor: Theme.of(context).colorScheme.surface,
                                                                 shape: RoundedRectangleBorder(
-                                                                  borderRadius:
-                                                                      BorderRadius.circular(
-                                                                        16,
-                                                                      ),
+                                                                  borderRadius: BorderRadius.circular(16),
                                                                   side: BorderSide(
-                                                                    color: Colors
-                                                                        .grey
-                                                                        .shade300,
+                                                                    color: Theme.of(context).colorScheme.outlineVariant,
                                                                   ),
                                                                 ),
                                                               );
@@ -692,8 +719,8 @@ class _PoiScreenState extends State<PoiScreen> {
                                           decoration: BoxDecoration(
                                             shape: BoxShape.circle,
                                             color: _recomendadosPage == i
-                                                ? colbunBlue
-                                                : Colors.grey.shade400,
+                                                ? Theme.of(context).colorScheme.primary
+                                                : Theme.of(context).colorScheme.onSurfaceVariant,
                                           ),
                                         ),
                                       ),
@@ -737,11 +764,9 @@ class _PoiScreenState extends State<PoiScreen> {
                                                       context,
                                                     ).size.width -
                                                     48,
-                                                child: Card(
+                                                  child: Card(
                                                   margin: EdgeInsets.zero,
-                                                  color: const Color(
-                                                    0xFFF4F4F4,
-                                                  ),
+                                                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
                                                   child: ListTile(
                                                     title: Text(p.nombre),
                                                     subtitle:
@@ -810,8 +835,8 @@ class _PoiScreenState extends State<PoiScreen> {
                                           decoration: BoxDecoration(
                                             shape: BoxShape.circle,
                                             color: _cercanosPage == i
-                                                ? colbunBlue
-                                                : Colors.grey.shade400,
+                                                ? Theme.of(context).colorScheme.primary
+                                                : Theme.of(context).colorScheme.onSurfaceVariant,
                                           ),
                                         ),
                                       ),
@@ -833,5 +858,20 @@ class _PoiScreenState extends State<PoiScreen> {
         ),
       ),
     );
+  }
+
+  Color getColorFromHex(String hexColor) {
+    try {
+      hexColor = hexColor.replaceAll("#", "");
+      if (hexColor.length == 6) {
+        hexColor = "FF$hexColor"; // add alpha if missing
+      }
+      if (hexColor.length == 8) {
+        return Color(int.parse(hexColor, radix: 16));
+      }
+      return Colors.transparent;
+    } catch (e) {
+      return Colors.transparent;
+    }
   }
 }
