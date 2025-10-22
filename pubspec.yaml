@@ -34,7 +34,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/fonts/
-    - .env
+    #- .env
     - assets/images/
     
   fonts:
