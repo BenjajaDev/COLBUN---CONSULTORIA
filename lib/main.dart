@@ -10,17 +10,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:provider/provider.dart';
 import 'package:consultoria_chat_bot/theme.dart';
 import 'firebase_options.dart';
-import 'package:consultoria_chat_bot/services/local_storage.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  try {
-    final contacts = await FireStoreService().fetchEmergencyContacts();
-    if (contacts.isNotEmpty) {
-      await LocalStorage.setEmergencyContacts(contacts);
-    }
-  } catch (_) {}
   runApp(const MyApp());
 }
 

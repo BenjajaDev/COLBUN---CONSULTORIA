@@ -2,7 +2,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:consultoria_chat_bot/model/poi_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:consultoria_chat_bot/model/route_model.dart';
-import 'package:consultoria_chat_bot/services/local_storage.dart';
 
 class FireStoreService {
   final CollectionReference _routesCollection = FirebaseFirestore.instance
@@ -80,30 +79,6 @@ class FireStoreService {
       return routes;
     } catch (e) {
       throw Exception('Error fetching Routes: $e');
-    }
-  }
-
-  Future<List<EmergencyContact>> fetchEmergencyContacts() async {
-    try {
-      final List<String> collections = ['emergency', 'emergencias'];
-      QuerySnapshot? snapshot;
-      for (final name in collections) {
-        final snap = await FirebaseFirestore.instance.collection(name).get();
-        if (snap.docs.isNotEmpty) {
-          snapshot = snap;
-          break;
-        }
-      }
-      if (snapshot == null || snapshot.docs.isEmpty) return [];
-
-      return snapshot.docs.map((doc) {
-        final data = doc.data() as Map<String, dynamic>;
-        final name = (data['name'] ?? data['nombre'] ?? '').toString();
-        final phone = (data['phone'] ?? data['telefono'] ?? '').toString();
-        return EmergencyContact(name: name, phone: phone);
-      }).toList();
-    } catch (_) {
-      return [];
     }
   }
   Future<List<Map<String, dynamic>>> fetchCategory(List<String> categories) async {
