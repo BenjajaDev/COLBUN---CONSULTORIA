@@ -303,6 +303,7 @@ include the specific link provided using the format [Text](URL). You may supplem
         'max_tokens': 250,
         'temperature':
             0.5, // Un poco menos creativo para que se apegue más al contexto.
+        'stream': false, // Desactivar streaming para respuestas más rápidas
       };
 
       // En web, las llamadas directas a api.openai.com suelen fallar por CORS.
@@ -332,13 +333,25 @@ include the specific link provided using the format [Text](URL). You may supplem
 
       print('🚀 Enviando petición a OpenAI en idioma: $language');
 
+      // Timeout optimizado: 3s para RAG (con contexto), 8s para IA pura
+      final hasContext = requestBody['messages']
+              ?.toString()
+              .contains('INFORMACIÓN DE CONTEXTO') ??
+          false;
+      final timeoutDuration = hasContext
+          ? const Duration(seconds: 3) // FAQ con contexto = respuesta rápida
+          : const Duration(seconds: 8); // IA pura = más tiempo
+
+      print(
+          '⏱️ Timeout configurado: ${timeoutDuration.inSeconds}s (${hasContext ? "con contexto FAQ" : "IA pura"})');
+
       final response = await http
           .post(
             Uri.parse(targetUrl),
             headers: _headers,
             body: jsonEncode(requestBody),
           )
-          .timeout(const Duration(seconds: 45));
+          .timeout(timeoutDuration);
 
       print('📡 Respuesta recibida: ${response.statusCode}');
 

@@ -18,6 +18,7 @@ import '../../../services/firestore_faq_service.dart';
 import '../../../services/language_service.dart';
 import '../../../services/chat_history_service.dart';
 import '../../../services/firestore_emergency.dart';
+import '../../../services/response_cache_service.dart';
 import '../utils/chatbot_strings.dart';
 
 class ChatbotScreen extends StatefulWidget {
@@ -59,6 +60,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
   late FaqService _faqService;
   late OpenAIService _openAIService;
   late final ChatHistoryService _chatHistoryService;
+  late final ResponseCacheService _responseCacheService;
   // Timer usado para agrupar persistencias locales y evitar IO frecuente
   Timer? _persistTimer;
 
@@ -82,6 +84,8 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     _openAIService = context.read<OpenAIService>();
     _chatHistoryService =
         ChatHistoryService(); // Inicializa el servicio de caché local
+    _responseCacheService =
+        ResponseCacheService(); // Inicializa caché de respuestas
     _typingController = AnimationController(
       duration: const Duration(milliseconds: 1500),
       vsync: this,
@@ -175,7 +179,8 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       if (ts is Timestamp) {
         // ✅ MEJOR: Timestamp de Firebase (UTC del servidor)
         msg['timestamp'] = ts.toDate().toUtc().toIso8601String();
-        print('✅ Usando timestamp del servidor Firebase para mensaje: ${msg['id']}');
+        print(
+            '✅ Usando timestamp del servidor Firebase para mensaje: ${msg['id']}');
       } else if (ts is DateTime) {
         // ⚠️ DateTime local (menos confiable)
         msg['timestamp'] = ts.toUtc().toIso8601String();
@@ -186,7 +191,8 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       } else {
         // ❌ Sin timestamp válido: marcar como desconocido
         msg['timestamp'] = 'unknown';
-        print('⚠️ Mensaje ${msg['id']} sin timestamp válido - marcado como unknown');
+        print(
+            '⚠️ Mensaje ${msg['id']} sin timestamp válido - marcado como unknown');
       }
 
       return msg;
@@ -266,73 +272,84 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       print('⚠️ No hay conversationId para sincronizar');
       return;
     }
-    
+
     try {
       print('🔄 Iniciando sincronización bidireccional con Firebase...');
       final remoteConversation = await _firestoreConnection
           .getCompleteConversation(_currentConversationId!);
-      
+
       if (remoteConversation == null) {
         print('⚠️ No se encontró conversación remota');
         return;
       }
-      
-      final remoteMessages = remoteConversation['messageDetails'] as List? ?? [];
+
+      final remoteMessages =
+          remoteConversation['messageDetails'] as List? ?? [];
       final localMessageIds = messages.map((m) => m['id']).toSet();
-      
+
       // 1. Identificar mensajes nuevos en remoto que no están en local
       final newRemoteMessages = remoteMessages
           .where((m) => m['id'] != null && !localMessageIds.contains(m['id']))
           .toList();
-      
+
       if (newRemoteMessages.isNotEmpty) {
-        print('⬇️ Sincronizando ${newRemoteMessages.length} mensajes nuevos desde Firebase');
-        
+        print(
+            '⬇️ Sincronizando ${newRemoteMessages.length} mensajes nuevos desde Firebase');
+
         // Normalizar mensajes remotos antes de añadirlos
         final normalizedRemote = newRemoteMessages.map((m) {
           final msg = Map<String, dynamic>.from(m);
-          
+
           // Normalizar options
           final rawOptions = msg['options'];
           if (rawOptions == null) {
             msg['options'] = <String>[];
           } else if (rawOptions is List) {
-            msg['options'] = rawOptions.map((e) => e?.toString() ?? '').where((s) => s.isNotEmpty).toList();
+            msg['options'] = rawOptions
+                .map((e) => e?.toString() ?? '')
+                .where((s) => s.isNotEmpty)
+                .toList();
           } else {
             msg['options'] = <String>[];
           }
-          
+
           // Asegurar type
           if (msg['type'] == null) msg['type'] = '';
-          
+
           // Normalizar timestamp - priorizar timestamp del servidor
           final timestampValue = msg['timestamp'];
           if (timestampValue is Timestamp) {
             // Timestamp de Firebase (mejor caso)
-            msg['timestamp'] = timestampValue.toDate().toUtc().toIso8601String();
-            print('✅ _syncWithFirestore: Usando timestamp del servidor (${msg['id']})');
+            msg['timestamp'] =
+                timestampValue.toDate().toUtc().toIso8601String();
+            print(
+                '✅ _syncWithFirestore: Usando timestamp del servidor (${msg['id']})');
           } else if (timestampValue is String && timestampValue.isNotEmpty) {
             // Ya es String ISO
             try {
               DateTime.parse(timestampValue); // Validar formato
-              print('✅ _syncWithFirestore: Timestamp String válido (${msg['id']})');
+              print(
+                  '✅ _syncWithFirestore: Timestamp String válido (${msg['id']})');
             } catch (e) {
-              print('⚠️ _syncWithFirestore: Timestamp String inválido, marcando como unknown (${msg['id']})');
+              print(
+                  '⚠️ _syncWithFirestore: Timestamp String inválido, marcando como unknown (${msg['id']})');
               msg['timestamp'] = 'unknown';
             }
           } else if (timestampValue is DateTime) {
             // DateTime local (no ideal)
             msg['timestamp'] = timestampValue.toUtc().toIso8601String();
-            print('⚠️ _syncWithFirestore: Timestamp es DateTime local (${msg['id']})');
+            print(
+                '⚠️ _syncWithFirestore: Timestamp es DateTime local (${msg['id']})');
           } else {
             // Sin timestamp válido
-            print('❌ _syncWithFirestore: Sin timestamp válido, marcando como unknown (${msg['id']})');
+            print(
+                '❌ _syncWithFirestore: Sin timestamp válido, marcando como unknown (${msg['id']})');
             msg['timestamp'] = 'unknown';
           }
-          
+
           return msg;
         }).toList();
-        
+
         setState(() {
           messages.addAll(normalizedRemote);
           // Ordenar por timestamp para mantener orden correcto
@@ -346,31 +363,34 @@ class _ChatbotScreenState extends State<ChatbotScreen>
             }
           });
         });
-        
+
         _rebuildMessageLanguageIndex(messages);
         await _persistMessages(); // Actualizar caché local
         print('✅ Mensajes remotos sincronizados y caché actualizado');
       }
-      
+
       // 2. Identificar mensajes locales que no están en remoto (falló la subida)
       final remoteMessageIds = remoteMessages.map((m) => m['id']).toSet();
       final orphanMessages = messages
           .where((m) => m['id'] != null && !remoteMessageIds.contains(m['id']))
           .toList();
-      
+
       if (orphanMessages.isNotEmpty) {
-        print('⬆️ Subiendo ${orphanMessages.length} mensajes huérfanos a Firebase');
+        print(
+            '⬆️ Subiendo ${orphanMessages.length} mensajes huérfanos a Firebase');
         for (final msg in orphanMessages) {
           final text = msg['text'] as String?;
           final sender = msg['sender'] as String?;
           if (text != null && text.isNotEmpty && sender != null) {
             try {
-              final uploadedId = await _firestoreConnection.addMessageToConversation(
+              final uploadedId =
+                  await _firestoreConnection.addMessageToConversation(
                 conversationId: _currentConversationId!,
                 text: text,
                 sender: sender,
                 type: msg['type'] as String?,
-                isFaq: msg['source'] != null && (msg['source'] as String).contains('firestore'),
+                isFaq: msg['source'] != null &&
+                    (msg['source'] as String).contains('firestore'),
                 faqSource: msg['source'] as String?,
               );
               // Actualizar el ID local con el ID de Firebase
@@ -384,11 +404,10 @@ class _ChatbotScreenState extends State<ChatbotScreen>
         await _persistMessages(); // Actualizar caché con nuevos IDs
         print('✅ Mensajes huérfanos sincronizados');
       }
-      
+
       if (newRemoteMessages.isEmpty && orphanMessages.isEmpty) {
         print('✅ Sincronización completa: todo está actualizado');
       }
-      
     } catch (e) {
       print('❌ Error en sincronización bidireccional: $e');
     }
@@ -475,6 +494,50 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     });
   }
 
+  /// Sincroniza timestamp del servidor en background sin bloquear UI
+  void _syncMessageTimestampInBackground(String messageId) {
+    // Ejecutar en background para no bloquear la UI
+    Future(() async {
+      try {
+        // Esperar un momento para que Firebase procese el serverTimestamp
+        await Future.delayed(const Duration(milliseconds: 500));
+
+        final doc = await _firestoreConnection.firestore
+            .collection('conversations')
+            .doc(_currentConversationId!)
+            .collection('messages')
+            .doc(messageId)
+            .get();
+
+        if (doc.exists) {
+          final data = doc.data();
+          final serverTimestamp = data?['timestamp'];
+
+          if (serverTimestamp != null && serverTimestamp is Timestamp) {
+            final serverTime =
+                serverTimestamp.toDate().toUtc().toIso8601String();
+
+            // Actualizar timestamp en la lista de mensajes local
+            final messageIndex =
+                messages.indexWhere((m) => m['id'] == messageId);
+            if (messageIndex != -1) {
+              messages[messageIndex]['timestamp'] = serverTime;
+              print(
+                  '✅ Timestamp del servidor sincronizado en background: $serverTime');
+
+              // Persistir actualización
+              _schedulePersistMessages();
+            }
+          }
+        }
+      } catch (e) {
+        // Error no crítico - el timestamp local ya está funcionando
+        print(
+            '⚠️ No se pudo sincronizar timestamp del servidor (no crítico): $e');
+      }
+    });
+  }
+
   /// Inicializa la conversación cargando mensajes existentes o creando una nueva
   Future<void> _initializeConversation() async {
     setState(() {
@@ -524,23 +587,28 @@ class _ChatbotScreenState extends State<ChatbotScreen>
           if (timestampValue is Timestamp) {
             // Timestamp de Firebase (mejor caso)
             m['timestamp'] = timestampValue.toDate().toUtc().toIso8601String();
-            print('✅ _initializeConversation: Usando timestamp del servidor (${m['id']})');
+            print(
+                '✅ _initializeConversation: Usando timestamp del servidor (${m['id']})');
           } else if (timestampValue is String && timestampValue.isNotEmpty) {
             // Ya es String ISO
             try {
               DateTime.parse(timestampValue); // Validar formato
-              print('✅ _initializeConversation: Timestamp String válido (${m['id']})');
+              print(
+                  '✅ _initializeConversation: Timestamp String válido (${m['id']})');
             } catch (e) {
-              print('⚠️ _initializeConversation: Timestamp String inválido, marcando como unknown (${m['id']})');
+              print(
+                  '⚠️ _initializeConversation: Timestamp String inválido, marcando como unknown (${m['id']})');
               m['timestamp'] = 'unknown';
             }
           } else if (timestampValue is DateTime) {
             // DateTime local (no ideal)
             m['timestamp'] = timestampValue.toUtc().toIso8601String();
-            print('⚠️ _initializeConversation: Timestamp es DateTime local (${m['id']})');
+            print(
+                '⚠️ _initializeConversation: Timestamp es DateTime local (${m['id']})');
           } else {
             // Sin timestamp válido - marcar como unknown
-            print('❌ _initializeConversation: Sin timestamp válido, marcando como unknown (${m['id']})');
+            print(
+                '❌ _initializeConversation: Sin timestamp válido, marcando como unknown (${m['id']})');
             m['timestamp'] = 'unknown';
           }
         }
@@ -613,14 +681,14 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     setState(() {
       messages.clear();
     });
-    
+
     // Borrar historial local
     await _chatHistoryService.clearHistory(
         conversationId: _currentConversationId);
-    
+
     // Crear nueva conversación ANTES del mensaje de bienvenida
     await _initializeConversation();
-    
+
     // Ahora sí inicializar el chat con el mensaje de bienvenida
     _initializeChat();
   }
@@ -669,67 +737,25 @@ class _ChatbotScreenState extends State<ChatbotScreen>
           faqSource: source,
         );
         newMessage['id'] = generatedMessageId;
-        
-        // 2. Obtener el timestamp del servidor Firebase (UTC)
-        // Firebase puede tardar un momento en procesar serverTimestamp, intentamos con retry
-        try {
-          print('🔍 Intentando obtener timestamp del servidor para mensaje: $generatedMessageId');
-          
-          DocumentSnapshot? doc;
-          int retries = 0;
-          const maxRetries = 3;
-          const retryDelay = Duration(milliseconds: 300);
-          
-          while (retries < maxRetries) {
-            doc = await _firestoreConnection.firestore
-                .collection('conversations')
-                .doc(_currentConversationId!)
-                .collection('messages')
-                .doc(generatedMessageId)
-                .get();
-            
-            final docData = doc.data() as Map<String, dynamic>?;
-            if (doc.exists && docData?['timestamp'] != null) {
-              break; // Timestamp encontrado
-            }
-            
-            retries++;
-            if (retries < maxRetries) {
-              print('🔄 Timestamp aún no disponible, reintentando ($retries/$maxRetries)...');
-              await Future.delayed(retryDelay);
-            }
-          }
-          
-          print('🔍 Documento existe: ${doc?.exists}');
-          if (doc != null && doc.exists) {
-            final data = doc.data() as Map<String, dynamic>?;
-            final serverTimestamp = data?['timestamp'];
-            print('🔍 ServerTimestamp: $serverTimestamp (tipo: ${serverTimestamp.runtimeType})');
-            
-            if (serverTimestamp != null) {
-              // Convertir Timestamp de Firebase a ISO String UTC
-              final timestamp = serverTimestamp as Timestamp;
-              newMessage['timestamp'] = timestamp.toDate().toUtc().toIso8601String();
-              print('✅ Timestamp del servidor obtenido: ${newMessage['timestamp']}');
-            } else {
-              print('❌ serverTimestamp es null después de $retries intentos');
-            }
-          } else {
-            print('❌ Documento no existe después de $retries intentos');
-          }
-        } catch (timestampError) {
-          print('⚠️ Error obteniendo timestamp del servidor: $timestampError');
-          print('Stack trace: ${StackTrace.current}');
-        }
+
+        // 2. OPTIMIZACIÓN: Usar timestamp local en lugar de reintentos a Firebase
+        // El timestamp del servidor se sincronizará automáticamente en background
+        newMessage['timestamp'] = DateTime.now().toUtc().toIso8601String();
+        print(
+            '✅ Usando timestamp local optimizado - sincronización en background');
+
+        // Sincronizar timestamp del servidor en background (sin bloquear UI)
+        _syncMessageTimestampInBackground(generatedMessageId);
       } catch (e) {
         debugPrint("❌ Error al guardar mensaje con el nuevo servicio: $e");
       }
     }
-    
+
     // Fallback: si no se pudo obtener timestamp del servidor, usar timestamp local como último recurso
     if (newMessage['timestamp'] == null) {
       newMessage['timestamp'] = DateTime.now().toUtc().toIso8601String();
-      print('⚠️ Usando timestamp local (fallback) - el dispositivo podría tener hora incorrecta');
+      print(
+          '⚠️ Usando timestamp local (fallback) - el dispositivo podría tener hora incorrecta');
     }
     // Usar el ID generado o el original para el índice de idiomas
     final effectiveId = generatedMessageId ?? messageId;
@@ -831,8 +857,6 @@ class _ChatbotScreenState extends State<ChatbotScreen>
 
     setState(() => messages.removeWhere((m) => m['type'] == 'faq_options'));
 
-    final conversationHistory =
-        _openAIService.formatMessagesForOpenAI(messages);
     addMessage(
       sender: "user",
       text: text,
@@ -845,15 +869,46 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     _typingController.repeat();
 
     try {
+      // OPTIMIZACIÓN CRÍTICA: Verificar caché de respuestas primero
+      final cachedResponse = await _responseCacheService.getCachedResponse(
+        query: text,
+        language: _currentLanguage,
+      );
+
+      if (cachedResponse != null && mounted) {
+        // Respuesta encontrada en caché - INSTANTÁNEA
+        stopwatch.stop();
+        final responseTimeMs = stopwatch.elapsedMilliseconds;
+        print('⚡⚡⚡ RESPUESTA DESDE CACHÉ: ${responseTimeMs}ms');
+
+        final aiMessageId = DateTime.now().millisecondsSinceEpoch.toString();
+        await addMessage(
+          sender: "bot",
+          text: cachedResponse.response,
+          messageId: aiMessageId,
+          source: 'cache',
+          link: cachedResponse.link,
+          language: _currentLanguage,
+          extras: {'showFeedback': true},
+        );
+        return; // Salir inmediatamente
+      }
+
       // PLAN A: Intentar obtener una respuesta de la IA (Lógica online)
       _log("🌐 Intentando conectar con el servicio de IA...");
       _log("🤖 BUSCANDO FAQs PARA: '$text'");
 
-      List<Faq> contextFaqs = [];
+      // OPTIMIZACIÓN: Ejecutar búsqueda de FAQs y preparación en paralelo
       final cleanText =
           text.toLowerCase().trim().replaceAll(RegExp(r'[?¿]'), '');
 
+      List<Faq> contextFaqs = [];
+      // Preparar historial de conversación (se usa más adelante)
+      final conversationHistory =
+          _openAIService.formatMessagesForOpenAI(messages);
+
       if (!_contextualTriggers.contains(cleanText)) {
+        // Búsqueda de FAQs optimizada con caché
         contextFaqs = await _faqService.findContextFaqs(text);
         _log("📚 FAQs encontradas: ${contextFaqs.length}");
 
@@ -870,6 +925,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
           _log('📖 FAQ $i - Link: ${faq.link}');
         }
       }
+
       // **OBTENER LA URL REAL ANTES DE LLAMAR A OPENAI**
       String? realUrl;
       if (contextFaqs.isNotEmpty) {
@@ -939,13 +995,23 @@ class _ChatbotScreenState extends State<ChatbotScreen>
             language: _currentLanguage,
             extras: {'showFeedback': true},
           );
-          
+
+          // OPTIMIZACIÓN: Guardar en caché para futuras consultas idénticas
+          _responseCacheService.cacheResponse(
+            query: text,
+            response: displayMessage,
+            language: _currentLanguage,
+            link: finalUrl,
+          );
+
           // Detener y loggear tiempo de respuesta
           stopwatch.stop();
           final responseTimeMs = stopwatch.elapsedMilliseconds;
-          final responseType = contextFaqs.isNotEmpty ? 'FAQ (RAG)' : 'Complex AI';
-          print('⏱️ TIEMPO DE RESPUESTA [$responseType]: ${responseTimeMs}ms (${(responseTimeMs / 1000).toStringAsFixed(2)}s)');
-          
+          final responseType =
+              contextFaqs.isNotEmpty ? 'FAQ (RAG)' : 'Complex AI';
+          print(
+              '⏱️ TIEMPO DE RESPUESTA [$responseType]: ${responseTimeMs}ms (${(responseTimeMs / 1000).toStringAsFixed(2)}s)');
+
           _log('✅ Respuesta procesada con URL: $realUrl');
         } else {
           // La IA devolvió un error controlado, aquí también podríamos activar el fallback
@@ -994,11 +1060,12 @@ class _ChatbotScreenState extends State<ChatbotScreen>
               'showFeedback': true
             }, // También podemos mostrar el link si existe
           );
-          
+
           // Detener y loggear tiempo de respuesta offline
           stopwatch.stop();
           final responseTimeMs = stopwatch.elapsedMilliseconds;
-          print('⏱️ TIEMPO DE RESPUESTA [FAQ Offline]: ${responseTimeMs}ms (${(responseTimeMs / 1000).toStringAsFixed(2)}s)');
+          print(
+              '⏱️ TIEMPO DE RESPUESTA [FAQ Offline]: ${responseTimeMs}ms (${(responseTimeMs / 1000).toStringAsFixed(2)}s)');
         } else {
           // No se encontró respuesta local. Intentar un último reintento a la IA
           try {
@@ -1017,11 +1084,12 @@ class _ChatbotScreenState extends State<ChatbotScreen>
                   language: _currentLanguage,
                   extras: {'showFeedback': true},
                 );
-                
+
                 // Detener y loggear tiempo de respuesta del reintento
                 stopwatch.stop();
                 final responseTimeMs = stopwatch.elapsedMilliseconds;
-                print('⏱️ TIEMPO DE RESPUESTA [Complex AI - Retry]: ${responseTimeMs}ms (${(responseTimeMs / 1000).toStringAsFixed(2)}s)');
+                print(
+                    '⏱️ TIEMPO DE RESPUESTA [Complex AI - Retry]: ${responseTimeMs}ms (${(responseTimeMs / 1000).toStringAsFixed(2)}s)');
               } else {
                 // Si OpenAI respondió con error, mostrar mensaje de error amigable
                 final errorMessage = ChatbotStrings.get(

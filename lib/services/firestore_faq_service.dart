@@ -103,6 +103,10 @@ class FaqService {
   List<Faq> _faqsCache = [];
   Map<String, double> _idfScores = {};
 
+  // NUEVA: Caché de búsquedas recientes para respuestas instantáneas
+  final Map<String, List<Faq>> _searchCache = {};
+  static const int _maxCacheSize = 50;
+
   FaqService();
 
   // Carga las FAQs y calcula los puntajes IDF.
@@ -163,20 +167,52 @@ class FaqService {
   Future<List<Faq>> findContextFaqs(String userMessage) async {
     if (_faqsCache.isEmpty) return [];
 
-    // Detectar idioma del mensaje del usuario
-    final String detectedLanguage =
-        await _languageService.detectLanguage(userMessage);
-    debugPrint(
-        "🌐 Idioma detectado: $detectedLanguage para mensaje: $userMessage");
+    // OPTIMIZACIÓN 1: Normalizar y crear clave de caché
+    final normalizedQuery = userMessage.toLowerCase().trim();
 
-    print("🔍 FAQ SERVICE - Idioma detectado: $detectedLanguage");
-    print("🔍 FAQ SERVICE - Búsqueda para: '$userMessage'");
+    // Verificar caché primero para respuesta instantánea
+    if (_searchCache.containsKey(normalizedQuery)) {
+      print('⚡ Respuesta desde caché para: "$userMessage"');
+      return _searchCache[normalizedQuery]!;
+    }
+
+    // OPTIMIZACIÓN 2: Detectar idioma en paralelo con generación de keywords
+    final detectionFuture = _languageService.detectLanguage(userMessage);
     final keywords = _generateKeywordsFromText(userMessage);
-    print("🔍 FAQ SERVICE - Keywords generadas: $keywords");
+
     if (keywords.isEmpty) return [];
 
-    // Calcula el puntaje TF-IDF para todas las FAQs en la caché.
-    final scoredFaqs = _faqsCache.map((faq) {
+    // Esperar detección de idioma (ya completada o casi)
+    final String detectedLanguage = await detectionFuture;
+
+    debugPrint(
+        "🌐 Idioma detectado: $detectedLanguage para mensaje: $userMessage");
+    print("🔍 FAQ SERVICE - Idioma detectado: $detectedLanguage");
+    print("🔍 FAQ SERVICE - Búsqueda para: '$userMessage'");
+    print("🔍 FAQ SERVICE - Keywords generadas: $keywords");
+
+    // OPTIMIZACIÓN 3: Pre-filtrar FAQs que tienen al menos una keyword
+    final candidateFaqs = <Faq>[];
+    for (final faq in _faqsCache) {
+      bool hasMatch = false;
+      for (final keyword in keywords) {
+        if (faq.tags.contains(keyword)) {
+          hasMatch = true;
+          break;
+        }
+      }
+      if (hasMatch) candidateFaqs.add(faq);
+    }
+
+    // Si no hay candidatos, retornar vacío rápidamente
+    if (candidateFaqs.isEmpty) {
+      debugPrint(
+          "ℹ️ No se encontró contexto local relevante para la pregunta (idioma: $detectedLanguage).");
+      return [];
+    }
+
+    // OPTIMIZACIÓN 4: Calcular scores solo para candidatos (no todas las FAQs)
+    final scoredFaqs = candidateFaqs.map((faq) {
       double score = 0.0;
       for (final keyword in keywords) {
         if (faq.tags.contains(keyword)) {
@@ -196,6 +232,13 @@ class FaqService {
         .map((entry) => entry.key)
         .take(1) // Tomamos la mejor como contexto
         .toList();
+
+    // OPTIMIZACIÓN 5: Guardar en caché (con límite de tamaño)
+    if (_searchCache.length >= _maxCacheSize) {
+      // Eliminar entrada más antigua
+      _searchCache.remove(_searchCache.keys.first);
+    }
+    _searchCache[normalizedQuery] = relevantFaqs;
 
     if (relevantFaqs.isNotEmpty) {
       debugPrint(
