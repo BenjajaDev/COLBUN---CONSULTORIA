@@ -3,9 +3,10 @@
 ## Resumen de Cambios Implementados
 
 ### Objetivo
-Reducir los tiempos de respuesta del chatbot a:
-- **< 3 segundos** para consultas con base de datos (FAQ/RAG)
-- **< 8 segundos** para consultas de IA pura
+Optimizar los tiempos de respuesta del chatbot con timeouts realistas:
+- **< 15 segundos** para consultas con base de datos (FAQ/RAG)
+- **< 20 segundos** para consultas de IA pura
+- Timeouts configurados para permitir completar respuestas sin fallar prematuramente
 
 ---
 
@@ -21,11 +22,11 @@ Reducir los tiempos de respuesta del chatbot a:
 // Timeout dinámico basado en tipo de consulta
 final hasContext = requestBody['messages']?.toString().contains('INFORMACIÓN DE CONTEXTO') ?? false;
 final timeoutDuration = hasContext 
-    ? const Duration(seconds: 3)  // FAQ con contexto = 3s máximo
-    : const Duration(seconds: 8); // IA pura = 8s máximo
+    ? const Duration(seconds: 15)  // FAQ con contexto = tiempo suficiente
+    : const Duration(seconds: 20); // IA pura = más tiempo para respuestas complejas
 ```
 
-**Beneficio**: Respuestas más rápidas al forzar timeouts apropiados para cada tipo de consulta.
+**Beneficio**: Timeouts realistas que permiten completar las respuestas sin errores prematuros, mientras mantienen un límite razonable.
 
 ---
 
@@ -176,8 +177,8 @@ final cachedMessages = messages.length > _maxCachedMessages
 | Tipo de Consulta | Tiempo Esperado | Detalles |
 |------------------|-----------------|----------|
 | **Caché hit** | < 50ms | Respuesta desde caché en memoria |
-| **FAQ con contexto** | < 3s | Timeout 3s + búsqueda optimizada |
-| **IA pura** | < 8s | Timeout 8s para consultas complejas |
+| **FAQ con contexto** | 3-15s | Timeout 15s + búsqueda optimizada |
+| **IA pura** | 5-20s | Timeout 20s para consultas complejas |
 | **Offline fallback** | < 500ms | Búsqueda local en FAQs |
 
 ### Métricas de Monitoreo

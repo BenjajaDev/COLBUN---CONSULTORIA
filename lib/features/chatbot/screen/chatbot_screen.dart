@@ -833,25 +833,18 @@ class _ChatbotScreenState extends State<ChatbotScreen>
   // PROCESAMIENTO DE MENSAJES Y IA
   // ===========================================================================
   void handleSendMessage(String text) async {
-    // Debug logs guarded by kDebugMode
-    _log("🎯🎯🎯 INICIANDO handleSendMessage 🎯🎯🎯");
-    _log("📝 Mensaje recibido: '$text'");
-
     // Iniciar medición de tiempo de respuesta
     final stopwatch = Stopwatch()..start();
 
-    // **DETECTAR IDIOMA CON MÁS LOGS**
+    // Detectar idioma
     try {
       _currentLanguage = await _languageService.detectLanguage(text);
-      _log("🌐🌐🌐 IDIOMA DETECTADO: $_currentLanguage para mensaje: $text");
       // Verificar si es emergencia
       if (_emergencyService.detectEmergency(text, _currentLanguage)) {
-        _log("🚨🚨🚨 EMERGENCIA DETECTADA! 🚨🚨🚨");
         await _activateEmergencyMode(text);
-        return; // Detener procesamiento normal
+        return;
       }
     } catch (e) {
-      _log("❌ ERROR en detección de idioma: $e");
       _currentLanguage = 'es'; // Fallback a español
     }
 
@@ -869,34 +862,10 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     _typingController.repeat();
 
     try {
-      // OPTIMIZACIÓN CRÍTICA: Verificar caché de respuestas primero
-      final cachedResponse = await _responseCacheService.getCachedResponse(
-        query: text,
-        language: _currentLanguage,
-      );
-
-      if (cachedResponse != null && mounted) {
-        // Respuesta encontrada en caché - INSTANTÁNEA
-        stopwatch.stop();
-        final responseTimeMs = stopwatch.elapsedMilliseconds;
-        print('⚡⚡⚡ RESPUESTA DESDE CACHÉ: ${responseTimeMs}ms');
-
-        final aiMessageId = DateTime.now().millisecondsSinceEpoch.toString();
-        await addMessage(
-          sender: "bot",
-          text: cachedResponse.response,
-          messageId: aiMessageId,
-          source: 'cache',
-          link: cachedResponse.link,
-          language: _currentLanguage,
-          extras: {'showFeedback': true},
-        );
-        return; // Salir inmediatamente
-      }
-
       // PLAN A: Intentar obtener una respuesta de la IA (Lógica online)
-      _log("🌐 Intentando conectar con el servicio de IA...");
-      _log("🤖 BUSCANDO FAQs PARA: '$text'");
+      if (kDebugMode) {
+        print("🤖 BUSCANDO FAQs PARA: '$text'");
+      }
 
       // OPTIMIZACIÓN: Ejecutar búsqueda de FAQs y preparación en paralelo
       final cleanText =
@@ -910,19 +879,8 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       if (!_contextualTriggers.contains(cleanText)) {
         // Búsqueda de FAQs optimizada con caché
         contextFaqs = await _faqService.findContextFaqs(text);
-        _log("📚 FAQs encontradas: ${contextFaqs.length}");
-
-        // **DEBUG DETALLADO DE LAS FAQs CON IDIOMA**
-        for (var i = 0; i < contextFaqs.length; i++) {
-          var faq = contextFaqs[i];
-          _log('📖 FAQ $i - ID: ${faq.id}');
-          _log('📖 FAQ $i - Pregunta ES: ${faq.question}');
-          _log('📖 FAQ $i - Pregunta EN: ${faq.questionEn}');
-          _log('📖 FAQ $i - Respuesta ES: ${faq.answer}');
-          _log('📖 FAQ $i - Respuesta EN: ${faq.answerEn}');
-          _log('📖 FAQ $i - Categoría: ${faq.category}');
-          _log('📖 FAQ $i - Tags: ${faq.tags}');
-          _log('📖 FAQ $i - Link: ${faq.link}');
+        if (kDebugMode) {
+          print("� FAQs encontradas: ${contextFaqs.length}");
         }
       }
 
@@ -930,10 +888,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       String? realUrl;
       if (contextFaqs.isNotEmpty) {
         realUrl = contextFaqs.first.link;
-        _log('🔗 URL real obtenida de la base de datos: $realUrl');
       }
-
-      _log("🚀 LLAMANDO A OPENAI CON IDIOMA: $_currentLanguage");
       final openAIResponse = await _openAIService.generateRAGResponse(
         userMessage: text,
         contextFaqs: contextFaqs,
@@ -951,39 +906,16 @@ class _ChatbotScreenState extends State<ChatbotScreen>
             finalUrl = openAIResponse.extractedUrls.isNotEmpty
                 ? openAIResponse.extractedUrls.first
                 : null;
-            _log('🔗 Usando URL extraída como fallback: $finalUrl');
           }
-          _log(
-              "✅ RESPUESTA OPENAI: ${openAIResponse.message.substring(0, 100)}...");
-          // Si tenemos una URL final separada, limpiamos el texto de la IA
-          // para evitar mostrar el enlace inline y dejar solo el botón "Fuente".
+          // Limpiar URLs del mensaje si hay una URL final
           String displayMessage = openAIResponse.message;
           if (finalUrl != null && finalUrl.isNotEmpty) {
-            try {
-              // Eliminar links en formato Markdown [texto](url)
-              displayMessage = displayMessage.replaceAllMapped(
-                RegExp(r'\[([^\]]+)\]\(([^)]+)\)'),
-                (m) => '',
-              );
-
-              // Eliminar URLs explícitas (http/https/www)
-              displayMessage = displayMessage.replaceAll(
-                RegExp(r'https?:\/\/[\S]+|www\.[\S]+'),
-                '',
-              );
-
-              // Asegurar que no quede la URL textual específica
-              displayMessage = displayMessage.replaceAll(finalUrl, '');
-
-              // Limpiar espacios extra y puntuación sobrante
-              displayMessage =
-                  displayMessage.replaceAll(RegExp(r'\s{2,}'), ' ').trim();
-              displayMessage =
-                  displayMessage.replaceAll(RegExp(r'\s+[,\.:;\)]+'), '');
-            } catch (e) {
-              _log('⚠️ Error limpiando el mensaje de la IA: $e');
-              displayMessage = openAIResponse.message; // fallback
-            }
+            // Eliminar links y URLs de forma rápida
+            displayMessage = displayMessage
+                .replaceAll(RegExp(r'\[([^\]]+)\]\(([^)]+)\)'), '')
+                .replaceAll(RegExp(r'https?:\/\/[\S]+|www\.[\S]+'), '')
+                .replaceAll(RegExp(r'\s{2,}'), ' ')
+                .trim();
           }
 
           addMessage(
@@ -1006,13 +938,12 @@ class _ChatbotScreenState extends State<ChatbotScreen>
 
           // Detener y loggear tiempo de respuesta
           stopwatch.stop();
-          final responseTimeMs = stopwatch.elapsedMilliseconds;
-          final responseType =
-              contextFaqs.isNotEmpty ? 'FAQ (RAG)' : 'Complex AI';
-          print(
-              '⏱️ TIEMPO DE RESPUESTA [$responseType]: ${responseTimeMs}ms (${(responseTimeMs / 1000).toStringAsFixed(2)}s)');
-
-          _log('✅ Respuesta procesada con URL: $realUrl');
+          if (kDebugMode) {
+            final responseTimeMs = stopwatch.elapsedMilliseconds;
+            final responseType = contextFaqs.isNotEmpty ? 'FAQ' : 'AI';
+            print(
+                '⏱️ [$responseType]: ${(responseTimeMs / 1000).toStringAsFixed(1)}s');
+          }
         } else {
           // La IA devolvió un error controlado, aquí también podríamos activar el fallback
           throw Exception(openAIResponse.message);
@@ -1123,7 +1054,6 @@ class _ChatbotScreenState extends State<ChatbotScreen>
         _typingController.stop();
       }
     }
-    _log("🏁🏁🏁 FINALIZANDO handleSendMessage 🏁🏁🏁");
   }
 
   // ===========================================================================

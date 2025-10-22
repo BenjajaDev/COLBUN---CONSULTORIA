@@ -124,27 +124,38 @@ class OpenAIService {
 
   // --- ¡NUEVO SYSTEM PROMPT PARA RAG (IA-PRIMERO)! ---
   String get _systemPrompt => '''
-eres "Asistente Colbún", un asistente virtual experto, amigable y servicial para la Municipalidad de Colbún, Chile.
+Eres "Asistente Colbún", un asistente virtual experto, amigable y servicial para la Municipalidad de Colbún, Chile.
 Tu única misión es proporcionar información precisa y útil sobre la comuna de Colbún.
 
----
+**IMPORTANTE: Tus respuestas deben ser CONCISAS y DIRECTAS (máximo 100-120 palabras). Ve al grano.**
+
 REGLAS DE COMPORTAMIENTO:
-1.  **Enfoque Amplio sobre Colbún:** Tu conocimiento abarca todo lo relacionado con la comuna: servicios municipales, turismo, eventos, vida local, cultura, geografía e historia. Si una pregunta trata sobre Colbún, responde de la manera más útil posible.
-2.  **Límites Claros:** Si un usuario pregunta sobre temas sensibles como política, violencia, contenido sexual, opiniones personales o cualquier otro tema no relacionado con Colbún, debes declinar la conversación de manera amable y reenfocarla.
-3.  **Respuesta Segura:** Ante una pregunta fuera de tu alcance, responde con una variación de: "Mi propósito es ayudarte con información sobre la comuna de Colbún. No tengo permitido hablar sobre [tema mencionado]. ¿Hay algo sobre Colbún en lo que pueda ayudarte?".
-4.  **No Inventes:** Si no conoces una respuesta, es mejor admitirlo y sugerir contactar a la municipalidad directamente.
----
+1.  **Respuestas Breves:** Da la información esencial de forma directa. Evita introducciones largas o repetir la pregunta.
+2.  **Enfoque en Colbún:** Tu conocimiento abarca servicios municipales, turismo, eventos, vida local, cultura, geografía e historia de Colbún.
+3.  **Límites Claros:** No respondas temas sensibles como política, violencia, contenido sexual u opiniones personales. Redirige amablemente a temas de Colbún.
+4.  **No Inventes:** Si no sabes algo, admítelo brevemente y sugiere contactar a la municipalidad.
+
+**Formato ideal de respuesta:**
+- 2-3 oraciones máximo para preguntas simples
+- 1 párrafo corto para preguntas complejas
+- Lista con viñetas solo si es absolutamente necesario
 ''';
   String get _systemPromptPt => '''
 Você é "Assistente Colbún", um assistente virtual especialista, amigável e prestativo para a Prefeitura de Colbún, Chile.
 Sua única missão é fornecer informações precisas e úteis sobre o município de Colbún.
----
+
+**IMPORTANTE: Suas respostas devem ser CONCISAS e DIRETAS (máximo 100-120 palavras). Vá direto ao ponto.**
+
 REGRAS DE COMPORTAMENTO:
-1.  **Foco Amplo em Colbún:** Seu conhecimento abrange tudo relacionado ao município: serviços municipais, turismo, eventos, vida local, cultura, geografia e história. Se uma pergunta for sobre Colbún, responda da maneira mais útil possível.
-2.  **Limites Claros:** Se um usuário perguntar sobre tópicos sensíveis como política, violência, conteúdo sexual, opiniões pessoais ou qualquer outro assunto não relacionado a Colbún, você deve recusar educadamente e redirecionar a conversa.
-3.  **Resposta Segura:** Diante de uma pergunta fora do seu alcance, responda com uma variação de: "Meu propósito é ajudá-lo com informações sobre o município de Colbún. Não tenho permissão para falar sobre [tema mencionado]. Há algo sobre Colbún em que eu possa ajudar?".
-4.  **Não Invente:** Se você não souber uma resposta, é melhor admitir e sugerir entrar em contato diretamente com a prefeitura.
----
+1.  **Respostas Breves:** Forneça informações essenciais de forma direta. Evite introduções longas ou repetir a pergunta.
+2.  **Foco em Colbún:** Seu conhecimento abrange serviços municipais, turismo, eventos, vida local, cultura, geografia e história de Colbún.
+3.  **Limites Claros:** Não responda sobre política, violência, conteúdo sexual ou opiniões pessoais. Redirecione educadamente para temas de Colbún.
+4.  **Não Invente:** Se não souber algo, admita brevemente e sugira contatar a prefeitura.
+
+**Formato ideal de resposta:**
+- 2-3 frases no máximo para perguntas simples
+- 1 parágrafo curto para perguntas complexas
+- Lista com marcadores apenas se absolutamente necessário
 ''';
 
   // ============================================================================
@@ -268,12 +279,26 @@ include the specific link provided using the format [Text](URL). You may supplem
     required String language, // Nuevo parámetro
   }) async {
     try {
-      // Validar API Key
+      // Validar API Key (solo en debug para evitar slowdowns)
+      if (kDebugMode) {
+        print('🔑 Verificando API Key...');
+      }
+
       if (_apiKey.isEmpty) {
+        if (kDebugMode) print('❌ API Key vacía');
         return OpenAIResponse(
             success: false,
             message: "Error: API Key de OpenAI no configurada.",
             error: "API Key is missing",
+            tokensUsed: 0);
+      }
+
+      if (!_apiKey.startsWith('sk-')) {
+        if (kDebugMode) print('❌ API Key no empieza con sk-');
+        return OpenAIResponse(
+            success: false,
+            message: "Error: API Key de OpenAI tiene formato inválido.",
+            error: "API Key format is invalid",
             tokensUsed: 0);
       }
       // Prompt base en español o inglés según el idioma detectado
@@ -300,10 +325,9 @@ include the specific link provided using the format [Text](URL). You may supplem
       final requestBody = {
         'model': _model,
         'messages': messages,
-        'max_tokens': 250,
-        'temperature':
-            0.5, // Un poco menos creativo para que se apegue más al contexto.
-        'stream': false, // Desactivar streaming para respuestas más rápidas
+        'max_tokens': 150, // Reducido para respuestas más rápidas
+        'temperature': 0.3, // Más determinista = más rápido
+        'stream': false,
       };
 
       // En web, las llamadas directas a api.openai.com suelen fallar por CORS.
@@ -331,19 +355,12 @@ include the specific link provided using the format [Text](URL). You may supplem
         }
       }
 
-      print('🚀 Enviando petición a OpenAI en idioma: $language');
+      if (kDebugMode) {
+        print('🚀 Enviando petición a OpenAI en idioma: $language');
+      }
 
-      // Timeout optimizado: 3s para RAG (con contexto), 8s para IA pura
-      final hasContext = requestBody['messages']
-              ?.toString()
-              .contains('INFORMACIÓN DE CONTEXTO') ??
-          false;
-      final timeoutDuration = hasContext
-          ? const Duration(seconds: 3) // FAQ con contexto = respuesta rápida
-          : const Duration(seconds: 8); // IA pura = más tiempo
-
-      print(
-          '⏱️ Timeout configurado: ${timeoutDuration.inSeconds}s (${hasContext ? "con contexto FAQ" : "IA pura"})');
+      // Timeout optimizado: 12s para todas las consultas (balanceado)
+      const timeoutDuration = Duration(seconds: 12);
 
       final response = await http
           .post(
@@ -353,7 +370,12 @@ include the specific link provided using the format [Text](URL). You may supplem
           )
           .timeout(timeoutDuration);
 
-      print('📡 Respuesta recibida: ${response.statusCode}');
+      if (kDebugMode) {
+        print('📡 Respuesta recibida: ${response.statusCode}');
+        if (response.statusCode != 200) {
+          print('⚠️ Error: ${response.statusCode}');
+        }
+      }
 
       // Procesar la respuesta
       if (response.statusCode == 200) {
@@ -367,14 +389,38 @@ include the specific link provided using the format [Text](URL). You may supplem
         FirebaseCrashlytics.instance
             .recordError(e, st, reason: 'OpenAIService._sendMessage');
       } catch (_) {}
+
       print('❌ Error en OpenAI Service: $e');
+
+      // Determinar el tipo de error para dar mejor retroalimentación
+      String errorMessage;
+      if (e.toString().contains('TimeoutException')) {
+        print(
+            '⏱️ Timeout detectado - La respuesta está tomando más tiempo de lo esperado');
+        errorMessage = language == 'en'
+            ? 'The response is taking longer than expected. This might be due to network conditions. Please try again.'
+            : language == 'pt'
+                ? 'A resposta está demorando mais do que o esperado. Isso pode ser devido às condições da rede. Por favor, tente novamente.'
+                : 'La respuesta está tardando más de lo esperado. Esto puede deberse a las condiciones de la red. Por favor, intenta nuevamente.';
+      } else if (e.toString().contains('SocketException') ||
+          e.toString().contains('ClientException')) {
+        print('📡 Error de conexión - Problema de red detectado');
+        errorMessage = language == 'en'
+            ? 'Unable to connect to the service. Please check your internet connection and try again.'
+            : language == 'pt'
+                ? 'Não foi possível conectar ao serviço. Por favor, verifique sua conexão com a internet e tente novamente.'
+                : 'No se pudo conectar al servicio. Por favor, verifica tu conexión a internet e intenta nuevamente.';
+      } else {
+        errorMessage = language == 'en'
+            ? 'Sorry, there is a technical problem. Please try again in a few moments.'
+            : language == 'pt'
+                ? 'Desculpe, há um problema técnico. Por favor, tente novamente em alguns momentos.'
+                : 'Lo siento, hay un problema técnico. Por favor, intenta nuevamente en unos momentos.';
+      }
+
       return OpenAIResponse(
           success: false,
-          message: language == 'en'
-              ? 'Sorry, there is a technical problem. Please try again in a few moments.'
-              : language == 'pt'
-                  ? 'Desculpe, há um problema técnico. Por favor, tente novamente em alguns momentos.'
-                  : 'Lo siento, hay un problema técnico. Por favor, intenta nuevamente en unos momentos.',
+          message: errorMessage,
           error: e.toString(),
           tokensUsed: 0);
     }
@@ -385,13 +431,18 @@ include the specific link provided using the format [Text](URL). You may supplem
 You are "Asistente Colbún," a friendly, helpful, and expert virtual assistant for the Municipality of Colbún, Chile.
 Your sole mission is to provide accurate and useful information about the Colbún commune.
 
----
+**IMPORTANT: Your responses must be CONCISE and DIRECT (maximum 100-120 words). Get straight to the point.**
+
 BEHAVIORAL RULES:
-1.  **Broad Focus on Colbún:** Your knowledge covers everything related to the commune: municipal services, tourism, events, local life, culture, geography, and history. If a question is about Colbún, answer it as helpfully as possible.
-2.  **Clear Boundaries:** If a user asks about sensitive topics such as politics, violence, sexual content, personal opinions, or any other subject not related to Colbún, you must politely decline and refocus the conversation.
-3.  **Safe Response:** When faced with an out-of-scope question, respond with a variation of: "My purpose is to assist you with information about the commune of Colbún. I am not permitted to discuss [mentioned topic]. Is there anything about Colbún I can help you with?".
-4.  **Do Not Invent:** If you do not know an answer, it is better to admit it and suggest contacting the municipality directly.
----
+1.  **Brief Responses:** Provide essential information directly. Avoid long introductions or repeating the question.
+2.  **Focus on Colbún:** Your knowledge covers municipal services, tourism, events, local life, culture, geography, and history of Colbún.
+3.  **Clear Boundaries:** Don't respond to sensitive topics like politics, violence, sexual content, or personal opinions. Politely redirect to Colbún topics.
+4.  **Do Not Invent:** If you don't know something, admit it briefly and suggest contacting the municipality.
+
+**Ideal response format:**
+- 2-3 sentences maximum for simple questions
+- 1 short paragraph for complex questions
+- Bullet list only if absolutely necessary
 ''';
 
   /// Envía un mensaje simple sin historial
@@ -504,12 +555,16 @@ CONSULTA DEL USUARIO: $userMessage
       final errorType = errorData['error']['type'] as String;
 
       print('❌ Error de OpenAI: $errorType - $errorMessage');
+      print('❌ Status Code: ${response.statusCode}');
+      print('❌ Response completo: ${response.body}');
 
       String userFriendlyMessage;
       switch (response.statusCode) {
         case 401:
           userFriendlyMessage =
-              'Error de autenticación. Verifica la configuración.';
+              'Error de autenticación. La API Key es inválida o está mal configurada. Verifica el archivo .env';
+          print(
+              '💡 SOLUCIÓN: Revisa que la API Key en .env no tenga comillas y empiece con sk-');
           break;
         case 429:
           userFriendlyMessage =
@@ -535,6 +590,7 @@ CONSULTA DEL USUARIO: $userMessage
       );
     } catch (e) {
       print('❌ Error al procesar respuesta de error: $e');
+      print('❌ Response body raw: ${response.body}');
       return OpenAIResponse(
           success: false,
           message: "Hubo un error con el servicio de IA.",
@@ -547,7 +603,25 @@ CONSULTA DEL USUARIO: $userMessage
   // ============================================================================
 
   /// Valida que la API Key esté configurada
-  bool isConfigured() => _apiKey.isNotEmpty && _apiKey.startsWith('sk-');
+  bool isConfigured() {
+    final key = _apiKey.trim();
+    final isValid = key.isNotEmpty && key.startsWith('sk-');
+
+    if (!isValid) {
+      print('❌ API Key inválida o no configurada');
+      print('   Key vacía: ${key.isEmpty}');
+      print('   Key length: ${key.length}');
+      print('   Empieza con sk-: ${key.startsWith('sk-')}');
+      if (key.isNotEmpty && key.length < 20) {
+        print(
+            '   Key (primeros chars): ${key.substring(0, key.length > 10 ? 10 : key.length)}...');
+      }
+    } else {
+      print('✅ API Key configurada correctamente');
+    }
+
+    return isValid;
+  }
 
   List<Map<String, String>> formatMessagesForOpenAI(
       List<Map<String, dynamic>> messages) {
