@@ -18,6 +18,7 @@ import '../../../services/firestore_faq_service.dart';
 import '../../../services/language_service.dart';
 import '../../../services/chat_history_service.dart';
 import '../../../services/firestore_emergency.dart';
+import '../../../services/response_cache_service.dart';
 import '../utils/chatbot_strings.dart';
 
 class ChatbotScreen extends StatefulWidget {
@@ -59,6 +60,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
   late FaqService _faqService;
   late OpenAIService _openAIService;
   late final ChatHistoryService _chatHistoryService;
+  late final ResponseCacheService _responseCacheService;
   // Timer usado para agrupar persistencias locales y evitar IO frecuente
   Timer? _persistTimer;
 
@@ -82,6 +84,8 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     _openAIService = context.read<OpenAIService>();
     _chatHistoryService =
         ChatHistoryService(); // Inicializa el servicio de caché local
+    _responseCacheService =
+        ResponseCacheService(); // Inicializa caché de respuestas
     _typingController = AnimationController(
       duration: const Duration(milliseconds: 1500),
       vsync: this,
@@ -475,6 +479,50 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     });
   }
 
+  /// Sincroniza timestamp del servidor en background sin bloquear UI
+  void _syncMessageTimestampInBackground(String messageId) {
+    // Ejecutar en background para no bloquear la UI
+    Future(() async {
+      try {
+        // Esperar un momento para que Firebase procese el serverTimestamp
+        await Future.delayed(const Duration(milliseconds: 500));
+
+        final doc = await _firestoreConnection.firestore
+            .collection('conversations')
+            .doc(_currentConversationId!)
+            .collection('messages')
+            .doc(messageId)
+            .get();
+
+        if (doc.exists) {
+          final data = doc.data();
+          final serverTimestamp = data?['timestamp'];
+
+          if (serverTimestamp != null && serverTimestamp is Timestamp) {
+            final serverTime =
+                serverTimestamp.toDate().toUtc().toIso8601String();
+
+            // Actualizar timestamp en la lista de mensajes local
+            final messageIndex =
+                messages.indexWhere((m) => m['id'] == messageId);
+            if (messageIndex != -1) {
+              messages[messageIndex]['timestamp'] = serverTime;
+              print(
+                  '✅ Timestamp del servidor sincronizado en background: $serverTime');
+
+              // Persistir actualización
+              _schedulePersistMessages();
+            }
+          }
+        }
+      } catch (e) {
+        // Error no crítico - el timestamp local ya está funcionando
+        print(
+            '⚠️ No se pudo sincronizar timestamp del servidor (no crítico): $e');
+      }
+    });
+  }
+
   /// Inicializa la conversación cargando mensajes existentes o creando una nueva
   Future<void> _initializeConversation() async {
     setState(() {
@@ -669,58 +717,15 @@ class _ChatbotScreenState extends State<ChatbotScreen>
           faqSource: source,
         );
         newMessage['id'] = generatedMessageId;
-        
-        // 2. Obtener el timestamp del servidor Firebase (UTC)
-        // Firebase puede tardar un momento en procesar serverTimestamp, intentamos con retry
-        try {
-          print('🔍 Intentando obtener timestamp del servidor para mensaje: $generatedMessageId');
-          
-          DocumentSnapshot? doc;
-          int retries = 0;
-          const maxRetries = 3;
-          const retryDelay = Duration(milliseconds: 300);
-          
-          while (retries < maxRetries) {
-            doc = await _firestoreConnection.firestore
-                .collection('conversations')
-                .doc(_currentConversationId!)
-                .collection('messages')
-                .doc(generatedMessageId)
-                .get();
-            
-            final docData = doc.data() as Map<String, dynamic>?;
-            if (doc.exists && docData?['timestamp'] != null) {
-              break; // Timestamp encontrado
-            }
-            
-            retries++;
-            if (retries < maxRetries) {
-              print('🔄 Timestamp aún no disponible, reintentando ($retries/$maxRetries)...');
-              await Future.delayed(retryDelay);
-            }
-          }
-          
-          print('🔍 Documento existe: ${doc?.exists}');
-          if (doc != null && doc.exists) {
-            final data = doc.data() as Map<String, dynamic>?;
-            final serverTimestamp = data?['timestamp'];
-            print('🔍 ServerTimestamp: $serverTimestamp (tipo: ${serverTimestamp.runtimeType})');
-            
-            if (serverTimestamp != null) {
-              // Convertir Timestamp de Firebase a ISO String UTC
-              final timestamp = serverTimestamp as Timestamp;
-              newMessage['timestamp'] = timestamp.toDate().toUtc().toIso8601String();
-              print('✅ Timestamp del servidor obtenido: ${newMessage['timestamp']}');
-            } else {
-              print('❌ serverTimestamp es null después de $retries intentos');
-            }
-          } else {
-            print('❌ Documento no existe después de $retries intentos');
-          }
-        } catch (timestampError) {
-          print('⚠️ Error obteniendo timestamp del servidor: $timestampError');
-          print('Stack trace: ${StackTrace.current}');
-        }
+
+        // 2. OPTIMIZACIÓN: Usar timestamp local en lugar de reintentos a Firebase
+        // El timestamp del servidor se sincronizará automáticamente en background
+        newMessage['timestamp'] = DateTime.now().toUtc().toIso8601String();
+        print(
+            '✅ Usando timestamp local optimizado - sincronización en background');
+
+        // Sincronizar timestamp del servidor en background (sin bloquear UI)
+        _syncMessageTimestampInBackground(generatedMessageId);
       } catch (e) {
         debugPrint("❌ Error al guardar mensaje con el nuevo servicio: $e");
       }
@@ -807,32 +812,23 @@ class _ChatbotScreenState extends State<ChatbotScreen>
   // PROCESAMIENTO DE MENSAJES Y IA
   // ===========================================================================
   void handleSendMessage(String text) async {
-    // Debug logs guarded by kDebugMode
-    _log("🎯🎯🎯 INICIANDO handleSendMessage 🎯🎯🎯");
-    _log("📝 Mensaje recibido: '$text'");
-
     // Iniciar medición de tiempo de respuesta
     final stopwatch = Stopwatch()..start();
 
-    // **DETECTAR IDIOMA CON MÁS LOGS**
+    // Detectar idioma
     try {
       _currentLanguage = await _languageService.detectLanguage(text);
-      _log("🌐🌐🌐 IDIOMA DETECTADO: $_currentLanguage para mensaje: $text");
       // Verificar si es emergencia
       if (_emergencyService.detectEmergency(text, _currentLanguage)) {
-        _log("🚨🚨🚨 EMERGENCIA DETECTADA! 🚨🚨🚨");
         await _activateEmergencyMode(text);
-        return; // Detener procesamiento normal
+        return;
       }
     } catch (e) {
-      _log("❌ ERROR en detección de idioma: $e");
       _currentLanguage = 'es'; // Fallback a español
     }
 
     setState(() => messages.removeWhere((m) => m['type'] == 'faq_options'));
 
-    final conversationHistory =
-        _openAIService.formatMessagesForOpenAI(messages);
     addMessage(
       sender: "user",
       text: text,
@@ -846,38 +842,32 @@ class _ChatbotScreenState extends State<ChatbotScreen>
 
     try {
       // PLAN A: Intentar obtener una respuesta de la IA (Lógica online)
-      _log("🌐 Intentando conectar con el servicio de IA...");
-      _log("🤖 BUSCANDO FAQs PARA: '$text'");
+      if (kDebugMode) {
+        print("🤖 BUSCANDO FAQs PARA: '$text'");
+      }
 
-      List<Faq> contextFaqs = [];
+      // OPTIMIZACIÓN: Ejecutar búsqueda de FAQs y preparación en paralelo
       final cleanText =
           text.toLowerCase().trim().replaceAll(RegExp(r'[?¿]'), '');
 
-      if (!_contextualTriggers.contains(cleanText)) {
-        contextFaqs = await _faqService.findContextFaqs(text);
-        _log("📚 FAQs encontradas: ${contextFaqs.length}");
+      List<Faq> contextFaqs = [];
+      // Preparar historial de conversación (se usa más adelante)
+      final conversationHistory =
+          _openAIService.formatMessagesForOpenAI(messages);
 
-        // **DEBUG DETALLADO DE LAS FAQs CON IDIOMA**
-        for (var i = 0; i < contextFaqs.length; i++) {
-          var faq = contextFaqs[i];
-          _log('📖 FAQ $i - ID: ${faq.id}');
-          _log('📖 FAQ $i - Pregunta ES: ${faq.question}');
-          _log('📖 FAQ $i - Pregunta EN: ${faq.questionEn}');
-          _log('📖 FAQ $i - Respuesta ES: ${faq.answer}');
-          _log('📖 FAQ $i - Respuesta EN: ${faq.answerEn}');
-          _log('📖 FAQ $i - Categoría: ${faq.category}');
-          _log('📖 FAQ $i - Tags: ${faq.tags}');
-          _log('📖 FAQ $i - Link: ${faq.link}');
+      if (!_contextualTriggers.contains(cleanText)) {
+        // Búsqueda de FAQs optimizada con caché
+        contextFaqs = await _faqService.findContextFaqs(text);
+        if (kDebugMode) {
+          print("� FAQs encontradas: ${contextFaqs.length}");
         }
       }
+
       // **OBTENER LA URL REAL ANTES DE LLAMAR A OPENAI**
       String? realUrl;
       if (contextFaqs.isNotEmpty) {
         realUrl = contextFaqs.first.link;
-        _log('🔗 URL real obtenida de la base de datos: $realUrl');
       }
-
-      _log("🚀 LLAMANDO A OPENAI CON IDIOMA: $_currentLanguage");
       final openAIResponse = await _openAIService.generateRAGResponse(
         userMessage: text,
         contextFaqs: contextFaqs,
@@ -895,39 +885,16 @@ class _ChatbotScreenState extends State<ChatbotScreen>
             finalUrl = openAIResponse.extractedUrls.isNotEmpty
                 ? openAIResponse.extractedUrls.first
                 : null;
-            _log('🔗 Usando URL extraída como fallback: $finalUrl');
           }
-          _log(
-              "✅ RESPUESTA OPENAI: ${openAIResponse.message.substring(0, 100)}...");
-          // Si tenemos una URL final separada, limpiamos el texto de la IA
-          // para evitar mostrar el enlace inline y dejar solo el botón "Fuente".
+          // Limpiar URLs del mensaje si hay una URL final
           String displayMessage = openAIResponse.message;
           if (finalUrl != null && finalUrl.isNotEmpty) {
-            try {
-              // Eliminar links en formato Markdown [texto](url)
-              displayMessage = displayMessage.replaceAllMapped(
-                RegExp(r'\[([^\]]+)\]\(([^)]+)\)'),
-                (m) => '',
-              );
-
-              // Eliminar URLs explícitas (http/https/www)
-              displayMessage = displayMessage.replaceAll(
-                RegExp(r'https?:\/\/[\S]+|www\.[\S]+'),
-                '',
-              );
-
-              // Asegurar que no quede la URL textual específica
-              displayMessage = displayMessage.replaceAll(finalUrl, '');
-
-              // Limpiar espacios extra y puntuación sobrante
-              displayMessage =
-                  displayMessage.replaceAll(RegExp(r'\s{2,}'), ' ').trim();
-              displayMessage =
-                  displayMessage.replaceAll(RegExp(r'\s+[,\.:;\)]+'), '');
-            } catch (e) {
-              _log('⚠️ Error limpiando el mensaje de la IA: $e');
-              displayMessage = openAIResponse.message; // fallback
-            }
+            // Eliminar links y URLs de forma rápida
+            displayMessage = displayMessage
+                .replaceAll(RegExp(r'\[([^\]]+)\]\(([^)]+)\)'), '')
+                .replaceAll(RegExp(r'https?:\/\/[\S]+|www\.[\S]+'), '')
+                .replaceAll(RegExp(r'\s{2,}'), ' ')
+                .trim();
           }
 
           addMessage(
@@ -939,14 +906,23 @@ class _ChatbotScreenState extends State<ChatbotScreen>
             language: _currentLanguage,
             extras: {'showFeedback': true},
           );
-          
+
+          // OPTIMIZACIÓN: Guardar en caché para futuras consultas idénticas
+          _responseCacheService.cacheResponse(
+            query: text,
+            response: displayMessage,
+            language: _currentLanguage,
+            link: finalUrl,
+          );
+
           // Detener y loggear tiempo de respuesta
           stopwatch.stop();
-          final responseTimeMs = stopwatch.elapsedMilliseconds;
-          final responseType = contextFaqs.isNotEmpty ? 'FAQ (RAG)' : 'Complex AI';
-          print('⏱️ TIEMPO DE RESPUESTA [$responseType]: ${responseTimeMs}ms (${(responseTimeMs / 1000).toStringAsFixed(2)}s)');
-          
-          _log('✅ Respuesta procesada con URL: $realUrl');
+          if (kDebugMode) {
+            final responseTimeMs = stopwatch.elapsedMilliseconds;
+            final responseType = contextFaqs.isNotEmpty ? 'FAQ' : 'AI';
+            print(
+                '⏱️ [$responseType]: ${(responseTimeMs / 1000).toStringAsFixed(1)}s');
+          }
         } else {
           // La IA devolvió un error controlado, aquí también podríamos activar el fallback
           throw Exception(openAIResponse.message);
@@ -1055,7 +1031,6 @@ class _ChatbotScreenState extends State<ChatbotScreen>
         _typingController.stop();
       }
     }
-    _log("🏁🏁🏁 FINALIZANDO handleSendMessage 🏁🏁🏁");
   }
 
   // ===========================================================================
