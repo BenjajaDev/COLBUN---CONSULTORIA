@@ -229,7 +229,9 @@ class EmergencyService {
     'não é emergência',
     'só perguntar',
     'informação',
-    'perguntar'
+    'perguntar', 'como te llamas', 'cuál es tu nombre', 'te llamo más tarde', 'llámame', 'no me llames',
+    'como te chamas', 'obrigado', 'obrigada', 'estou chamando', 'chama-me',
+    'firewall', 'painstaking', 'heartfelt',
   };
 
   Future<void> loadEmergencyContacts() async {

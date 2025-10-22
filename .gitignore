@@ -19,6 +19,23 @@ migrate_working_dir/
 *.iws
 .idea/
 
+
+# Firebase - archivos de configuración del proyecto
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
+lib/firebase_options.dart
+.firebaserc
+firebase-debug.log
+
+# OpenAI
+.env
+*.env
+
+# Builds
+/build/
+.dart_tool/
+
+
 # The .vscode folder contains launch configuration and tasks you configure in
 # VS Code which you may wish to be included in version control, so this line
 # is commented out by default.
