@@ -314,11 +314,21 @@ class FirestoreConnection {
 
       final messages = messagesSnapshot.docs.map((doc) {
         final data = Map<String, dynamic>.from(doc.data());
+        final rawTimestamp = data['timestamp'];
+        
+        // Log para diagnóstico
+        print('📥 Mensaje ${doc.id}: timestamp raw = $rawTimestamp (tipo: ${rawTimestamp.runtimeType})');
+        
         // Convertir timestamp a ISO string legible para evitar encoding
-        if (data['timestamp'] is Timestamp) {
-          data['timestamp'] =
-              (data['timestamp'] as Timestamp).toDate().toIso8601String();
+        if (rawTimestamp is Timestamp) {
+          data['timestamp'] = rawTimestamp.toDate().toIso8601String();
+          print('✅ Mensaje ${doc.id}: timestamp convertido a ${data['timestamp']}');
+        } else if (rawTimestamp == null) {
+          print('⚠️ Mensaje ${doc.id}: timestamp es NULL - Firebase puede estar procesando serverTimestamp()');
+        } else {
+          print('⚠️ Mensaje ${doc.id}: timestamp tipo inesperado: ${rawTimestamp.runtimeType}');
         }
+        
         data['id'] = doc.id;
         return data;
       }).toList();

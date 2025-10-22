@@ -24,6 +24,7 @@ class ChatHistoryService {
     static const _storageLanguageSuffix = '_language';
     static const lastConversationKey = 'chat_history_last_conversation';
     static const _fallbackConversationId = 'chat_history_local';
+    static const int _maxCachedMessages = 100; // Límite de mensajes en caché
 
     // Servicio genérico para acceder a shared_preferences
     final CacheService _cacheService = CacheService();
@@ -40,8 +41,16 @@ class ChatHistoryService {
             (conversationId != null && conversationId.isNotEmpty)
                 ? conversationId
                 : _fallbackConversationId;
+    
+    // Limitar a los últimos 100 mensajes para optimizar caché
+    final cachedMessages = messages.length > _maxCachedMessages
+        ? messages.sublist(messages.length - _maxCachedMessages)
+        : messages;
+    
+    print('💾 Guardando caché: ${cachedMessages.length} mensajes (máx: $_maxCachedMessages)');
+    
     // Serializa y guarda los mensajes
-    final encoded = jsonEncode(messages);
+    final encoded = jsonEncode(cachedMessages);
     unawaited(_cacheService.setString(_conversationKey(targetId), encoded));
 
         // Guarda el idioma si está disponible
