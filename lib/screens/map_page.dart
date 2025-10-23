@@ -12,13 +12,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:consultoria_chat_bot/theme.dart';
-import 'package:provider/provider.dart';
 import 'package:consultoria_chat_bot/l10n/app_localizations.dart';
-import 'package:flutter/services.dart';
+
 
 // Clave de API para MapTiler leída desde --dart-define
 // Ejemplo: --dart-define=MAPTILER_API_KEY=TU_CLAVE
-const String kMapTilerApiKey = String.fromEnvironment('MAPTILER_API_KEY');
+const String kMapTilerApiKey = 'vuobOOmhVcspXRuOBRRs';
 
 class MapPage extends StatefulWidget {
   const MapPage({super.key});

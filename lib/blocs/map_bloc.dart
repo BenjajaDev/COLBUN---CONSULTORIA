@@ -14,7 +14,7 @@ import 'package:http/http.dart' as http;
 
 // OpenRouteService API key is read from a compile-time environment define.
 // Pass it using: --dart-define=ORS_API_KEY=YOUR_KEY
-const String kOpenRouteServiceApiKey = String.fromEnvironment('ORS_API_KEY');
+const String kOpenRouteServiceApiKey = 'eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjljYTA0MTkzZjE2NTQ4ZDdhMjA3OTc1ZGE5NWNjMmE1IiwiaCI6Im11cm11cjY0In0=';
 
 /// Bloc que gestiona el estado del mapa: carga de rutas y POIs, filtros,
 /// navegación paso a paso, recálculo por desvío y seguimiento de

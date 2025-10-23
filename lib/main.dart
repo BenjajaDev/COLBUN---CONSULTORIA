@@ -14,6 +14,11 @@ import 'firebase_options.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  // Debug helper: print whether compile-time defines are present.
+  // We avoid printing the full keys to not leak secrets in logs.
+ 
+ 
+
   runApp(const MyApp());
 }
 
