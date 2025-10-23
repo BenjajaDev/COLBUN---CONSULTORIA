@@ -6,6 +6,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:consultoria_chat_bot/services/firestore_faq_service.dart';
 import 'package:consultoria_chat_bot/services/openai_service.dart';
 import 'package:consultoria_chat_bot/services/auth_service.dart';
+import 'package:consultoria_chat_bot/services/connectivity_service.dart';
+import 'package:consultoria_chat_bot/services/offline_faq_cache_service.dart';
 import 'package:consultoria_chat_bot/features/auth/bloc/auth_bloc.dart';
 import 'package:consultoria_chat_bot/features/auth/bloc/auth_event.dart';
 import 'package:consultoria_chat_bot/features/home/screen/home_screen.dart';
@@ -29,9 +31,23 @@ void main() async {
   final faqService = FaqService();
   final openAIService = OpenAIService();
   final authService = AuthService();
+  final connectivityService = ConnectivityService();
+  final offlineFaqCache = OfflineFaqCacheService();
+
+  // Inicializar conectividad
+  await connectivityService.initialize();
 
   // Carga las FAQs y calcula los puntajes de búsqueda al iniciar la app.
   await faqService.loadFaqsAndCalculateScores();
+  
+  // Cargar FAQs esenciales desde caché
+  await offlineFaqCache.loadEssentialFaqsFromCache();
+  
+  // Si está online, cachear las FAQs esenciales
+  if (connectivityService.isOnline) {
+    final allFaqs = await faqService.getAllFaqs();
+    await offlineFaqCache.saveEssentialFaqsToCache(allFaqs);
+  }
 
   runApp(
     // Provee los servicios a toda la aplicación para que sean accesibles.
@@ -40,6 +56,8 @@ void main() async {
         RepositoryProvider.value(value: faqService),
         RepositoryProvider.value(value: openAIService),
         RepositoryProvider.value(value: authService),
+        RepositoryProvider.value(value: connectivityService),
+        RepositoryProvider.value(value: offlineFaqCache),
       ],
       child: const MyApp(),
     ),

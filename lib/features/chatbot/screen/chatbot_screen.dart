@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -19,6 +19,9 @@ import '../../../services/language_service.dart';
 import '../../../services/chat_history_service.dart';
 import '../../../services/firestore_emergency.dart';
 import '../../../services/response_cache_service.dart';
+import '../../../services/connectivity_service.dart';
+import '../../../services/offline_faq_cache_service.dart';
+import '../../../shared_widgets/connectivity_indicator.dart';
 import '../utils/chatbot_strings.dart';
 
 class ChatbotScreen extends StatefulWidget {
@@ -61,6 +64,10 @@ class _ChatbotScreenState extends State<ChatbotScreen>
   late OpenAIService _openAIService;
   late final ChatHistoryService _chatHistoryService;
   late final ResponseCacheService _responseCacheService;
+  late ConnectivityService _connectivityService;
+  late OfflineFaqCacheService _offlineFaqCache;
+  StreamSubscription<bool>? _connectivitySubscription;
+  bool _isOnline = true;
   // Timer usado para agrupar persistencias locales y evitar IO frecuente
   Timer? _persistTimer;
 
@@ -82,10 +89,26 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     super.initState();
     _faqService = context.read<FaqService>();
     _openAIService = context.read<OpenAIService>();
+    _connectivityService = context.read<ConnectivityService>();
+    _offlineFaqCache = context.read<OfflineFaqCacheService>();
+    
+    _log('🔧 ChatbotScreen initState - Servicios inicializados');
+    _log('📊 FAQs en caché offline: ${_offlineFaqCache.cachedFaqs.length}');
+    
     _chatHistoryService =
         ChatHistoryService(); // Inicializa el servicio de caché local
     _responseCacheService =
         ResponseCacheService(); // Inicializa caché de respuestas
+    
+    // Inicializar estado de conectividad
+    _isOnline = _connectivityService.isOnline;
+    _log('🌐 Estado de conectividad inicial: ${_isOnline ? "ONLINE" : "OFFLINE"}');
+    
+    // Escuchar cambios de conectividad
+    _connectivitySubscription = _connectivityService
+        .onConnectivityChanged
+        .listen(_handleConnectivityChange);
+    
     _typingController = AnimationController(
       duration: const Duration(milliseconds: 1500),
       vsync: this,
@@ -137,12 +160,58 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     }
   }
 
+  void _handleConnectivityChange(bool isOnline) {
+    if (!mounted) return;
+    
+    setState(() {
+      _isOnline = isOnline;
+    });
+
+    if (!isOnline) {
+      // Mostrar SnackBar al perder conexión
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.wifi_off, color: Colors.white),
+              SizedBox(width: 12),
+              Expanded(
+                child: Text('Sin conexión - usando FAQs esenciales'),
+              ),
+            ],
+          ),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 3),
+        ),
+      );
+    } else {
+      // Mostrar SnackBar al recuperar conexión
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.wifi, color: Colors.white),
+              SizedBox(width: 12),
+              Text('Conexión restaurada'),
+            ],
+          ),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      
+      // Sincronizar con Firebase después de reconectar
+      _syncWithFirestore();
+    }
+  }
+
   @override
   void dispose() {
     _scrollController.dispose();
     _typingController.dispose();
     _languageService.close(); // Cerrar el servicio de idioma
     _persistTimer?.cancel();
+    _connectivitySubscription?.cancel();
     super.dispose();
   }
 
@@ -179,19 +248,19 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       if (ts is Timestamp) {
         // ✅ MEJOR: Timestamp de Firebase (UTC del servidor)
         msg['timestamp'] = ts.toDate().toUtc().toIso8601String();
-        print(
+        _log(
             '✅ Usando timestamp del servidor Firebase para mensaje: ${msg['id']}');
       } else if (ts is DateTime) {
         // ⚠️ DateTime local (menos confiable)
         msg['timestamp'] = ts.toUtc().toIso8601String();
-        print('⚠️ Timestamp es DateTime local para mensaje: ${msg['id']}');
+        _log('⚠️ Timestamp es DateTime local para mensaje: ${msg['id']}');
       } else if (ts is String && ts.isNotEmpty && ts != 'unknown') {
         // ✅ Ya es String ISO (probablemente ya normalizado del servidor)
         msg['timestamp'] = ts;
       } else {
         // ❌ Sin timestamp válido: marcar como desconocido
         msg['timestamp'] = 'unknown';
-        print(
+        _log(
             '⚠️ Mensaje ${msg['id']} sin timestamp válido - marcado como unknown');
       }
 
@@ -219,7 +288,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
         if (remoteConversation == null) {
           final uid = _firestoreConnection.currentUserId;
           if (uid == null) {
-            print(
+            _log(
                 '⚠️ Usuario no autenticado: no se puede crear conversación remota.');
             return;
           }
@@ -229,7 +298,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
             userId: uid,
             language: _currentLanguage,
           );
-          print(
+          _log(
               '🔗 Conversación remota creada: $newConversationId  (se sincroniza caché local)');
 
           _currentConversationId = newConversationId;
@@ -241,7 +310,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
           _uploadCachedMessagesInBackground(
               List<Map<String, dynamic>>.from(cachedMessages));
         } else {
-          print(
+          _log(
               '✅ Conversación remota existente encontrada: $_currentConversationId');
         }
       }
@@ -269,17 +338,17 @@ class _ChatbotScreenState extends State<ChatbotScreen>
   /// Sincroniza mensajes locales con Firebase de forma bidireccional
   Future<void> _syncWithFirestore() async {
     if (_currentConversationId == null) {
-      print('⚠️ No hay conversationId para sincronizar');
+      _log('⚠️ No hay conversationId para sincronizar');
       return;
     }
 
     try {
-      print('🔄 Iniciando sincronización bidireccional con Firebase...');
+      _log('🔄 Iniciando sincronización bidireccional con Firebase...');
       final remoteConversation = await _firestoreConnection
           .getCompleteConversation(_currentConversationId!);
 
       if (remoteConversation == null) {
-        print('⚠️ No se encontró conversación remota');
+        _log('⚠️ No se encontró conversación remota');
         return;
       }
 
@@ -293,7 +362,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
           .toList();
 
       if (newRemoteMessages.isNotEmpty) {
-        print(
+        _log(
             '⬇️ Sincronizando ${newRemoteMessages.length} mensajes nuevos desde Firebase');
 
         // Normalizar mensajes remotos antes de añadirlos
@@ -322,27 +391,27 @@ class _ChatbotScreenState extends State<ChatbotScreen>
             // Timestamp de Firebase (mejor caso)
             msg['timestamp'] =
                 timestampValue.toDate().toUtc().toIso8601String();
-            print(
+            _log(
                 '✅ _syncWithFirestore: Usando timestamp del servidor (${msg['id']})');
           } else if (timestampValue is String && timestampValue.isNotEmpty) {
             // Ya es String ISO
             try {
               DateTime.parse(timestampValue); // Validar formato
-              print(
+              _log(
                   '✅ _syncWithFirestore: Timestamp String válido (${msg['id']})');
             } catch (e) {
-              print(
+              _log(
                   '⚠️ _syncWithFirestore: Timestamp String inválido, marcando como unknown (${msg['id']})');
               msg['timestamp'] = 'unknown';
             }
           } else if (timestampValue is DateTime) {
             // DateTime local (no ideal)
             msg['timestamp'] = timestampValue.toUtc().toIso8601String();
-            print(
+            _log(
                 '⚠️ _syncWithFirestore: Timestamp es DateTime local (${msg['id']})');
           } else {
             // Sin timestamp válido
-            print(
+            _log(
                 '❌ _syncWithFirestore: Sin timestamp válido, marcando como unknown (${msg['id']})');
             msg['timestamp'] = 'unknown';
           }
@@ -366,7 +435,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
 
         _rebuildMessageLanguageIndex(messages);
         await _persistMessages(); // Actualizar caché local
-        print('✅ Mensajes remotos sincronizados y caché actualizado');
+        _log('✅ Mensajes remotos sincronizados y caché actualizado');
       }
 
       // 2. Identificar mensajes locales que no están en remoto (falló la subida)
@@ -376,7 +445,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
           .toList();
 
       if (orphanMessages.isNotEmpty) {
-        print(
+        _log(
             '⬆️ Subiendo ${orphanMessages.length} mensajes huérfanos a Firebase');
         for (final msg in orphanMessages) {
           final text = msg['text'] as String?;
@@ -395,21 +464,21 @@ class _ChatbotScreenState extends State<ChatbotScreen>
               );
               // Actualizar el ID local con el ID de Firebase
               msg['id'] = uploadedId;
-              print('✅ Mensaje huérfano subido con ID: $uploadedId');
+              _log('✅ Mensaje huérfano subido con ID: $uploadedId');
             } catch (e) {
-              print('❌ Error subiendo mensaje huérfano: $e');
+              _log('❌ Error subiendo mensaje huérfano: $e');
             }
           }
         }
         await _persistMessages(); // Actualizar caché con nuevos IDs
-        print('✅ Mensajes huérfanos sincronizados');
+        _log('✅ Mensajes huérfanos sincronizados');
       }
 
       if (newRemoteMessages.isEmpty && orphanMessages.isEmpty) {
-        print('✅ Sincronización completa: todo está actualizado');
+        _log('✅ Sincronización completa: todo está actualizado');
       }
     } catch (e) {
-      print('❌ Error en sincronización bidireccional: $e');
+      _log('❌ Error en sincronización bidireccional: $e');
     }
   }
 
@@ -522,7 +591,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
                 messages.indexWhere((m) => m['id'] == messageId);
             if (messageIndex != -1) {
               messages[messageIndex]['timestamp'] = serverTime;
-              print(
+              _log(
                   '✅ Timestamp del servidor sincronizado en background: $serverTime');
 
               // Persistir actualización
@@ -532,7 +601,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
         }
       } catch (e) {
         // Error no crítico - el timestamp local ya está funcionando
-        print(
+        _log(
             '⚠️ No se pudo sincronizar timestamp del servidor (no crítico): $e');
       }
     });
@@ -545,12 +614,21 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     });
 
     try {
+      // SI ESTÁ OFFLINE: Saltar creación de conversación en Firestore
+      if (!_isOnline) {
+        _log('📴 Modo offline: Saltando inicialización de Firestore');
+        setState(() {
+          _isLoadingConversation = false;
+        });
+        return;
+      }
+
       if (_currentConversationId == null) {
         _currentConversationId = await _firestoreConnection.createConversation(
           userId: _firestoreConnection.currentUserId!,
           language: _currentLanguage,
         );
-        print('🔗 Conversación inicializada: $_currentConversationId');
+        _log('🔗 Conversación inicializada: $_currentConversationId');
         // Conversación creada en Firestore
       }
 
@@ -587,27 +665,27 @@ class _ChatbotScreenState extends State<ChatbotScreen>
           if (timestampValue is Timestamp) {
             // Timestamp de Firebase (mejor caso)
             m['timestamp'] = timestampValue.toDate().toUtc().toIso8601String();
-            print(
+            _log(
                 '✅ _initializeConversation: Usando timestamp del servidor (${m['id']})');
           } else if (timestampValue is String && timestampValue.isNotEmpty) {
             // Ya es String ISO
             try {
               DateTime.parse(timestampValue); // Validar formato
-              print(
+              _log(
                   '✅ _initializeConversation: Timestamp String válido (${m['id']})');
             } catch (e) {
-              print(
+              _log(
                   '⚠️ _initializeConversation: Timestamp String inválido, marcando como unknown (${m['id']})');
               m['timestamp'] = 'unknown';
             }
           } else if (timestampValue is DateTime) {
             // DateTime local (no ideal)
             m['timestamp'] = timestampValue.toUtc().toIso8601String();
-            print(
+            _log(
                 '⚠️ _initializeConversation: Timestamp es DateTime local (${m['id']})');
           } else {
             // Sin timestamp válido - marcar como unknown
-            print(
+            _log(
                 '❌ _initializeConversation: Sin timestamp válido, marcando como unknown (${m['id']})');
             m['timestamp'] = 'unknown';
           }
@@ -621,7 +699,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
         _rebuildMessageLanguageIndex(messages);
         await _persistMessages(); // Cachea la última versión
         // Cache actualizado con mensajes de Firestore
-        print('📥 Cargados ${existingMessages.length} mensajes existentes');
+        _log('📥 Cargados ${existingMessages.length} mensajes existentes');
       } else if (!_hasRestoredLocalHistory && messages.isEmpty) {
         _initializeChat();
       }
@@ -657,40 +735,62 @@ class _ChatbotScreenState extends State<ChatbotScreen>
   }
 
   void _clearChatHistory() async {
-    // Intentar borra conversación en Firestore
-    try {
-      if (_currentConversationId != null) {
-        await _firestoreConnection
-            .deleteConversationsByID(_currentConversationId!);
-        print('🗑️ Conversación remota borrada: $_currentConversationId');
-        // Evitar usar el id eliminado para nuevos mensajes
-        _currentConversationId = null;
-      } else {
-        // Si no hay conversationId puede borrar conversaciones del usuario
-        await _firestoreConnection.deleteAllUserConversations();
-      }
-    } catch (e) {
-      _log('❌ Error al borrar historial de chat: $e');
-      _reportErrorToCrashlytics(e, StackTrace.current, context: {
-        'where': 'clearChatHistory',
-        'conversationId': _currentConversationId ?? 'null',
+    _log('🗑️ INICIANDO BORRADO DE HISTORIAL');
+    
+    // 1. PRIMERO: Limpiar UI inmediatamente
+    if (mounted) {
+      setState(() {
+        messages.clear();
       });
+      _log('✅ UI limpiada - messages.length: ${messages.length}');
     }
 
-    //Limpiar UI y cache local
-    setState(() {
-      messages.clear();
-    });
+    // 2. Borrar conversación en Firestore (solo si está online)
+    if (_isOnline) {
+      try {
+        if (_currentConversationId != null) {
+          await _firestoreConnection
+              .deleteConversationsByID(_currentConversationId!);
+          _log('🗑️ Conversación remota borrada: $_currentConversationId');
+        } else {
+          await _firestoreConnection.deleteAllUserConversations();
+          _log('🗑️ Todas las conversaciones remotas borradas');
+        }
+      } catch (e) {
+        _log('❌ Error al borrar historial remoto: $e');
+        _reportErrorToCrashlytics(e, StackTrace.current, context: {
+          'where': 'clearChatHistory',
+          'conversationId': _currentConversationId ?? 'null',
+        });
+      }
+    } else {
+      _log('📴 Modo offline: Saltando borrado remoto');
+    }
 
-    // Borrar historial local
-    await _chatHistoryService.clearHistory(
-        conversationId: _currentConversationId);
+    // 3. Borrar historial local (caché)
+    final oldConversationId = _currentConversationId;
+    await _chatHistoryService.clearHistory(conversationId: oldConversationId);
+    _log('🗑️ Historial local borrado');
 
-    // Crear nueva conversación ANTES del mensaje de bienvenida
-    await _initializeConversation();
+    // 4. Resetear el ID de conversación
+    _currentConversationId = null;
 
-    // Ahora sí inicializar el chat con el mensaje de bienvenida
+    // 5. Crear nueva conversación (solo si está online)
+    if (_isOnline) {
+      try {
+        _currentConversationId = await _firestoreConnection.createConversation(
+          userId: _firestoreConnection.currentUserId!,
+          language: _currentLanguage,
+        );
+        _log('✅ Nueva conversación creada: $_currentConversationId');
+      } catch (e) {
+        _log('❌ Error creando nueva conversación: $e');
+      }
+    }
+
+    // 6. FINALMENTE: Agregar mensaje de bienvenida
     _initializeChat();
+    _log('✅ BORRADO COMPLETADO - Mensaje de bienvenida agregado');
   }
 
   // ===========================================================================
@@ -724,7 +824,8 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     if (saveToDatabase &&
         _currentConversationId != null &&
         text != null &&
-        text.isNotEmpty) {
+        text.isNotEmpty &&
+        _isOnline) {
       try {
         // 1. Guardar mensaje en Firebase (obtiene serverTimestamp automáticamente)
         generatedMessageId =
@@ -741,7 +842,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
         // 2. OPTIMIZACIÓN: Usar timestamp local en lugar de reintentos a Firebase
         // El timestamp del servidor se sincronizará automáticamente en background
         newMessage['timestamp'] = DateTime.now().toUtc().toIso8601String();
-        print(
+        _log(
             '✅ Usando timestamp local optimizado - sincronización en background');
 
         // Sincronizar timestamp del servidor en background (sin bloquear UI)
@@ -749,12 +850,16 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       } catch (e) {
         debugPrint("❌ Error al guardar mensaje con el nuevo servicio: $e");
       }
+    } else if (!_isOnline) {
+      // Modo offline: solo timestamp local
+      newMessage['timestamp'] = DateTime.now().toUtc().toIso8601String();
+      _log('📴 Modo offline: mensaje solo en caché local');
     }
 
     // Fallback: si no se pudo obtener timestamp del servidor, usar timestamp local como último recurso
     if (newMessage['timestamp'] == null) {
       newMessage['timestamp'] = DateTime.now().toUtc().toIso8601String();
-      print(
+      _log(
           '⚠️ Usando timestamp local (fallback) - el dispositivo podría tener hora incorrecta');
     }
     // Usar el ID generado o el original para el índice de idiomas
@@ -862,9 +967,55 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     _typingController.repeat();
 
     try {
+      // MODO OFFLINE: Buscar en caché si no hay conexión
+      if (!_isOnline) {
+        _log('📴 Modo offline: buscando en FAQs esenciales cacheadas');
+        
+        final cachedFaqResults = _offlineFaqCache.searchInCache(text, _currentLanguage);
+        
+        if (cachedFaqResults.isNotEmpty) {
+          // Respuesta encontrada en caché offline
+          final bestMatch = cachedFaqResults.first;
+          final answer = bestMatch.getAnswer(_currentLanguage);
+          
+          await addMessage(
+            sender: 'bot',
+            text: answer,
+            source: 'cache_offline',
+            link: bestMatch.link,
+            language: _currentLanguage,
+          );
+          
+          stopwatch.stop();
+          _log('⏱️ TIEMPO DE RESPUESTA [Cache Offline]: ${stopwatch.elapsedMilliseconds}ms');
+          
+          setState(() {
+            _isTyping = false;
+          });
+          _typingController.stop();
+          _typingController.reset();
+          return;
+        } else {
+          // No se encontró respuesta en caché
+          await addMessage(
+            sender: 'bot',
+            text: 'Lo siento, no tengo conexión a internet y no encontré esa información en mi caché. Por favor, intenta más tarde cuando tengas conexión.',
+            source: 'system',
+            language: _currentLanguage,
+          );
+          
+          setState(() {
+            _isTyping = false;
+          });
+          _typingController.stop();
+          _typingController.reset();
+          return;
+        }
+      }
+      
       // PLAN A: Intentar obtener una respuesta de la IA (Lógica online)
       if (kDebugMode) {
-        print("🤖 BUSCANDO FAQs PARA: '$text'");
+        _log("🤖 BUSCANDO FAQs PARA: '$text'");
       }
 
       // OPTIMIZACIÓN: Ejecutar búsqueda de FAQs y preparación en paralelo
@@ -880,7 +1031,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
         // Búsqueda de FAQs optimizada con caché
         contextFaqs = await _faqService.findContextFaqs(text);
         if (kDebugMode) {
-          print("� FAQs encontradas: ${contextFaqs.length}");
+          _log("� FAQs encontradas: ${contextFaqs.length}");
         }
       }
 
@@ -941,7 +1092,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
           if (kDebugMode) {
             final responseTimeMs = stopwatch.elapsedMilliseconds;
             final responseType = contextFaqs.isNotEmpty ? 'FAQ' : 'AI';
-            print(
+            _log(
                 '⏱️ [$responseType]: ${(responseTimeMs / 1000).toStringAsFixed(1)}s');
           }
         } else {
@@ -995,7 +1146,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
           // Detener y loggear tiempo de respuesta offline
           stopwatch.stop();
           final responseTimeMs = stopwatch.elapsedMilliseconds;
-          print(
+          _log(
               '⏱️ TIEMPO DE RESPUESTA [FAQ Offline]: ${responseTimeMs}ms (${(responseTimeMs / 1000).toStringAsFixed(2)}s)');
         } else {
           // No se encontró respuesta local. Intentar un último reintento a la IA
@@ -1019,7 +1170,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
                 // Detener y loggear tiempo de respuesta del reintento
                 stopwatch.stop();
                 final responseTimeMs = stopwatch.elapsedMilliseconds;
-                print(
+                _log(
                     '⏱️ TIEMPO DE RESPUESTA [Complex AI - Retry]: ${responseTimeMs}ms (${(responseTimeMs / 1000).toStringAsFixed(2)}s)');
               } else {
                 // Si OpenAI respondió con error, mostrar mensaje de error amigable
@@ -1293,9 +1444,22 @@ class _ChatbotScreenState extends State<ChatbotScreen>
   // GESTIÓN DE FAQs
   // ===========================================================================
   Future<void> _loadAllFaqs() async {
+    // Si está offline, cargar solo FAQs del caché
+    if (!_isOnline) {
+      final cachedFaqs = _offlineFaqCache.getAllCachedFaqs();
+      _log('📴 Modo offline: ${cachedFaqs.length} FAQs esenciales disponibles desde caché');
+      if (mounted) {
+        setState(() {
+          _allLoadedFaqs = cachedFaqs;
+        });
+      }
+      return;
+    }
+    
+    // Modo online: cargar todas las FAQs desde Firestore
     final faqs = await _faqService.getAllFaqs();
     // Esta línea nos dirá si la carga de datos fue exitosa
-    print('FAQs cargadas desde Firestore: ${faqs.length} preguntas');
+    _log('FAQs cargadas desde Firestore: ${faqs.length} preguntas');
     if (mounted) {
       setState(() {
         _allLoadedFaqs = faqs;
@@ -1304,41 +1468,91 @@ class _ChatbotScreenState extends State<ChatbotScreen>
   }
 
   void _showFrequentlyAskedQuestions() {
-    print('Se presionó el botón de Preguntas Frecuentes.');
-    print(
-        'Número de FAQs disponibles en la lista local: ${_allLoadedFaqs.length}');
-    print('🌐 Idioma actual para FAQs: $_currentLanguage');
+    _log('Se presionó el botón de Preguntas Frecuentes.');
+    _log('🌐 Idioma actual para FAQs: $_currentLanguage');
+    _log('📊 Estado de conexión: ${_isOnline ? "ONLINE" : "OFFLINE"}');
 
     final faqBloc = context.read<FaqBloc>();
     final currentState = faqBloc.state;
 
     if (!currentState.showFaqs || currentState.currentFaqs.isEmpty) {
-      final List<String> randomFaqs =
-          _faqService.getRandomFaqsByLanguage(_currentLanguage, count: 3);
-
-      if (randomFaqs.isNotEmpty) {
-        // Encontrar la posición del mensaje de bienvenida
-        final welcomeIndex =
-            messages.indexWhere((m) => m['type'] == 'welcome_message');
-
-        if (welcomeIndex != -1) {
-          //Enviar evento a FAQS
-          faqBloc.add(ToggleFaqsEvent(newFaqs: randomFaqs));
-
-          // Texto dinámico según idioma para la introducción de FAQs
-          final introText = ChatbotStrings.get('faq.intro', _currentLanguage);
-
-          // Insertar las FAQs justo después del mensaje de bienvenida
-          addMessage(
-            sender: "bot",
-            text: introText,
-            type: "faq_options",
-            options: randomFaqs,
-            insertAtIndex: welcomeIndex + 1, // Insertar después del welcome
-            language: _currentLanguage, // ← IMPORTANTE: pasar el idioma
-            autoScroll: false, // <-- No forzar scroll al insertar FAQs
+      List<String> randomFaqs = [];
+      
+      // Si está offline, obtener FAQs del caché
+      if (!_isOnline) {
+        final cachedFaqs = _offlineFaqCache.getAllCachedFaqs();
+        _log('📴 FAQs disponibles en caché: ${cachedFaqs.length}');
+        
+        if (cachedFaqs.isEmpty) {
+          _log('⚠️ No hay FAQs en caché offline');
+          // Mostrar mensaje al usuario
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('No hay preguntas frecuentes disponibles offline'),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 2),
+            ),
           );
+          return;
         }
+        
+        // Seleccionar 3 FAQs aleatorias del caché
+        final shuffled = List<Faq>.from(cachedFaqs)..shuffle();
+        randomFaqs = shuffled
+            .take(3)
+            .map((faq) => faq.getQuestion(_currentLanguage))
+            .toList();
+        
+        _log('📴 Mostrando ${randomFaqs.length} FAQs desde caché offline:');
+        for (int i = 0; i < randomFaqs.length; i++) {
+          _log('  ${i + 1}. ${randomFaqs[i]}');
+        }
+      } else {
+        // Modo online: usar servicio normal
+        randomFaqs = _faqService.getRandomFaqsByLanguage(_currentLanguage, count: 3);
+        _log('📡 Mostrando ${randomFaqs.length} FAQs desde Firestore');
+      }
+
+      if (randomFaqs.isEmpty) {
+        _log('❌ No se pudieron obtener FAQs');
+        return;
+      }
+
+      // Encontrar la posición del mensaje de bienvenida
+      final welcomeIndex = messages.indexWhere((m) => m['type'] == 'welcome_message');
+      _log('📍 Posición del mensaje de bienvenida: $welcomeIndex');
+
+      //Enviar evento a FAQS
+      faqBloc.add(ToggleFaqsEvent(newFaqs: randomFaqs));
+
+      // Texto dinámico según idioma para la introducción de FAQs
+      final introText = ChatbotStrings.get('faq.intro', _currentLanguage);
+
+      if (welcomeIndex != -1) {
+        _log('✅ Insertando mensaje de FAQs con ${randomFaqs.length} opciones después de bienvenida');
+        
+        // Insertar las FAQs justo después del mensaje de bienvenida
+        addMessage(
+          sender: "bot",
+          text: introText,
+          type: "faq_options",
+          options: randomFaqs,
+          insertAtIndex: welcomeIndex + 1, // Insertar después del welcome
+          language: _currentLanguage,
+          autoScroll: false,
+        );
+      } else {
+        // FALLBACK: Si no hay mensaje de bienvenida, insertar al inicio
+        _log('⚠️ No se encontró mensaje de bienvenida, insertando FAQs al inicio');
+        addMessage(
+          sender: "bot",
+          text: introText,
+          type: "faq_options",
+          options: randomFaqs,
+          insertAtIndex: 0, // Insertar al inicio
+          language: _currentLanguage,
+          autoScroll: false,
+        );
       }
     } else {
       //Ocultar faqs
@@ -1352,7 +1566,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
   }
 
   void _onFaqSelected(String selectedFaq) {
-    print('Se seleccionó la FAQ y se enviará este texto: "$selectedFaq"');
+    _log('Se seleccionó la FAQ y se enviará este texto: "$selectedFaq"');
     //1ro oculta faqs actuales
     final faqBloc = context.read<FaqBloc>();
     faqBloc.add(ToggleFaqsEvent());
@@ -1453,6 +1667,8 @@ class _ChatbotScreenState extends State<ChatbotScreen>
                     onClearHistory: _clearChatHistory,
                     onContactWhatsApp: _launchWhatsApp,
                   ),
+                  // Indicador de conectividad
+                  ConnectivityIndicator(isOnline: _isOnline),
                   // Test buttons removed after verification
                   Expanded(
                     child: _isLoadingConversation
