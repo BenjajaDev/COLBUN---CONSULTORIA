@@ -200,7 +200,13 @@ class _ChatbotScreenState extends State<ChatbotScreen>
         ),
       );
       
-      // Sincronizar con Firebase después de reconectar
+      // 1. Actualizar caché de FAQs al recuperar conexión
+      _updateFaqCache();
+      
+      // 2. Crear conversación si no existe (por ejemplo, si inició offline)
+      _ensureConversationExists();
+      
+      // 3. Sincronizar historial con Firebase después de reconectar
       _syncWithFirestore();
     }
   }
@@ -607,6 +613,48 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     });
   }
 
+  /// Asegura que existe una conversación en Firestore (útil al recuperar conexión)
+  Future<void> _ensureConversationExists() async {
+    if (_currentConversationId != null) {
+      _log('✅ Ya existe conversationId: $_currentConversationId');
+      return;
+    }
+    
+    if (!_isOnline) {
+      _log('⚠️ No se puede crear conversación: sin conexión');
+      return;
+    }
+    
+    try {
+      final uid = _firestoreConnection.currentUserId;
+      if (uid == null) {
+        _log('⚠️ Usuario no autenticado: no se puede crear conversación');
+        return;
+      }
+      
+      _log('🔗 Creando conversación tras recuperar conexión...');
+      _currentConversationId = await _firestoreConnection.createConversation(
+        userId: uid,
+        language: _currentLanguage,
+      );
+      
+      _log('✅ Conversación creada: $_currentConversationId');
+      
+      // Si hay mensajes locales (del caché), subirlos a la nueva conversación
+      if (messages.isNotEmpty) {
+        _log('⬆️ Subiendo ${messages.length} mensajes locales a Firestore...');
+        _uploadCachedMessagesInBackground(List<Map<String, dynamic>>.from(messages));
+      }
+      
+    } catch (e) {
+      _log('❌ Error creando conversación al recuperar conexión: $e');
+      _reportErrorToCrashlytics(e, StackTrace.current, context: {
+        'where': 'ensureConversationExists',
+        'isOnline': _isOnline.toString(),
+      });
+    }
+  }
+
   /// Inicializa la conversación cargando mensajes existentes o creando una nueva
   Future<void> _initializeConversation() async {
     setState(() {
@@ -967,14 +1015,15 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     _typingController.repeat();
 
     try {
-      // MODO OFFLINE: Buscar en caché si no hay conexión
+      // MODO OFFLINE: Buscar en caché local si no hay conexión
       if (!_isOnline) {
-        _log('📴 Modo offline: buscando en FAQs esenciales cacheadas');
+        _log('📴 Modo offline detectado - buscando en FAQs locales');
         
+        // 1. Primero intentar con caché esencial optimizado (20 FAQs)
         final cachedFaqResults = _offlineFaqCache.searchInCache(text, _currentLanguage);
         
         if (cachedFaqResults.isNotEmpty) {
-          // Respuesta encontrada en caché offline
+          _log('✅ Respuesta encontrada en caché esencial (${cachedFaqResults.length} resultados)');
           final bestMatch = cachedFaqResults.first;
           final answer = bestMatch.getAnswer(_currentLanguage);
           
@@ -984,10 +1033,73 @@ class _ChatbotScreenState extends State<ChatbotScreen>
             source: 'cache_offline',
             link: bestMatch.link,
             language: _currentLanguage,
+            extras: {'showFeedback': true},
           );
           
           stopwatch.stop();
-          _log('⏱️ TIEMPO DE RESPUESTA [Cache Offline]: ${stopwatch.elapsedMilliseconds}ms');
+          _log('⏱️ TIEMPO DE RESPUESTA [Cache Esencial]: ${stopwatch.elapsedMilliseconds}ms');
+          
+          setState(() {
+            _isTyping = false;
+          });
+          _typingController.stop();
+          _typingController.reset();
+          return;
+        }
+        
+        // 2. Si no hay resultado en caché esencial, buscar en TODAS las FAQs (_allLoadedFaqs)
+        _log('⚠️ No encontrado en caché esencial - buscando en ${_allLoadedFaqs.length} FAQs completas');
+        
+        // Buscar manualmente en _allLoadedFaqs
+        final queryLower = text.toLowerCase();
+        final allFaqResults = <MapEntry<Faq, double>>[];
+        
+        for (final faq in _allLoadedFaqs) {
+          double score = 0.0;
+          
+          final question = faq.getQuestion(_currentLanguage).toLowerCase();
+          final answer = faq.getAnswer(_currentLanguage).toLowerCase();
+          final tags = faq.tags.join(' ').toLowerCase();
+          
+          // Scoring
+          if (question.contains(queryLower)) score += 10.0;
+          if (answer.contains(queryLower)) score += 5.0;
+          if (tags.contains(queryLower)) score += 7.0;
+          
+          // Por palabras individuales
+          final queryWords = queryLower.split(' ');
+          for (final word in queryWords) {
+            if (word.length <= 2) continue;
+            
+            if (question.contains(word)) score += 2.0;
+            if (answer.contains(word)) score += 1.0;
+            if (tags.contains(word)) score += 1.5;
+          }
+          
+          if (score > 0) {
+            allFaqResults.add(MapEntry(faq, score));
+          }
+        }
+        
+        if (allFaqResults.isNotEmpty) {
+          // Ordenar y tomar el mejor resultado
+          allFaqResults.sort((a, b) => b.value.compareTo(a.value));
+          final bestMatch = allFaqResults.first.key;
+          final answer = bestMatch.getAnswer(_currentLanguage);
+          
+          _log('✅ Respuesta encontrada en FAQs completas (score: ${allFaqResults.first.value})');
+          
+          await addMessage(
+            sender: 'bot',
+            text: answer,
+            source: 'offline_all_faqs',
+            link: bestMatch.link,
+            language: _currentLanguage,
+            extras: {'showFeedback': true},
+          );
+          
+          stopwatch.stop();
+          _log('⏱️ TIEMPO DE RESPUESTA [FAQs Completas Offline]: ${stopwatch.elapsedMilliseconds}ms');
           
           setState(() {
             _isTyping = false;
@@ -996,10 +1108,11 @@ class _ChatbotScreenState extends State<ChatbotScreen>
           _typingController.reset();
           return;
         } else {
-          // No se encontró respuesta en caché
+          // No se encontró respuesta en ninguna FAQ local
+          final noConnectionMessage = ChatbotStrings.get('fallback.no_connection', _currentLanguage);
           await addMessage(
             sender: 'bot',
-            text: 'Lo siento, no tengo conexión a internet y no encontré esa información en mi caché. Por favor, intenta más tarde cuando tengas conexión.',
+            text: noConnectionMessage,
             source: 'system',
             language: _currentLanguage,
           );
@@ -1463,6 +1576,41 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     if (mounted) {
       setState(() {
         _allLoadedFaqs = faqs;
+      });
+    }
+  }
+
+  /// Actualizar caché de FAQs al recuperar conexión
+  Future<void> _updateFaqCache() async {
+    if (!_isOnline) {
+      _log('⚠️ No se puede actualizar caché: sin conexión');
+      return;
+    }
+    
+    try {
+      _log('🔄 Actualizando caché de FAQs desde Firestore...');
+      
+      // 1. Recargar todas las FAQs desde Firestore
+      final allFaqs = await _faqService.getAllFaqs();
+      
+      if (mounted) {
+        setState(() {
+          _allLoadedFaqs = allFaqs;
+        });
+      }
+      
+      _log('✅ _allLoadedFaqs actualizado: ${allFaqs.length} FAQs');
+      
+      // 2. Actualizar caché offline con las 20 FAQs esenciales
+      await _offlineFaqCache.saveEssentialFaqsToCache(allFaqs);
+      
+      _log('✅ Caché offline actualizado: ${_offlineFaqCache.cachedFaqs.length} FAQs esenciales');
+      
+    } catch (e) {
+      _log('❌ Error actualizando caché de FAQs: $e');
+      _reportErrorToCrashlytics(e, StackTrace.current, context: {
+        'where': 'updateFaqCache',
+        'isOnline': _isOnline.toString(),
       });
     }
   }

@@ -1,3 +1,4 @@
+
 class ChatbotStrings {
   static const String _defaultLanguage = 'es';
   static String _normalizeLanguage(String? language) {
@@ -88,6 +89,11 @@ class ChatbotStrings {
       'en': "Sorry, I couldn't connect and didn't find a local answer for your question. Please check your internet connection.",
       'pt': 'Desculpe, não consegui conectar e não encontrei uma resposta local para a sua pergunta. Por favor, verifique sua conexão com a internet.'
     },
+    'fallback.no_connection': {
+      'es': 'Lo siento, no tengo conexión a internet y no encontré esa información en mi base de datos local. Por favor, intenta más tarde cuando tengas conexión.',
+      'en': "Sorry, I don't have internet connection and I didn't find that information in my local database. Please try again later when you have connection.",
+      'pt': 'Desculpe, não tenho conexão com a internet e não encontrei essa informação na minha base de dados local. Por favor, tente novamente mais tarde quando tiver conexão.'
+    },
     'whatsapp.error': {
       'es': 'No se pudo abrir WhatsApp.',
       'en': 'Could not open WhatsApp.',
@@ -102,6 +108,16 @@ class ChatbotStrings {
       'es': 'No se pudo abrir el enlace: {url}',
       'en': 'Could not open the link: {url}',
       'pt': 'Não foi possível abrir o link: {url}'
+    },
+    'loading.conversation': {
+      'es': 'Cargando conversación...',
+      'en': 'Loading conversation...',
+      'pt': 'Carregando conversa...'
+    },
+    'loading.firestore': {
+      'es': 'Sincronizando con Firebase',
+      'en': 'Syncing with Firebase',
+      'pt': 'Sincronizando com Firebase'
     }
   };
 
