@@ -82,4 +82,61 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cancelar => 'Cancel';
+
+  @override
+  String get filtros_title => 'Filters';
+
+  @override
+  String get categoria_label => 'Category';
+
+  @override
+  String get actividad_label => 'Activity';
+
+  @override
+  String get distancia_km_label => 'Distance (km)';
+
+  @override
+  String get aplicar_filtros => 'Apply filters';
+
+  @override
+  String get todas => 'All';
+
+  @override
+  String get modo_sin_conexion => 'Offline mode';
+
+  @override
+  String temporada_actual_fmt(Object season) {
+    return 'Current season: $season';
+  }
+
+  @override
+  String get recomendacion_temporada_otono =>
+      'Colorful landscapes and mild temperatures; great for photography and hikes.';
+
+  @override
+  String get recomendacion_temporada_invierno =>
+      'Cold weather and mist; wear warm clothing and use caution on trails.';
+
+  @override
+  String get recomendacion_temporada_primavera =>
+      'Mild weather and abundant blooms; ideal for trekking and wildflower viewing.';
+
+  @override
+  String get recomendacion_temporada_verano =>
+      'Hotter days; stay hydrated and avoid peak sun hours.';
+
+  @override
+  String get emergencias_title => 'Emergencies';
+
+  @override
+  String get telefonos_emergencia_title => 'Emergency phone numbers';
+
+  @override
+  String get emergency_police_chile => 'Police (Carabineros)';
+
+  @override
+  String get emergency_firefighters_chile => 'Firefighters';
+
+  @override
+  String get emergency_ambulance_chile => 'Ambulance (SAMU)';
 }

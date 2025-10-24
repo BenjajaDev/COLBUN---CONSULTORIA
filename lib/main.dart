@@ -4,8 +4,10 @@ import 'package:consultoria_chat_bot/blocs/favorites_cubit.dart';
 import 'package:consultoria_chat_bot/l10n/app_localizations.dart';
 import 'package:consultoria_chat_bot/screens/map_page.dart';
 import 'package:consultoria_chat_bot/services/firestore_service.dart';
+import 'package:consultoria_chat_bot/services/local_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:provider/provider.dart';
 import 'package:consultoria_chat_bot/theme.dart';
@@ -14,6 +16,16 @@ import 'firebase_options.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  // Lock app to portrait by default; specific screens may override temporarily.
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+  ]);
+  try {
+    final contacts = await FireStoreService().fetchEmergencyContacts();
+    if (contacts.isNotEmpty) {
+      await LocalStorage.setEmergencyContacts(contacts);
+    }
+  } catch (_) {}
   // Debug helper: print whether compile-time defines are present.
   // We avoid printing the full keys to not leak secrets in logs.
  

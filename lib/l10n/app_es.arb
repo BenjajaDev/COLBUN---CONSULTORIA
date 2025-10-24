@@ -95,5 +95,40 @@
   "@cancelar": {
     "description": "Texto para el botón de cancelar navegación"
   }
-  
+  ,
+  "filtros_title": "Filtros",
+  "@filtros_title": {"description": "Título de la hoja de filtros"},
+  "categoria_label": "Categoría",
+  "@categoria_label": {"description": "Etiqueta para el selector de categoría"},
+  "actividad_label": "Actividad",
+  "@actividad_label": {"description": "Etiqueta para el selector de actividad"},
+  "distancia_km_label": "Distancia (km)",
+  "@distancia_km_label": {"description": "Etiqueta para el control de distancia en km"},
+  "aplicar_filtros": "Aplicar filtros",
+  "@aplicar_filtros": {"description": "Texto del botón para aplicar filtros"},
+  "todas": "Todas",
+  "@todas": {"description": "Opción genérica 'todas' en filtros"}
+  ,
+  "modo_sin_conexion": "Modo sin conexión",
+  "@modo_sin_conexion": {"description": "Banner text shown when the app is offline"},
+  "temporada_actual_fmt": "Temporada actual: {season}",
+  "@temporada_actual_fmt": {"description": "Cabecera que muestra la temporada actual","placeholders": {"season": {}}},
+  "recomendacion_temporada_otono": "Paisajes coloridos y temperaturas moderadas; ideal para fotografía y caminatas.",
+  "@recomendacion_temporada_otono": {},
+  "recomendacion_temporada_invierno": "Clima frío y con neblina; usa abrigo adecuado y precaución en senderos.",
+  "@recomendacion_temporada_invierno": {},
+  "recomendacion_temporada_primavera": "Clima templado y flora abundante; ideal para trekking y observación de flora.",
+  "@recomendacion_temporada_primavera": {},
+  "recomendacion_temporada_verano": "Días más calurosos; hidrátate y evita las horas de mayor radiación.",
+  "@recomendacion_temporada_verano": {},
+  "emergencias_title": "Emergencias",
+  "@emergencias_title": {"description": "Título de la pantalla de emergencias"},
+  "telefonos_emergencia_title": "Teléfonos de emergencia",
+  "@telefonos_emergencia_title": {"description": "Sección de teléfonos de emergencia"},
+  "emergency_police_chile": "Policía (Carabineros)",
+  "@emergency_police_chile": {"description": "Nombre para Carabineros de Chile"},
+  "emergency_firefighters_chile": "Bomberos",
+  "@emergency_firefighters_chile": {"description": "Nombre para Bomberos de Chile"},
+  "emergency_ambulance_chile": "Ambulancia (SAMU)",
+  "@emergency_ambulance_chile": {"description": "Nombre para Servicio de Ambulancias SAMU"}
 }

@@ -2,13 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../blocs/map_bloc.dart';
 import '../events/map_event.dart';
+import 'package:consultoria_chat_bot/l10n/app_localizations.dart';
 
 class FilterModal extends StatefulWidget {
-	final List<String> categories;
-	final List<String> seasons;
+  final List<Map<String, dynamic>> categories;
+  final List<Map<String, dynamic>> activities;
 	final double computedMaxDistance;
 	final int sliderDivisions;
 	final String? initialCategory;
+  final String? initialActivity;
 	final double initialDistance;
 	final String? initialSeason;
 	final Color primaryColor;
@@ -17,16 +19,17 @@ class FilterModal extends StatefulWidget {
 
 	const FilterModal({
 		super.key,
-		required this.categories,
-		required this.seasons,
+		
+		
 		required this.computedMaxDistance,
 		required this.sliderDivisions,
 		required this.initialCategory,
+		required this.initialActivity,
 		required this.initialDistance,
 		required this.initialSeason,
 		required this.primaryColor,
 		required this.searchController,
-		this.onFiltersApplied,
+		this.onFiltersApplied, required this.categories, required this.activities,
 	});
 
 	@override
@@ -35,52 +38,83 @@ class FilterModal extends StatefulWidget {
 
 class _FilterModalState extends State<FilterModal> {
 	late String? tempCategory;
+	late String? tempActivity;
 	late double tempDistance;
-	late String? tempSeason;
+	
 
 	@override
 	void initState() {
 		super.initState();
 		tempCategory = widget.initialCategory;
+		tempActivity = widget.initialActivity;
 		tempDistance = widget.initialDistance;
-		tempSeason = widget.initialSeason;
+		
 	}
 
-	Widget buildDropdown({
-		required String? currentValue,
-		required List<String> values,
-		required ValueChanged<String?> onChanged,
-	}) {
-		return InputDecorator(
-			decoration: InputDecoration(
-				hintText: 'Todas',
-				border: OutlineInputBorder(
-					borderRadius: BorderRadius.circular(12),
-					borderSide: BorderSide(color: Colors.grey.shade300),
+		Widget buildDropdown({
+			required String? currentValue,
+			required List<Map<String, dynamic>> values,
+			required ValueChanged<String?> onChanged,
+		}) {
+			final lang = Localizations.localeOf(context).languageCode;
+			return InputDecorator(
+				decoration: InputDecoration(
+					hintText: AppLocalizations.of(context)!.todas,
+					border: OutlineInputBorder(
+						borderRadius: BorderRadius.circular(12),
+						borderSide: BorderSide(color: Colors.grey.shade300),
+					),
+					focusedBorder: OutlineInputBorder(
+						borderRadius: const BorderRadius.all(Radius.circular(12)),
+						borderSide: BorderSide(color: widget.primaryColor),
+					),
+					contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
 				),
-				focusedBorder: OutlineInputBorder(
-					borderRadius: const BorderRadius.all(Radius.circular(12)),
-					borderSide: BorderSide(color: widget.primaryColor),
+				child: DropdownButtonHideUnderline(
+					child: DropdownButton<String?>(
+						value: currentValue,
+						hint: Text(AppLocalizations.of(context)!.todas),
+						isExpanded: true,
+						items: [
+							DropdownMenuItem(value: null, child: Text(AppLocalizations.of(context)!.todas)),
+														...values.map((value) {
+																final id = value['id']?.toString();
+																String label = id ?? '';
+																try {
+																	final nombre = value['nombre'];
+																	String? pickFromMap(Map map, String code) {
+																		final v = map[code];
+																		if (v is String && v.trim().isNotEmpty) return v;
+																		return null;
+																	}
+																	if (nombre is Map) {
+																		// prefer current lang, then es, then en, then any non-empty string
+																		label = pickFromMap(nombre, lang) ??
+																						pickFromMap(nombre, 'es') ??
+																						pickFromMap(nombre, 'en') ??
+																						(() {
+																							for (final entry in nombre.values) {
+																								if (entry is String && entry.trim().isNotEmpty) {
+																									return entry;
+																								}
+																							}
+																							return id ?? '';
+																						})();
+																	} else if (nombre is String && nombre.trim().isNotEmpty) {
+																		label = nombre;
+																	}
+																} catch (_) {
+																	// ignore and fallback to id
+																}
+																if (label.trim().isEmpty) label = id ?? '';
+																return DropdownMenuItem(value: id, child: Text(label));
+														}),
+						],
+						onChanged: onChanged,
+					),
 				),
-				contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-			),
-			child: DropdownButtonHideUnderline(
-				child: DropdownButton<String?>(
-					value: currentValue,
-					hint: const Text('Todas'),
-					isExpanded: true,
-					items: [
-						const DropdownMenuItem(value: null, child: Text('Todas')),
-						...values.map((value) => DropdownMenuItem(
-									value: value,
-									child: Text(value),
-								)),
-					],
-					onChanged: onChanged,
-				),
-			),
-		);
-	}
+			);
+		}
 
 	@override
 	Widget build(BuildContext context) {
@@ -88,8 +122,8 @@ class _FilterModalState extends State<FilterModal> {
 					fontWeight: FontWeight.w600,
 					color: widget.primaryColor,
 				);
-		final distanceLabel = tempDistance <= 0
-				? 'Todas'
+        final distanceLabel = tempDistance <= 0
+				? AppLocalizations.of(context)!.todas
 				: '${tempDistance.toStringAsFixed(1)} km';
 
 		return Padding(
@@ -105,7 +139,7 @@ class _FilterModalState extends State<FilterModal> {
 							Row(
 								children: [
 									Text(
-										'Filtros',
+										AppLocalizations.of(context)!.filtros_title,
 										style: (Theme.of(context).textTheme.titleLarge ??
 														const TextStyle(fontSize: 20, fontWeight: FontWeight.w600))
 												.copyWith(color: widget.primaryColor),
@@ -119,7 +153,7 @@ class _FilterModalState extends State<FilterModal> {
 								],
 							),
 							const SizedBox(height: 16),
-							Text('Categoría', style: labelStyle),
+							Text(AppLocalizations.of(context)!.categoria_label, style: labelStyle),
 							const SizedBox(height: 8),
 							buildDropdown(
 								currentValue: tempCategory,
@@ -127,7 +161,15 @@ class _FilterModalState extends State<FilterModal> {
 								onChanged: (value) => setState(() => tempCategory = value),
 							),
 							const SizedBox(height: 16),
-							Text('Distancia (km)', style: labelStyle),
+							Text(AppLocalizations.of(context)!.actividad_label, style: labelStyle),
+							const SizedBox(height: 8),
+							buildDropdown(
+								currentValue: tempActivity,
+								values: widget.activities,
+								onChanged: (value) => setState(() => tempActivity = value),
+							),
+							const SizedBox(height: 16),
+							Text(AppLocalizations.of(context)!.distancia_km_label, style: labelStyle),
 							const SizedBox(height: 8),
 							SliderTheme(
 								data: SliderTheme.of(context).copyWith(
@@ -157,13 +199,7 @@ class _FilterModalState extends State<FilterModal> {
 								),
 							),
 							const SizedBox(height: 16),
-							Text('Temporada', style: labelStyle),
-							const SizedBox(height: 8),
-							buildDropdown(
-								currentValue: tempSeason,
-								values: widget.seasons,
-								onChanged: (value) => setState(() => tempSeason = value),
-							),
+							
 							const SizedBox(height: 24),
 							SizedBox(
 								width: double.infinity,
@@ -176,24 +212,24 @@ class _FilterModalState extends State<FilterModal> {
 											borderRadius: BorderRadius.circular(12),
 										),
 									),
-									onPressed: () {
-										Navigator.of(context).pop();
-										final cleanCategory = (tempCategory == null || tempCategory!.trim().isEmpty || tempCategory == 'Todas') ? null : tempCategory;
-										final cleanSeason = (tempSeason == null || tempSeason!.trim().isEmpty || tempSeason == 'Todas') ? null : tempSeason;
-										final cleanDistance = (tempDistance <= 0) ? null : tempDistance;
-										context.read<MapBloc>().add(
-											ApplyFilters(
-												category: cleanCategory,
-												distanceKm: cleanDistance,
-												season: cleanSeason,
-												query: widget.searchController.text.trim(),
-											),
-										);
-										if (widget.onFiltersApplied != null) {
-											widget.onFiltersApplied!();
-										}
-									},
-									child: const Text('Aplicar filtros'),
+																onPressed: () {
+																	Navigator.of(context).pop();
+																	final cleanCategory = (tempCategory == null || (tempCategory?.trim().isEmpty ?? true)) ? null : tempCategory;
+																	final cleanActivity = (tempActivity == null || (tempActivity?.trim().isEmpty ?? true)) ? null : tempActivity;
+																	final cleanDistance = (tempDistance <= 0) ? null : tempDistance;
+																	context.read<MapBloc>().add(
+																		ApplyFilters(
+																			category: cleanCategory,
+																			activity: cleanActivity,
+																			distanceKm: cleanDistance,
+																			query: widget.searchController.text.trim(),
+																		),
+																	);
+																	if (widget.onFiltersApplied != null) {
+																		widget.onFiltersApplied!();
+																	}
+																},
+									child: Text(AppLocalizations.of(context)!.aplicar_filtros),
 								),
 							),
 						],

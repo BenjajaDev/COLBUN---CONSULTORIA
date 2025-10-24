@@ -31,11 +31,16 @@ class MapLoaded extends MapState {
 
   // Filtros
   final String? selectedCategory;
+  final String? selectedActivity;
   final double? selectedDistanceKm;
   final String? selectedSeason;
   final String query;
+  final List<Map<String, dynamic>> categories;
+  final List<Map<String, dynamic>> activities;
 
   MapLoaded({
+    required this.categories,
+    required this.activities,
     required this.center,
     required this.markers,
     required this.userLocation,
@@ -44,6 +49,7 @@ class MapLoaded extends MapState {
     required this.filteredRoutes,
     required this.filteredPois,
     this.selectedCategory,
+    this.selectedActivity,
     this.selectedDistanceKm,
     this.selectedSeason,
     this.query = '',
@@ -58,9 +64,12 @@ class MapLoaded extends MapState {
     List<MapRoute>? filteredRoutes,
     List<POI>? filteredPois,
     Object? selectedCategory = _noChange,
+    Object? selectedActivity = _noChange,
     Object? selectedDistanceKm = _noChange,
     Object? selectedSeason = _noChange,
     Object? query = _noChange,
+    List<Map<String, dynamic>>? categories,
+    List<Map<String, dynamic>>? activities,
   }) {
     return MapLoaded(
       center: center ?? this.center,
@@ -73,15 +82,20 @@ class MapLoaded extends MapState {
       selectedCategory: identical(selectedCategory, _noChange)
           ? this.selectedCategory
           : selectedCategory as String?,
+      selectedActivity: identical(selectedActivity, _noChange)
+          ? this.selectedActivity
+          : selectedActivity as String?,
       selectedDistanceKm: identical(selectedDistanceKm, _noChange)
           ? this.selectedDistanceKm
           : selectedDistanceKm as double?,
       selectedSeason: identical(selectedSeason, _noChange)
           ? this.selectedSeason
           : selectedSeason as String?,
-      query: identical(query, _noChange)
-          ? this.query
-          : query as String,
+    query: identical(query, _noChange)
+      ? this.query
+      : query as String,
+    categories: categories ?? this.categories,
+    activities: activities ?? this.activities,
     );
   }
 }

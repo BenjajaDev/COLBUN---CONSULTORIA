@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:panorama_viewer/panorama_viewer.dart';
 
 class PanoramaScreen extends StatefulWidget {
@@ -13,6 +14,26 @@ class PanoramaScreen extends StatefulWidget {
 class _PanoramaScreenState extends State<PanoramaScreen> {
   // Variable de estado para controlar el giroscopio
   bool isGyroEnabled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Allow landscape for panorama experience (and keep portrait up).
+    SystemChrome.setPreferredOrientations(const [
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
+  }
+
+  @override
+  void dispose() {
+    // Revert to app-wide portrait lock when leaving panorama.
+    SystemChrome.setPreferredOrientations(const [
+      DeviceOrientation.portraitUp,
+    ]);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {

@@ -58,6 +58,7 @@ class MapBloc extends Bloc<MapEvent, MapState> {
         routes,
         query: '',
         category: null,
+        activity: null,
         distanceKm: null,
         season: null,
         userLocation: null,
@@ -66,6 +67,7 @@ class MapBloc extends Bloc<MapEvent, MapState> {
         filteredRoutes,
         query: '',
         category: null,
+        activity: null,
       );
 
       emit(
@@ -77,6 +79,8 @@ class MapBloc extends Bloc<MapEvent, MapState> {
           allRoutes: routes,
           filteredRoutes: filteredRoutes,
           filteredPois: filteredPois,
+          categories: await _firebaseService.fetchAllCategories(),
+          activities: await _firebaseService.fetchAllActivities(),
         ),
       );
     } catch (e) {
@@ -247,7 +251,10 @@ class MapBloc extends Bloc<MapEvent, MapState> {
     if (state is! MapLoaded) return;
     final current = state as MapLoaded;
 
-    final updatedState = current.copyWith(query: event.query.trim());
+    // Preserve whitespace in the stored query so the user's typing (including spaces)
+    // isn't lost while they are editing. Filtering logic will normalize/trim when
+    // performing comparisons (see _filterRoutes which trims internally).
+    final updatedState = current.copyWith(query: event.query);
     emit(_recalculateFilters(updatedState));
   }
 
@@ -257,6 +264,7 @@ class MapBloc extends Bloc<MapEvent, MapState> {
     final current = state as MapLoaded;
 
     final normalizedCategory = _normalizeFilterValue(event.category);
+    final normalizedActivity = _normalizeFilterValue(event.activity);
     final normalizedSeason = _normalizeFilterValue(event.season);
 
     final normalizedDistance =
@@ -268,6 +276,7 @@ class MapBloc extends Bloc<MapEvent, MapState> {
 
     final updatedState = current.copyWith(
       selectedCategory: normalizedCategory,
+      selectedActivity: normalizedActivity,
       selectedDistanceKm: normalizedDistance,
       selectedSeason: normalizedSeason,
       query: newQuery,
@@ -282,6 +291,7 @@ class MapBloc extends Bloc<MapEvent, MapState> {
       base.allRoutes,
       query: base.query,
       category: base.selectedCategory,
+      activity: base.selectedActivity,
       distanceKm: base.selectedDistanceKm,
       season: base.selectedSeason,
       userLocation: base.userLocation,
@@ -291,6 +301,7 @@ class MapBloc extends Bloc<MapEvent, MapState> {
       filteredRoutes,
       query: base.query,
       category: base.selectedCategory,
+      activity: base.selectedActivity,
     );
 
     return base.copyWith(
@@ -309,12 +320,15 @@ class MapBloc extends Bloc<MapEvent, MapState> {
     List<MapRoute> routes, {
     required String query,
     String? category,
+    String? activity,
     double? distanceKm,
     String? season,
     LatLng? userLocation,
   }) {
-    final normalizedQuery = query.trim().toLowerCase();
-    final normalizedCategory = _normalizeFilterValue(category)?.toLowerCase();
+  final normalizedQuery = query.trim().toLowerCase();
+  // Category is treated as an ID (do not lowercase): keep trimmed value
+  final normalizedCategory = _normalizeFilterValue(category);
+  final normalizedActivity = _normalizeFilterValue(activity);
     final normalizedSeason = _normalizeFilterValue(season)?.toLowerCase();
     final double? normalizedDistance = (distanceKm != null && distanceKm > 0)
         ? distanceKm
@@ -323,6 +337,7 @@ class MapBloc extends Bloc<MapEvent, MapState> {
     // 🟢 Si no hay ningún filtro activo, devolvemos todo
     if (normalizedQuery.isEmpty &&
         normalizedCategory == null &&
+        normalizedActivity == null &&
         normalizedSeason == null &&
         normalizedDistance == null) {
       return routes; // 🟢 Mostrar todo sin filtrar
@@ -330,19 +345,21 @@ class MapBloc extends Bloc<MapEvent, MapState> {
 
     return routes
         .where((route) {
-          final routeCategory = route.category?.toLowerCase();
+      final routeCategory = route.category;
           final routeSeason = route.season?.toLowerCase();
 
           // Categoría
           final bool matchesCategory =
               normalizedCategory == null ||
-              (routeCategory != null && routeCategory == normalizedCategory) ||
-              route.pois.any(
-                (poi) => poi.categorias
-                    .map((c) => c.toLowerCase())
-                    .contains(normalizedCategory),
-              );
+        (routeCategory != null && routeCategory == normalizedCategory) ||
+        route.pois.any((poi) => poi.categorias.contains(normalizedCategory));
           if (!matchesCategory) return false;
+
+          // Actividad
+          final bool matchesActivity =
+              normalizedActivity == null ||
+              route.pois.any((poi) => poi.actividades.contains(normalizedActivity));
+          if (!matchesActivity) return false;
 
           // Temporada
           final bool matchesSeason =
@@ -373,11 +390,10 @@ class MapBloc extends Bloc<MapEvent, MapState> {
         .map((route) {
           final filteredPois = route.pois.where((poi) {
             final matchesCategory =
-                normalizedCategory == null ||
-                poi.categorias
-                    .map((c) => c.toLowerCase())
-                    .contains(normalizedCategory);
-            return matchesCategory;
+                normalizedCategory == null || poi.categorias.contains(normalizedCategory);
+            final matchesActivity =
+                normalizedActivity == null || poi.actividades.contains(normalizedActivity);
+            return matchesCategory && matchesActivity;
           }).toList();
 
           return route.copyWith(pois: filteredPois);
@@ -416,21 +432,22 @@ class MapBloc extends Bloc<MapEvent, MapState> {
     List<MapRoute> routes, {
     required String query,
     String? category,
+    String? activity,
   }) {
-    final normalizedQuery = query.trim().toLowerCase();
-    final normalizedCategory = _normalizeFilterValue(category)?.toLowerCase();
+  final normalizedQuery = query.trim().toLowerCase();
+  final normalizedCategory = _normalizeFilterValue(category);
+  final normalizedActivity = _normalizeFilterValue(activity);
 
     return routes.expand((route) {
       return route.pois.where((poi) {
         final matchesCategory =
-            normalizedCategory == null ||
-            poi.categorias
-                .map((c) => c.toLowerCase())
-                .contains(normalizedCategory);
+            normalizedCategory == null || poi.categorias.contains(normalizedCategory);
+        final matchesActivity =
+            normalizedActivity == null || poi.actividades.contains(normalizedActivity);
         final matchesQuery =
             normalizedQuery.isEmpty ||
             poi.nombre.toLowerCase().contains(normalizedQuery);
-        return matchesCategory && matchesQuery;
+        return matchesCategory && matchesActivity && matchesQuery;
       });
     }).toList();
   }
@@ -660,7 +677,7 @@ class MapBloc extends Bloc<MapEvent, MapState> {
   /// Verifica desvío de la ruta midiendo la distancia mínima al segmento más cercano.
   bool _checkDeviationFromRoute(LatLng currentPos, List<LatLng> routePoints) {
     // Usar la distancia al segmento más cercano en lugar del vértice más cercano
-    const deviationThreshold = 30.0; // metros (más estricto que antes)
+    const deviationThreshold = 50.0; // metros (más estricto que antes)
 
     if (routePoints.isEmpty) return false;
     if (routePoints.length == 1) {
@@ -792,6 +809,8 @@ class MapBloc extends Bloc<MapEvent, MapState> {
         allRoutes: [],
         filteredRoutes: [],
         filteredPois: [],
+        categories: [],
+        activities: [],
       ));
     }
   }

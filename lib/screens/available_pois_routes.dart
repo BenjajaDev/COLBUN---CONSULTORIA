@@ -1,4 +1,6 @@
+import 'package:consultoria_chat_bot/services/local_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:consultoria_chat_bot/states/map_state.dart';
 import 'package:consultoria_chat_bot/l10n/app_localizations.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:consultoria_chat_bot/screens/poi_screen.dart';
@@ -49,12 +51,17 @@ class AvailablePoisRoutesSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // ¿Hay texto de búsqueda activo?
-    final hasSearch = state.query.trim().isNotEmpty;
-    // Rutas filtradas según búsqueda/filtros desde MapBloc.
-    final filteredRoutes = state.filteredRoutes;
+    
+  // Normalize state access: MapState can be MapLoading, MapLoaded, MapNavigating, etc.
+  final bool isLoaded = state is MapLoaded;
+  // ¿Hay texto de búsqueda activo? (solo si tenemos MapLoaded)
+  final String query = isLoaded ? (state as MapLoaded).query : '';
+  final hasSearch = query.trim().isNotEmpty;
+  // Rutas filtradas según búsqueda/filtros desde MapBloc. Si no está cargado, lista vacía.
+  final filteredRoutes = isLoaded ? (state as MapLoaded).filteredRoutes : <dynamic>[];
     // Ruta seleccionada (si el índice actual es válido), sino null.
-    final selectedRoute = (selectedRouteIndex != null &&
+    final selectedRoute =
+        (selectedRouteIndex != null &&
             selectedRouteIndex! >= 0 &&
             selectedRouteIndex! < filteredRoutes.length)
         ? filteredRoutes[selectedRouteIndex!]
@@ -62,12 +69,8 @@ class AvailablePoisRoutesSheet extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(20),
-        ),
-        boxShadow: const [
-          BoxShadow(color: Colors.black26, blurRadius: 8),
-        ],
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 8)],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -93,10 +96,7 @@ class AvailablePoisRoutesSheet extends StatelessWidget {
                 if (selectedRoute != null)
                   GestureDetector(
                     onTap: onClearSelectedRoute,
-                    child: const Icon(
-                      Icons.arrow_back,
-                      size: 22,
-                    ),
+                    child: const Icon(Icons.arrow_back, size: 22),
                   ),
                 if (selectedRoute != null) const SizedBox(width: 8),
                 Expanded(
@@ -105,8 +105,8 @@ class AvailablePoisRoutesSheet extends StatelessWidget {
                     hasSearch
                         ? AppLocalizations.of(context)!.resultado_busqueda
                         : selectedRoute == null
-                            ? AppLocalizations.of(context)!.rutas_disponibles
-                            : selectedRoute.name,
+                        ? AppLocalizations.of(context)!.rutas_disponibles
+                        : selectedRoute.name,
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -114,80 +114,110 @@ class AvailablePoisRoutesSheet extends StatelessWidget {
                     ),
                   ),
                 ),
-                
               ],
             ),
           ),
           const SizedBox(height: 10),
           Expanded(
-            child: state.query.trim().isNotEmpty
-                ? (state.filteredRoutes.isEmpty && state.filteredPois.isEmpty)
-                    ? Center(
-                        child: Text(
-                          AppLocalizations.of(context)!.sin_resultado,
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurfaceVariant,
-                          ),
-                        ),
-                      )
-          : ListView(
-            controller: scrollController,
-                        children: [
-                          // Lista de rutas (resultado de búsqueda)
-                          ...filteredRoutes.asMap().entries.map((entry) {
-                            final index = entry.key;
-                            final route = entry.value;
-                            return ListTile(
-                              // Ícono transparente para alinear con otras filas
-                              leading: const Icon(
-                                Icons.alt_route,
-                                color: Colors.transparent,
+            child: query.trim().isNotEmpty
+                ? (filteredRoutes.isEmpty && (isLoaded ? (state as MapLoaded).filteredPois.isEmpty : true))
+                      ? ListView(
+                          controller: scrollController,
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          children: [
+                            Center(
+                              child: Padding(
+                                padding: const EdgeInsets.only(top: 24.0),
+                                child: Text(
+                                  AppLocalizations.of(context)!.sin_resultado,
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w500,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
                               ),
-                              title: Text(
-                                '${AppLocalizations.of(context)!.ruta} ${route.name}',
-                              ),
-                              selected: selectedRouteIndex == index,
-                              // Realce de selección usando color primario (puedes ajustar opacidad si lo prefieres)
-                              selectedTileColor: primaryColor,
-                              onTap: () {
-                                // Centra el mapa en el punto medio de la ruta y selecciona la fila
-                                final center = LatLng(
-                                  (route.initialLatitude + route.finalLatitude) / 2,
-                                  (route.initialLongitude + route.finalLongitude) / 2,
-                                );
-                                setSelectedRouteIndex(index);
-                                onMoveMap(center, zoom: 14);
-                              },
-                              // Use theme-aware icon color
-                              iconColor: primaryColor,
-                              leadingAndTrailingTextStyle: TextStyle(
-                                color: Theme.of(context).colorScheme.onSurface,
-                              ),
-                            );
-                          }),
-                          // Lista de POIs (resultado de búsqueda)
-                          ...state.filteredPois.map((poi) => ListTile(
+                            ),
+                          ],
+                        )
+                      : ListView(
+                          controller: scrollController,
+                          children: [
+                            // Lista de rutas (resultado de búsqueda)
+                            ...filteredRoutes.asMap().entries.map((entry) {
+                              final index = entry.key;
+                              final route = entry.value;
+                              return ListTile(
+                                // Ícono transparente para alinear con otras filas
+                                leading: Icon(
+                                  Icons.alt_route,
+                                  color: Theme.of(  context).colorScheme.primary  ,
+                                ),
+                                title: Text(
+                                  '${AppLocalizations.of(context)!.ruta} ${route.name}',
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.onSurface,
+                                  ),
+                                ),
+                                selected: selectedRouteIndex == index,
+                                // Realce de selección usando color primario (puedes ajustar opacidad si lo prefieres)
+                                selectedTileColor: primaryColor,
+                                onTap: () async {
+                                  // Centra el mapa en el punto medio de la ruta y selecciona la fila
+                                  final center = LatLng(
+                                    (route.initialLatitude +
+                                            route.finalLatitude) /
+                                        2,
+                                    (route.initialLongitude +
+                                            route.finalLongitude) /
+                                        2,
+                                  );
+                                  setSelectedRouteIndex(index);
+                                  onMoveMap(center, zoom: 14);
+                                  await LocalStorage.setLastRouteName(
+                                    route.name,
+                                  );
+                                  await LocalStorage.setLastRouteWithPois(
+                                    route,
+                                  );
+                                },
+                                // Use theme-aware icon color
+                                iconColor: primaryColor,
+                                // Explicitly style the title to avoid TextStyle interpolation
+                                // issues during animated theme changes.
+                                // We intentionally avoid using `leadingAndTrailingTextStyle`
+                                // because it can produce TextStyles with different
+                                // `inherit` flags and cause AnimatedDefaultTextStyle errors
+                                // when the theme toggles.
+                                // The title below sets a concrete TextStyle derived from
+                                // the current Theme so interpolation stays consistent.
+                              );
+                            }),
+                            // Lista de POIs (resultado de búsqueda)
+                            ...(isLoaded ? (state as MapLoaded).filteredPois : <dynamic>[]).map(
+                              (poi) => ListTile(
                                 leading: FilledButton.icon(
                                   onPressed: () {
                                     // Iniciar navegación hacia el POI, pasando el código de idioma actual de la app
                                     context.read<MapBloc>().add(
-                                          RequestNavigation(
-                                            LatLng(poi.latitud, poi.longitud),
-                                            Localizations.localeOf(context).languageCode,
-                                          ),
-                                        );
+                                      RequestNavigation(
+                                        LatLng(poi.latitud, poi.longitud),
+                                        Localizations.localeOf(
+                                          context,
+                                        ).languageCode,
+                                      ),
+                                    );
                                   },
                                   // Usar texto localizado para el botón "Ir"
                                   label: Text(AppLocalizations.of(context)!.ir),
                                   icon: const Icon(Icons.navigation),
                                   style: FilledButton.styleFrom(
                                     backgroundColor: primaryColor,
-                                    foregroundColor:
-                                        Theme.of(context).colorScheme.onPrimary,
+                                    foregroundColor: Theme.of(
+                                      context,
+                                    ).colorScheme.onPrimary,
                                   ),
                                 ),
                                 title: Text(poi.nombre),
@@ -213,106 +243,115 @@ class AvailablePoisRoutesSheet extends StatelessWidget {
                                   },
                                   child: const Icon(Icons.add),
                                 ),
-                              )),
-                        ],
-                      )
-                : selectedRoute == null
-          ? ListView.builder(
-            controller: scrollController,
-                        itemCount: state.filteredRoutes.length,
-                        itemBuilder: (context, index) {
-                          final route = state.filteredRoutes[index];
-                          return ListTile(
-                            leading: Icon(
-                              Icons.alt_route,
-                              color: primaryColor,
-                            ),
-                            title: Text(
-                              '${AppLocalizations.of(context)!.ruta} ${route.name}',
-                            ),
-                            trailing: Icon(
-                              Icons.arrow_forward_ios,
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurfaceVariant,
-                              size: 18,
-                            ),
-                            selected: selectedRouteIndex == index,
-                            // Realce de selección para la ruta activa
-                            selectedTileColor: primaryColor,
-                            onTap: () {
-                              // Centra el mapa en el punto medio de la ruta y actualiza selección
-                              final center = LatLng(
-                                (route.initialLatitude + route.finalLatitude) / 2,
-                                (route.initialLongitude + route.finalLongitude) / 2,
-                              );
-                              setSelectedRouteIndex(index);
-                              onMoveMap(center, zoom: 14);
-                            },
-                          );
-                        },
-                      )
-                    : selectedRoute.pois.isEmpty
-                        ? Center(
-                            child: Text(
-                              AppLocalizations.of(context)!.sin_resultado,
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSurfaceVariant,
                               ),
                             ),
-                          )
-            : ListView.builder(
-              controller: scrollController,
-                            itemCount: selectedRoute.pois.length,
-                            itemBuilder: (context, index) {
-                              final poi = selectedRoute.pois[index];
-                              return ListTile(
-                                leading: FilledButton.icon(
-                                  onPressed: () {
-                                    // Iniciar navegación hacia el POI de la ruta seleccionada
-                                    context.read<MapBloc>().add(
-                                          RequestNavigation(
-                                            LatLng(poi.latitud, poi.longitud),
-                                            Localizations.localeOf(context).languageCode,
-                                          ),
-                                        );
-                                  },
-                                  // Usar texto localizado para el botón "Ir"
-                                  label: Text(AppLocalizations.of(context)!.ir),
-                                  icon: const Icon(Icons.navigation),
-                                  style: FilledButton.styleFrom(
-                                    backgroundColor: primaryColor,
-                                    foregroundColor:
-                                        Theme.of(context).colorScheme.onPrimary,
+                          ],
+                        )
+                : selectedRoute == null
+                ? ListView.builder(
+                    controller: scrollController,
+                    itemCount: (isLoaded ? (state as MapLoaded).filteredRoutes.length : 0),
+                    itemBuilder: (context, index) {
+                      final route = (isLoaded ? (state as MapLoaded).filteredRoutes : <dynamic>[])[index];
+                      return ListTile(
+                        leading: Icon(Icons.alt_route, color: primaryColor),
+                                title: Text(
+                                  '${AppLocalizations.of(context)!.ruta} ${route.name}',
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.onSurface,
                                   ),
                                 ),
-                                title: Text(poi.nombre),
-                                // Tocar la fila solo mueve el mapa (no inicia navegación)
-                                onTap: () {
-                                  onMoveMap(
-                                    LatLng(poi.latitud, poi.longitud),
-                                    zoom: 16,
-                                  );
-                                },
-                                trailing: GestureDetector(
-                                  onTap: () {
-                                    // Abrir ficha del POI
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => PoiScreen(poi),
-                                      ),
-                                    );
-                                  },
-                                  child: const Icon(Icons.add),
-                                ),
-                              );
-                            },
+                        trailing: Icon(
+                          Icons.arrow_forward_ios,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          size: 18,
+                        ),
+                        selected: selectedRouteIndex == index,
+                        // Realce de selección para la ruta activa
+                        selectedTileColor: primaryColor,
+                        onTap: () async {
+                          // Centra el mapa en el punto medio de la ruta y actualiza selección
+                          final center = LatLng(
+                            (route.initialLatitude + route.finalLatitude) / 2,
+                            (route.initialLongitude + route.finalLongitude) / 2,
+                          );
+                          setSelectedRouteIndex(index);
+                          onMoveMap(center, zoom: 14);
+                          await LocalStorage.setLastRouteName(route.name);
+                          await LocalStorage.setLastRouteWithPois(route);
+                        },
+                      );
+                    },
+                  )
+                : (isLoaded ? selectedRoute?.pois.isEmpty : true)
+                ? ListView(
+                    controller: scrollController,
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    children: [
+                      Center(
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 24.0),
+                          child: Text(
+                            AppLocalizations.of(context)!.sin_resultado,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
                           ),
+                        ),
+                      ),
+                    ],
+                  )
+        : ListView.builder(
+                    controller: scrollController,
+          itemCount: selectedRoute.pois.length,
+                    itemBuilder: (context, index) {
+                      final poi = selectedRoute.pois[index];
+                      return ListTile(
+                        leading: FilledButton.icon(
+                          onPressed: () {
+                            // Iniciar navegación hacia el POI de la ruta seleccionada
+                            context.read<MapBloc>().add(
+                              RequestNavigation(
+                                LatLng(poi.latitud, poi.longitud),
+                                Localizations.localeOf(context).languageCode,
+                              ),
+                            );
+                          },
+                          // Usar texto localizado para el botón "Ir"
+                          label: Text(AppLocalizations.of(context)!.ir),
+                          icon: const Icon(Icons.navigation),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: primaryColor,
+                            foregroundColor: Theme.of(
+                              context,
+                            ).colorScheme.onPrimary,
+                          ),
+                        ),
+                        title: Text(poi.nombre),
+                        // Tocar la fila solo mueve el mapa (no inicia navegación)
+                        onTap: () {
+                          onMoveMap(
+                            LatLng(poi.latitud, poi.longitud),
+                            zoom: 16,
+                          );
+                        },
+                        trailing: GestureDetector(
+                          onTap: () {
+                            // Abrir ficha del POI
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => PoiScreen(poi),
+                              ),
+                            );
+                          },
+                          child: const Icon(Icons.add),
+                        ),
+                      );
+                    },
+                  ),
           ),
         ],
       ),

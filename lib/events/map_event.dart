@@ -24,16 +24,18 @@ class UpdateHeading extends MapEvent {
   UpdateHeading(this.heading);
 }
 
-/// Aplicar filtros (categoría, distancia, temporada)
+/// Aplicar filtros (categoría, actividad, distancia, temporada)
 class ApplyFilters extends MapEvent {
   final String? query;
   final String? category;
+  final String? activity;
   final double? distanceKm;
   final String? season;
 
   ApplyFilters({
     this.query,
     this.category,
+    this.activity,
     this.distanceKm,
     this.season,
   });

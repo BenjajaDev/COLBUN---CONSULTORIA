@@ -82,4 +82,61 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get cancelar => 'Cancelar';
+
+  @override
+  String get filtros_title => 'Filtros';
+
+  @override
+  String get categoria_label => 'Categoría';
+
+  @override
+  String get actividad_label => 'Actividad';
+
+  @override
+  String get distancia_km_label => 'Distancia (km)';
+
+  @override
+  String get aplicar_filtros => 'Aplicar filtros';
+
+  @override
+  String get todas => 'Todas';
+
+  @override
+  String get modo_sin_conexion => 'Modo sin conexión';
+
+  @override
+  String temporada_actual_fmt(Object season) {
+    return 'Temporada actual: $season';
+  }
+
+  @override
+  String get recomendacion_temporada_otono =>
+      'Paisajes coloridos y temperaturas moderadas; ideal para fotografía y caminatas.';
+
+  @override
+  String get recomendacion_temporada_invierno =>
+      'Clima frío y con neblina; usa abrigo adecuado y precaución en senderos.';
+
+  @override
+  String get recomendacion_temporada_primavera =>
+      'Clima templado y flora abundante; ideal para trekking y observación de flora.';
+
+  @override
+  String get recomendacion_temporada_verano =>
+      'Días más calurosos; hidrátate y evita las horas de mayor radiación.';
+
+  @override
+  String get emergencias_title => 'Emergencias';
+
+  @override
+  String get telefonos_emergencia_title => 'Teléfonos de emergencia';
+
+  @override
+  String get emergency_police_chile => 'Policía (Carabineros)';
+
+  @override
+  String get emergency_firefighters_chile => 'Bomberos';
+
+  @override
+  String get emergency_ambulance_chile => 'Ambulancia (SAMU)';
 }

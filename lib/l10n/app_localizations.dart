@@ -231,6 +231,108 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Cancelar'**
   String get cancelar;
+
+  /// Título de la hoja de filtros
+  ///
+  /// In es, this message translates to:
+  /// **'Filtros'**
+  String get filtros_title;
+
+  /// Etiqueta para el selector de categoría
+  ///
+  /// In es, this message translates to:
+  /// **'Categoría'**
+  String get categoria_label;
+
+  /// Etiqueta para el selector de actividad
+  ///
+  /// In es, this message translates to:
+  /// **'Actividad'**
+  String get actividad_label;
+
+  /// Etiqueta para el control de distancia en km
+  ///
+  /// In es, this message translates to:
+  /// **'Distancia (km)'**
+  String get distancia_km_label;
+
+  /// Texto del botón para aplicar filtros
+  ///
+  /// In es, this message translates to:
+  /// **'Aplicar filtros'**
+  String get aplicar_filtros;
+
+  /// Opción genérica 'todas' en filtros
+  ///
+  /// In es, this message translates to:
+  /// **'Todas'**
+  String get todas;
+
+  /// Banner text shown when the app is offline
+  ///
+  /// In es, this message translates to:
+  /// **'Modo sin conexión'**
+  String get modo_sin_conexion;
+
+  /// Cabecera que muestra la temporada actual
+  ///
+  /// In es, this message translates to:
+  /// **'Temporada actual: {season}'**
+  String temporada_actual_fmt(Object season);
+
+  /// No description provided for @recomendacion_temporada_otono.
+  ///
+  /// In es, this message translates to:
+  /// **'Paisajes coloridos y temperaturas moderadas; ideal para fotografía y caminatas.'**
+  String get recomendacion_temporada_otono;
+
+  /// No description provided for @recomendacion_temporada_invierno.
+  ///
+  /// In es, this message translates to:
+  /// **'Clima frío y con neblina; usa abrigo adecuado y precaución en senderos.'**
+  String get recomendacion_temporada_invierno;
+
+  /// No description provided for @recomendacion_temporada_primavera.
+  ///
+  /// In es, this message translates to:
+  /// **'Clima templado y flora abundante; ideal para trekking y observación de flora.'**
+  String get recomendacion_temporada_primavera;
+
+  /// No description provided for @recomendacion_temporada_verano.
+  ///
+  /// In es, this message translates to:
+  /// **'Días más calurosos; hidrátate y evita las horas de mayor radiación.'**
+  String get recomendacion_temporada_verano;
+
+  /// Título de la pantalla de emergencias
+  ///
+  /// In es, this message translates to:
+  /// **'Emergencias'**
+  String get emergencias_title;
+
+  /// Sección de teléfonos de emergencia
+  ///
+  /// In es, this message translates to:
+  /// **'Teléfonos de emergencia'**
+  String get telefonos_emergencia_title;
+
+  /// Nombre para Carabineros de Chile
+  ///
+  /// In es, this message translates to:
+  /// **'Policía (Carabineros)'**
+  String get emergency_police_chile;
+
+  /// Nombre para Bomberos de Chile
+  ///
+  /// In es, this message translates to:
+  /// **'Bomberos'**
+  String get emergency_firefighters_chile;
+
+  /// Nombre para Servicio de Ambulancias SAMU
+  ///
+  /// In es, this message translates to:
+  /// **'Ambulancia (SAMU)'**
+  String get emergency_ambulance_chile;
 }
 
 class _AppLocalizationsDelegate
