@@ -3,6 +3,7 @@ import 'package:consultoria_chat_bot/model/poi_model.dart';
 import 'package:consultoria_chat_bot/services/local_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:consultoria_chat_bot/model/route_model.dart';
+import 'package:latlong2/latlong.dart';
 
 class FireStoreService {
   final CollectionReference _routesCollection = FirebaseFirestore.instance
@@ -57,7 +58,13 @@ class FireStoreService {
       for (final doc in querySnapshot) {
         final data = doc.data() as Map<String, dynamic>;
         final pois = await fetchAllPOIs(doc.id);
-
+        final List<LatLng> geometry = data['geometry'] != null
+            ? (data['geometry'] as List).map((point) {
+                final lat = (point['lat'] ?? 0).toDouble();
+                final lng = (point['lng'] ?? 0).toDouble();
+                return LatLng(lat, lng);
+              }).toList()
+            : [];
         routes.add(
           MapRoute(
             id: doc.id,
@@ -73,6 +80,7 @@ class FireStoreService {
                 _toDouble(data['distance_km']),
             season: data['temporada']?.toString(),
             pois: pois,
+            geometry: geometry,
           ),
         );
       }

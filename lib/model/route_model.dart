@@ -1,4 +1,5 @@
 import 'package:consultoria_chat_bot/model/poi_model.dart';
+import 'package:latlong2/latlong.dart';
 
 class MapRoute {
   final String id;
@@ -11,6 +12,7 @@ class MapRoute {
   final double? distanceKm;
   final String? season;
   final List<POI> pois;
+  final List<LatLng> geometry;
 
   MapRoute({
     required this.id,
@@ -20,6 +22,7 @@ class MapRoute {
     required this.finalLongitude,
     required this.name,
     required this.pois,
+    required  this.geometry,
     this.category,
     this.distanceKm,
     this.season,
@@ -31,6 +34,7 @@ class MapRoute {
     double? initialLongitude,
     double? finalLatitude,
     double? finalLongitude,
+    List<LatLng>? geometry,
     String? name,
     String? category,
     bool clearCategory = false,
@@ -50,7 +54,7 @@ class MapRoute {
       category: clearCategory ? null : (category ?? this.category),
       distanceKm: clearDistanceKm ? null : (distanceKm ?? this.distanceKm),
       season: clearSeason ? null : (season ?? this.season),
-      pois: pois ?? this.pois,
+      pois: pois ?? this.pois, geometry: [],
     );
   }
 }

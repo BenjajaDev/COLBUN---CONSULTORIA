@@ -18,7 +18,7 @@ import 'package:consultoria_chat_bot/theme.dart';
 import 'package:consultoria_chat_bot/l10n/app_localizations.dart';
 
 
-const String kMapTilerApiKey = 'vuobOOmhVcspXRuOBRRs';
+const String kMapTilerApiKey = 'HiDxah3SS2m47uoakaIA';
 
 class MapPage extends StatefulWidget {
   const MapPage({super.key});
@@ -83,6 +83,7 @@ class _MapPageState extends State<MapPage> {
   void dispose() {
     mapController.dispose();
     searchController.dispose();
+    _netTimer?.cancel();
     super.dispose();
   }
 
@@ -213,6 +214,11 @@ class _MapPageState extends State<MapPage> {
                   });
                 }
               }
+              // Choose tile style depending on current theme
+              final bool isDark = Theme.of(context).brightness == Brightness.dark;
+              final String tilesUrl = isDark
+                  ? 'https://api.maptiler.com/maps/streets-v2-dark/{z}/{x}/{y}.png?key=$kMapTilerApiKey'
+                  : 'https://api.maptiler.com/maps/streets/{z}/{x}/{y}.png?key=$kMapTilerApiKey';
               return Stack(
                 children: [
                   Transform(
@@ -242,9 +248,10 @@ class _MapPageState extends State<MapPage> {
                         },
                       ),
                       children: [
+                        
                         TileLayer(
-                          urlTemplate:
-                              'https://api.maptiler.com/maps/streets/{z}/{x}/{y}.png?key=$kMapTilerApiKey',
+                          key: ValueKey(tilesUrl),
+                          urlTemplate: tilesUrl,
                           userAgentPackageName: 'com.example.app',
                         ),
                         MarkerLayer(
@@ -337,17 +344,14 @@ class _MapPageState extends State<MapPage> {
                         if (state is MapLoaded)
                           PolylineLayer(
                             polylines: state.filteredRoutes.map((route) {
+                              final List<LatLng> pts = (route.geometry.isNotEmpty)
+                                  ? route.geometry
+                                  : [
+                                      LatLng(route.initialLatitude, route.initialLongitude),
+                                      LatLng(route.finalLatitude, route.finalLongitude),
+                                    ];
                               return Polyline(
-                                points: [
-                                  LatLng(
-                                    route.initialLatitude,
-                                    route.initialLongitude,
-                                  ),
-                                  LatLng(
-                                    route.finalLatitude,
-                                    route.finalLongitude,
-                                  ),
-                                ],
+                                points: pts,
                                 strokeWidth: 4.0,
                                 color: Colors.red,
                               );

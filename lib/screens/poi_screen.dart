@@ -149,6 +149,33 @@ class _PoiScreenState extends State<PoiScreen> {
                                   dialogChild = Image.network(
                                     url,
                                     fit: BoxFit.contain,
+                                    loadingBuilder:
+                                        (context, child, loadingProgress) {
+                                      if (loadingProgress == null) return child;
+                                      final theme = Theme.of(context);
+                                      final expected = loadingProgress
+                                          .expectedTotalBytes;
+                                      final loaded = loadingProgress
+                                          .cumulativeBytesLoaded;
+                    final value = expected != null
+                      ? loaded / expected
+                                          : null;
+                                      return Container(
+                                        padding: const EdgeInsets.all(24),
+                                        color: theme.colorScheme
+                                            .surfaceContainerLow,
+                                        child: Center(
+                                          child: SizedBox(
+                                            width: 28,
+                                            height: 28,
+                                            child: CircularProgressIndicator(
+                                              value: value,
+                                              strokeWidth: 3,
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    },
                                     errorBuilder: (context, error, stack) {
                                       return Container(
                                         padding: const EdgeInsets.all(24),
@@ -231,6 +258,34 @@ class _PoiScreenState extends State<PoiScreen> {
                                   fit: BoxFit.cover,
                                   width: double.infinity,
                                   height: 250,
+                                  loadingBuilder:
+                                      (context, child, loadingProgress) {
+                                    if (loadingProgress == null) return child;
+                                    final expected = loadingProgress
+                                        .expectedTotalBytes;
+                                    final loaded = loadingProgress
+                                        .cumulativeBytesLoaded;
+                  final value = expected != null
+                    ? loaded / expected
+                                        : null;
+                                    return Container(
+                                      width: double.infinity,
+                                      height: 250,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .surfaceContainerLow,
+                                      child: Center(
+                                        child: SizedBox(
+                                          width: 28,
+                                          height: 28,
+                                          child: CircularProgressIndicator(
+                                            value: value,
+                                            strokeWidth: 3,
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  },
                                   errorBuilder: (context, error, stack) {
                                     return Container(
                                       width: double.infinity,
@@ -273,10 +328,24 @@ class _PoiScreenState extends State<PoiScreen> {
                                     itemBuilder: (context, index) {
                                       return ActionChip(
                                         label: Text(
-                                          items[index]['nombre'][Localizations.localeOf(
-                                                context,
-                                              ).languageCode] ??
-                                              items[index]['nombre']['es'],
+                                          () {
+                                            final Map<String, dynamic> nombreMap =
+                                                (items[index]['nombre'] as Map?)
+                                                        ?.cast<String, dynamic>() ??
+                                                <String, dynamic>{};
+                                            final code = Localizations.localeOf(
+                                              context,
+                                            ).languageCode;
+                                            final langValue = (nombreMap[code]?.toString() ?? '')
+                                                .trim();
+                                            if (langValue.isEmpty) {
+                                              final esValue =
+                                                  (nombreMap['es']?.toString() ?? '')
+                                                      .trim();
+                                              return esValue.isNotEmpty ? esValue : langValue;
+                                            }
+                                            return langValue;
+                                          }(),
                                           style: TextStyle(
                                             color: getColorFromHex(
                                               items[index]['text_color']
@@ -688,11 +757,19 @@ class _PoiScreenState extends State<PoiScreen> {
                                   horizontal: 15,
                                 ),
                                 child: Text(
-                                  widget.poi.descripcion[Localizations.localeOf(
-                                        context,
-                                      ).languageCode] ??
-                                      widget.poi.descripcion['es'] ??
-                                      '',
+                                  () {
+                                    final code = Localizations.localeOf(
+                                      context,
+                                    ).languageCode;
+                                    final current = (widget.poi.descripcion[code] ?? '')
+                                        .toString()
+                                        .trim();
+                                    if (current.isEmpty) {
+                                      return (widget.poi.descripcion['es'] ?? '')
+                                          .toString();
+                                    }
+                                    return current;
+                                  }(),
                                   style: const TextStyle(fontSize: 16),
                                 ),
                               ),
