@@ -1,0 +1,96 @@
+{
+    "@@locale": "pt",
+    "search": "Pesquisar",
+    "otono": "Outono",
+    "invierno": "Inverno",
+    "primavera": "Primavera",
+    "verano": "Verão",
+    "vista360": "Vista 360°",
+    "descripcion": "Descrição",
+    "recomendados": "Recomendados",
+    "cercanos":"Perto de você",
+    "ruta": "Rota",
+    "rutas_disponibles": "Rotas disponíveis",
+    "resultado_busqueda": "Resultado de busca",
+    "sin_resultado": "Nenhum resultado encontrado"
+        ,
+    "vistas_modificadas_ia": "Inclui vistas modificadas com IA",
+    "@vistas_modificadas_ia": {
+        "description": "Texto do tooltip indicando que as vistas 360 foram modificadas com IA"
+    },
+    "no_vista360_temporada": "Não há imagem 360 para a temporada \"{season}\".",
+    "@no_vista360_temporada": {
+        "description": "Mensagem mostrada quando a temporada selecionada não tem imagem 360",
+        "placeholders": {
+            "season": {}
+        }
+    },
+    "no_vista360_disponible": "Não há imagem 360 disponível para a temporada selecionada.",
+    "@no_vista360_disponible": {
+        "description": "Mensagem exibida quando não há nenhuma imagem 360 disponível"
+    },
+    "ir": "Ir",
+    "ruta_en_curso": "Rota em andamento",
+    "@ruta_en_curso": {"description": "Título do painel de navegação ativa"},
+    "distancia_fmt": "Distância: {distance}",
+    "@distancia_fmt": {"description": "Rótulo de distância com valor formatado", "placeholders": {"distance": {}}},
+    "tiempo_aprox_fmt": "Tempo aprox.: {duration}",
+    "@tiempo_aprox_fmt": {"description": "Rótulo de tempo aproximado com valor", "placeholders": {"duration": {}}},
+    "llegada_aprox_fmt": "Chegada aprox.: {eta}",
+    "@llegada_aprox_fmt": {"description": "Rótulo de chegada aproximada com hora", "placeholders": {"eta": {}}},
+    "cancelar": "Cancelar",
+    "@cancelar": {"description": "Texto para o botão de cancelar navegação"}
+    ,
+    "filtros_title": "Filtros",
+    "@filtros_title": {"description": "Título da folha de filtros"},
+    "categoria_label": "Categoria",
+    "@categoria_label": {"description": "Rótulo do seletor de categoria"},
+    "actividad_label": "Atividade",
+    "@actividad_label": {"description": "Rótulo do seletor de atividade"},
+    "distancia_km_label": "Distância (km)",
+    "@distancia_km_label": {"description": "Rótulo do controle de distância em km"},
+    "aplicar_filtros": "Aplicar filtros",
+    "@aplicar_filtros": {"description": "Texto do botão para aplicar filtros"},
+    "todas": "Todas",
+    "@todas": {"description": "Opção genérica 'todas' nos filtros"}
+    ,
+    "modo_sin_conexion": "Modo offline",
+    "@modo_sin_conexion": {"description": "Texto do banner exibido quando o app está offline"},
+    "temporada_actual_fmt": "Estação atual: {season}",
+    "@temporada_actual_fmt": {"description": "Cabeçalho mostrando a estação atual","placeholders": {"season": {}}},
+    "recomendacion_temporada_otono": "Paisagens coloridas e temperaturas amenas; ideal para fotografia e caminhadas.",
+    "recomendacion_temporada_invierno": "Clima frio e neblina; use agasalho adequado e tenha cautela nas trilhas.",
+    "recomendacion_temporada_primavera": "Clima ameno e flores abundantes; ideal para trekking e observação da flora.",
+    "recomendacion_temporada_verano": "Dias mais quentes; hidrate-se e evite os horários de maior radiação.",
+    "emergencias_title": "Emergências",
+    "telefonos_emergencia_title": "Telefones de emergência",
+    "emergency_police_chile": "Polícia (Carabineros)",
+    "emergency_firefighters_chile": "Bombeiros",
+    "emergency_ambulance_chile": "Ambulância (SAMU)",
+    "iniciar_ruta": "Iniciar rota",
+    "@iniciar_ruta": {
+        "description": "Botão principal para iniciar a navegação de um POI"
+    },
+    "ver_detalles": "Ver detalhes",
+    "@ver_detalles": {
+        "description": "Botão secundário para abrir os detalhes de um POI"
+    },
+    "route_count_chip": "{count, plural, one {# rota} other {# rotas}}",
+    "@route_count_chip": {
+        "description": "Rótulo do chip que indica a quantidade de rotas disponíveis ou correspondentes",
+        "placeholders": {
+            "count": {
+                "type": "int"
+            }
+        }
+    },
+    "poi_count_chip": "{count, plural, one {# POI} other {# POIs}}",
+    "@poi_count_chip": {
+        "description": "Rótulo do chip que indica a quantidade de POIs disponíveis ou correspondentes",
+        "placeholders": {
+            "count": {
+                "type": "int"
+            }
+        }
+    }
+}

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "868569011120",
+    "project_id": "crud-rutas360",
+    "storage_bucket": "crud-rutas360.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:868569011120:android:ba98c972c3fd9d3b28fc75",
+        "android_client_info": {
+          "package_name": "com.example.consultoria_chat_bot"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAQ3pUh6TXvggNVdiDqBca03a5YLpHkJo4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

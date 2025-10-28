@@ -1,0 +1,161 @@
+{
+  "@@locale": "es",
+  "search": "Buscar",
+  "@search": {
+    "description": "Texto de búsqueda"
+  },
+  "otono": "Otoño",
+  "@otono": {
+    "description": "version de Otoño para vista 360"
+  },
+  "invierno": "Invierno",
+  "@invierno": {
+    "description": "version de Invierno para vista 360"
+  },
+  "primavera": "Primavera",
+  "@primavera": {
+    "description": "version de Primavera para vista 360"
+  },
+  "verano": "Verano",
+  "@verano": {
+    "description": "version de Verano para vista 360"
+  },
+  "vista360": "Vista 360°",
+  "@vista360": {
+    "description": "Texto para el botón de vista 360"
+  },
+  "descripcion": "Descripción",
+  "@descripcion": {
+    "description": "Título para la sección de descripción"
+  },
+  "recomendados": "Recomendados",
+  "@recomendados": {
+    "description": "Título para la sección de puntos de interés recomendados"
+  },
+  "cercanos":"Cerca de ti",
+  "@cercanos": {
+    "description": "Título para la sección de puntos de interés cercanos"
+  },
+  "ruta": "Ruta",
+  "@ruta":{
+    "description": "prefijo para la ruta en mapa"
+  },
+  "rutas_disponibles": "Rutas disponibles",
+  "@rutas_disponibles":{
+    "description": "Título para la sección de rutas disponibles"
+  },
+  "resultado_busqueda": "Resultado de búsqueda",
+  "@resultado_busqueda":{
+    "description": "Título para la sección de rutas cuando se escribe"
+  },
+  "sin_resultado": "No se encontraron resultados",
+  "@sin_resultado":{
+    "description": "Texto que aparece cuando no hay resultados"
+  }
+  ,
+  "vistas_modificadas_ia": "Incluye vistas modificadas con IA",
+  "@vistas_modificadas_ia": {
+    "description": "Tooltip text indicating 360 views were modified with AI"
+  },
+  "no_vista360_temporada": "No hay imagen 360 para la temporada \"{season}\".",
+  "@no_vista360_temporada": {
+    "description": "Message shown when the selected season has no 360 image",
+    "placeholders": {
+      "season": {}
+    }
+  },
+  "no_vista360_disponible": "No hay imagen 360 disponible para la temporada seleccionada.",
+  "@no_vista360_disponible": {
+    "description": "Message shown when there is no 360 image available at all"
+  },
+  "ir": "Ir",
+  "@ir": {
+    "description": "Texto para el botón de ir a la ruta"
+  },
+  "ruta_en_curso": "Ruta en curso",
+  "@ruta_en_curso": {
+    "description": "Título del panel de navegación activa"
+  },
+  "distancia_fmt": "Distancia: {distance}",
+  "@distancia_fmt": {
+    "description": "Etiqueta de distancia con valor formateado",
+    "placeholders": {"distance": {}}
+  },
+  "tiempo_aprox_fmt": "Tiempo aprox.: {duration}",
+  "@tiempo_aprox_fmt": {
+    "description": "Etiqueta de tiempo aproximado con valor",
+    "placeholders": {"duration": {}}
+  },
+  "llegada_aprox_fmt": "Llegada aprox.: {eta}",
+  "@llegada_aprox_fmt": {
+    "description": "Etiqueta de llegada aproximada con hora",
+    "placeholders": {"eta": {}}
+  },
+  "cancelar": "Cancelar",
+  "@cancelar": {
+    "description": "Texto para el botón de cancelar navegación"
+  }
+  ,
+  "filtros_title": "Filtros",
+  "@filtros_title": {"description": "Título de la hoja de filtros"},
+  "categoria_label": "Categoría",
+  "@categoria_label": {"description": "Etiqueta para el selector de categoría"},
+  "actividad_label": "Actividad",
+  "@actividad_label": {"description": "Etiqueta para el selector de actividad"},
+  "distancia_km_label": "Distancia (km)",
+  "@distancia_km_label": {"description": "Etiqueta para el control de distancia en km"},
+  "aplicar_filtros": "Aplicar filtros",
+  "@aplicar_filtros": {"description": "Texto del botón para aplicar filtros"},
+  "todas": "Todas",
+  "@todas": {"description": "Opción genérica 'todas' en filtros"}
+  ,
+  "modo_sin_conexion": "Modo sin conexión",
+  "@modo_sin_conexion": {"description": "Banner text shown when the app is offline"},
+  "temporada_actual_fmt": "Temporada actual: {season}",
+  "@temporada_actual_fmt": {"description": "Cabecera que muestra la temporada actual","placeholders": {"season": {}}},
+  "recomendacion_temporada_otono": "Paisajes coloridos y temperaturas moderadas; ideal para fotografía y caminatas.",
+  "@recomendacion_temporada_otono": {},
+  "recomendacion_temporada_invierno": "Clima frío y con neblina; usa abrigo adecuado y precaución en senderos.",
+  "@recomendacion_temporada_invierno": {},
+  "recomendacion_temporada_primavera": "Clima templado y flora abundante; ideal para trekking y observación de flora.",
+  "@recomendacion_temporada_primavera": {},
+  "recomendacion_temporada_verano": "Días más calurosos; hidrátate y evita las horas de mayor radiación.",
+  "@recomendacion_temporada_verano": {},
+  "emergencias_title": "Emergencias",
+  "@emergencias_title": {"description": "Título de la pantalla de emergencias"},
+  "telefonos_emergencia_title": "Teléfonos de emergencia",
+  "@telefonos_emergencia_title": {"description": "Sección de teléfonos de emergencia"},
+  "emergency_police_chile": "Policía (Carabineros)",
+  "@emergency_police_chile": {"description": "Nombre para Carabineros de Chile"},
+  "emergency_firefighters_chile": "Bomberos",
+  "@emergency_firefighters_chile": {"description": "Nombre para Bomberos de Chile"},
+  "emergency_ambulance_chile": "Ambulancia (SAMU)",
+  "@emergency_ambulance_chile": {"description": "Nombre para Servicio de Ambulancias SAMU"}
+  ,
+  "iniciar_ruta": "Iniciar ruta",
+  "@iniciar_ruta": {
+    "description": "Botón principal para iniciar la navegación de un POI"
+  },
+  "ver_detalles": "Ver detalles",
+  "@ver_detalles": {
+    "description": "Botón secundario para abrir el detalle de un POI"
+  },
+  "route_count_chip": "{count, plural, one {# ruta} other {# rutas}}",
+  "@route_count_chip": {
+    "description": "Etiqueta del chip que indica la cantidad de rutas disponibles o coincidentes",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "poi_count_chip": "{count, plural, one {# POI} other {# POI}}",
+  "@poi_count_chip": {
+    "description": "Etiqueta del chip que indica la cantidad de POI disponibles o coincidentes",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
+}

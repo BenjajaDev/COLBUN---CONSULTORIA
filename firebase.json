@@ -1,0 +1,31 @@
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "crud-rutas360",
+          "appId": "1:868569011120:android:ba98c972c3fd9d3b28fc75",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "crud-rutas360",
+          "configurations": {
+            "android": "1:868569011120:android:ba98c972c3fd9d3b28fc75",
+            "ios": "1:868569011120:ios:5964617aebcfc6b128fc75"
+          }
+        }
+      }
+    }
+  },
+  "emulators": {
+    "singleProjectMode": true,
+    "firestore": {
+      "port": 8080
+    },
+    "ui": {
+      "enabled": true
+    }
+  }
+}

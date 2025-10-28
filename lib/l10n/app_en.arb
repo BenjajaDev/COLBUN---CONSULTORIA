@@ -1,0 +1,96 @@
+{
+    "@@locale": "en",
+    "search": "Search",
+    "otono": "Autumn",
+    "invierno": "Winter",
+    "primavera": "Spring",
+    "verano": "Summer",
+    "vista360": "360° View",
+    "descripcion": "Description",
+    "recomendados": "Recommended",
+    "cercanos":"Near you",
+    "ruta": "Route",
+    "rutas_disponibles": "Available routes",
+    "resultado_busqueda": "Search result",
+    "sin_resultado": "No results found"
+        ,
+    "vistas_modificadas_ia": "Includes views modified with AI",
+    "@vistas_modificadas_ia": {
+        "description": "Tooltip text indicating 360 views were modified with AI"
+    },
+    "no_vista360_temporada": "No 360 image available for the \"{season}\" season.",
+    "@no_vista360_temporada": {
+        "description": "Message shown when the selected season has no 360 image",
+        "placeholders": {
+            "season": {}
+        }
+    },
+    "no_vista360_disponible": "No 360 image available for the selected season.",
+    "@no_vista360_disponible": {
+        "description": "Message shown when there is no 360 image available at all"
+    },
+    "ir": "Go",
+    "ruta_en_curso": "Route in progress",
+    "@ruta_en_curso": {"description": "Title for the active navigation panel"},
+    "distancia_fmt": "Distance: {distance}",
+    "@distancia_fmt": {"description": "Distance label with formatted value", "placeholders": {"distance": {}}},
+    "tiempo_aprox_fmt": "Approx. time: {duration}",
+    "@tiempo_aprox_fmt": {"description": "Approximate time label with value", "placeholders": {"duration": {}}},
+    "llegada_aprox_fmt": "Approx. arrival: {eta}",
+    "@llegada_aprox_fmt": {"description": "Approximate arrival label with time", "placeholders": {"eta": {}}},
+    "cancelar": "Cancel",
+    "@cancelar": {"description": "Text for the cancel navigation button"}
+        ,
+        "filtros_title": "Filters",
+        "@filtros_title": {"description": "Title for filters bottom sheet"},
+        "categoria_label": "Category",
+        "@categoria_label": {"description": "Label for category dropdown"},
+        "actividad_label": "Activity",
+        "@actividad_label": {"description": "Label for activity dropdown"},
+        "distancia_km_label": "Distance (km)",
+        "@distancia_km_label": {"description": "Label for distance slider in km"},
+        "aplicar_filtros": "Apply filters",
+        "@aplicar_filtros": {"description": "Button text to apply filters"},
+        "todas": "All",
+        "@todas": {"description": "Generic 'all' option in filters"}
+            ,
+            "modo_sin_conexion": "Offline mode",
+                "@modo_sin_conexion": {"description": "Banner text shown when the app is offline"},
+                "temporada_actual_fmt": "Current season: {season}",
+                "@temporada_actual_fmt": {"description": "Header showing the current season","placeholders": {"season": {}}},
+                "recomendacion_temporada_otono": "Colorful landscapes and mild temperatures; great for photography and hikes.",
+                "recomendacion_temporada_invierno": "Cold weather and mist; wear warm clothing and use caution on trails.",
+                "recomendacion_temporada_primavera": "Mild weather and abundant blooms; ideal for trekking and wildflower viewing.",
+                "recomendacion_temporada_verano": "Hotter days; stay hydrated and avoid peak sun hours.",
+                "emergencias_title": "Emergencies",
+                "telefonos_emergencia_title": "Emergency phone numbers",
+                "emergency_police_chile": "Police (Carabineros)",
+                "emergency_firefighters_chile": "Firefighters",
+                "emergency_ambulance_chile": "Ambulance (SAMU)",
+                "iniciar_ruta": "Start route",
+                "@iniciar_ruta": {
+                    "description": "Primary action button to start navigation for a POI"
+                },
+                "ver_detalles": "View details",
+                "@ver_detalles": {
+                    "description": "Secondary action button to open POI details"
+                },
+                "route_count_chip": "{count, plural, one {# route} other {# routes}}",
+                "@route_count_chip": {
+                    "description": "Chip label showing the number of routes available or matching",
+                    "placeholders": {
+                        "count": {
+                            "type": "int"
+                        }
+                    }
+                },
+                "poi_count_chip": "{count, plural, one {# POI} other {# POIs}}",
+                "@poi_count_chip": {
+                    "description": "Chip label showing the number of POIs available or matching",
+                    "placeholders": {
+                        "count": {
+                            "type": "int"
+                        }
+                    }
+                }
+}
