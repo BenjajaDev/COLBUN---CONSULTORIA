@@ -17,7 +17,6 @@ import 'package:latlong2/latlong.dart';
 import 'package:consultoria_chat_bot/theme.dart';
 import 'package:consultoria_chat_bot/l10n/app_localizations.dart';
 
-
 const String kMapTilerApiKey = 'HiDxah3SS2m47uoakaIA';
 
 class MapPage extends StatefulWidget {
@@ -30,6 +29,8 @@ class MapPage extends StatefulWidget {
 class _MapPageState extends State<MapPage> {
   final MapController mapController = MapController();
   final TextEditingController searchController = TextEditingController();
+  final DraggableScrollableController _draggableSheetController =
+      DraggableScrollableController();
   String _lastSearchText = '';
   int? selectedRouteIndex;
   final double _initialSheetChildSize = 0.25;
@@ -63,6 +64,36 @@ class _MapPageState extends State<MapPage> {
     });
   }
 
+  Widget _buildQuickActionButton({
+    required IconData icon,
+    required VoidCallback onTap,
+    Color? iconColor,
+    Color? backgroundColor,
+  }) {
+    final theme = Theme.of(context);
+    final bool isDark = theme.brightness == Brightness.dark;
+    return Material(
+      color:
+          backgroundColor ??
+          (isDark ? theme.colorScheme.surfaceContainerHighest : Colors.white),
+      shape: const CircleBorder(),
+      elevation: 3,
+      shadowColor: Colors.black.withValues(alpha: 0.08),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(10),
+          child: Icon(
+            icon,
+            color: iconColor ?? theme.colorScheme.primary,
+            size: 20,
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _checkConnectivity() async {
     try {
       final result = await InternetAddress.lookup(
@@ -83,14 +114,13 @@ class _MapPageState extends State<MapPage> {
   void dispose() {
     mapController.dispose();
     searchController.dispose();
+    _draggableSheetController.dispose();
     _netTimer?.cancel();
     super.dispose();
   }
 
   void _openFilterSheet(MapLoaded state) {
     FocusScope.of(context).unfocus();
-
-    
 
     double computedMaxDistance = state.allRoutes.fold<double>(
       0,
@@ -204,7 +234,7 @@ class _MapPageState extends State<MapPage> {
                 if (route.isNotEmpty) {
                   WidgetsBinding.instance.addPostFrameCallback((_) {
                     // Keep rotating to current bearing during navigation
-                    
+
                     // Center only once when navigation starts
                     if (!_centeredOnNavStart) {
                       final userPos = state.userLocation ?? state.start;
@@ -215,7 +245,8 @@ class _MapPageState extends State<MapPage> {
                 }
               }
               // Choose tile style depending on current theme
-              final bool isDark = Theme.of(context).brightness == Brightness.dark;
+              final bool isDark =
+                  Theme.of(context).brightness == Brightness.dark;
               final String tilesUrl = isDark
                   ? 'https://api.maptiler.com/maps/streets-v2-dark/{z}/{x}/{y}.png?key=$kMapTilerApiKey'
                   : 'https://api.maptiler.com/maps/streets/{z}/{x}/{y}.png?key=$kMapTilerApiKey';
@@ -248,7 +279,6 @@ class _MapPageState extends State<MapPage> {
                         },
                       ),
                       children: [
-                        
                         TileLayer(
                           key: ValueKey(tilesUrl),
                           urlTemplate: tilesUrl,
@@ -344,11 +374,18 @@ class _MapPageState extends State<MapPage> {
                         if (state is MapLoaded)
                           PolylineLayer(
                             polylines: state.filteredRoutes.map((route) {
-                              final List<LatLng> pts = (route.geometry.isNotEmpty)
+                              final List<LatLng> pts =
+                                  (route.geometry.isNotEmpty)
                                   ? route.geometry
                                   : [
-                                      LatLng(route.initialLatitude, route.initialLongitude),
-                                      LatLng(route.finalLatitude, route.finalLongitude),
+                                      LatLng(
+                                        route.initialLatitude,
+                                        route.initialLongitude,
+                                      ),
+                                      LatLng(
+                                        route.finalLatitude,
+                                        route.finalLongitude,
+                                      ),
                                     ];
                               return Polyline(
                                 points: pts,
@@ -446,6 +483,7 @@ class _MapPageState extends State<MapPage> {
                         return true;
                       },
                       child: DraggableScrollableSheet(
+                        controller: _draggableSheetController,
                         initialChildSize: _initialSheetChildSize,
                         minChildSize: 0.2,
                         maxChildSize: 0.6,
@@ -476,6 +514,9 @@ class _MapPageState extends State<MapPage> {
                             primaryColor: Theme.of(context).colorScheme.primary,
                             mapController: mapController,
                             scrollController: scrollController,
+                            draggableController: _draggableSheetController,
+                            minChildSize: 0.2,
+                            maxChildSize: 0.6,
                           );
                         },
                       ),
@@ -711,173 +752,300 @@ class _MapPageState extends State<MapPage> {
                       ),
                     ),
 
+                  // if (state is MapLoaded)
+                  //   Positioned(
+                  //     top: _isOffline ? 36 : 0,
+                  //     right: 0,
+                  //     left: 0,
+                  //     child: Padding(
+                  //       padding: const EdgeInsets.all(8.0),
+                  //       child: Row(
+                  //         children: [
+                  //           IconButton(
+                  //             style: IconButton.styleFrom(
+                  //               backgroundColor: Theme.of(
+                  //                 context,
+                  //               ).colorScheme.surface,
+                  //               foregroundColor: Theme.of(
+                  //                 context,
+                  //               ).colorScheme.primary,
+                  //               shape: const CircleBorder(),
+                  //             ),
+                  //             onPressed: () {},
+                  //             icon: const Icon(Icons.arrow_back_rounded),
+                  //           ),
+
+                  //           const SizedBox(width: 4.0),
+                  //           Expanded(
+                  //             child: TextField(
+                  //               controller: searchController,
+                  //               onChanged: (value) {
+                  //                 // Detect common mobile keyboard behavior where
+                  //                 // typing two spaces converts to a period+space (". ").
+                  //                 // If the previous text ended with a space and the
+                  //                 // new text ends with ". ", we assume the user
+                  //                 // wanted two spaces and revert the auto-period.
+                  //                 String toSend = value;
+                  //                 if (value.endsWith('. ') &&
+                  //                     _lastSearchText.endsWith(' ')) {
+                  //                   toSend =
+                  //                       '${value.substring(0, value.length - 2)}  ';
+                  //                   // Update controller to reflect corrected text and
+                  //                   // keep the cursor at the end.
+                  //                   searchController.value = TextEditingValue(
+                  //                     text: toSend,
+                  //                     selection: TextSelection.collapsed(
+                  //                       offset: toSend.length,
+                  //                     ),
+                  //                   );
+                  //                 }
+                  //                 _lastSearchText = toSend;
+                  //                 context.read<MapBloc>().add(
+                  //                   SearchQueryUpdated(toSend),
+                  //                 );
+                  //               },
+                  //               decoration: InputDecoration(
+                  //                 hintText:
+                  //                     Localizations.of<MaterialLocalizations>(
+                  //                       context,
+                  //                       MaterialLocalizations,
+                  //                     )!.searchFieldLabel,
+                  //                 border: OutlineInputBorder(
+                  //                   borderRadius: const BorderRadius.all(
+                  //                     Radius.circular(32.0),
+                  //                   ),
+                  //                   borderSide: BorderSide(
+                  //                     color: Theme.of(
+                  //                       context,
+                  //                     ).colorScheme.outlineVariant,
+                  //                   ),
+                  //                 ),
+                  //                 enabledBorder: OutlineInputBorder(
+                  //                   borderRadius: const BorderRadius.all(
+                  //                     Radius.circular(32.0),
+                  //                   ),
+                  //                   borderSide: BorderSide(
+                  //                     color: Theme.of(
+                  //                       context,
+                  //                     ).colorScheme.outlineVariant,
+                  //                   ),
+                  //                 ),
+                  //                 focusedBorder: OutlineInputBorder(
+                  //                   borderRadius: BorderRadius.all(
+                  //                     Radius.circular(32.0),
+                  //                   ),
+                  //                   borderSide: BorderSide(
+                  //                     color: Theme.of(
+                  //                       context,
+                  //                     ).colorScheme.primary,
+                  //                   ),
+                  //                 ),
+                  //                 filled: true,
+                  //                 fillColor: Theme.of(
+                  //                   context,
+                  //                 ).colorScheme.surface,
+                  //                 contentPadding: const EdgeInsets.symmetric(
+                  //                   horizontal: 12.0,
+                  //                   vertical: 10.0,
+                  //                 ),
+                  //               ),
+                  //             ),
+                  //           ),
+
+                  //           const SizedBox(width: 4.0),
+                  //           IconButton(
+                  //             style: IconButton.styleFrom(
+                  //               backgroundColor: Theme.of(
+                  //                 context,
+                  //               ).colorScheme.surface,
+                  //               foregroundColor: Theme.of(
+                  //                 context,
+                  //               ).colorScheme.primary,
+                  //               shape: const CircleBorder(),
+                  //             ),
+                  //             onPressed: () => _openFilterSheet(state),
+                  //             icon: const Icon(Icons.filter_list),
+                  //           ),
+
+                  //           const SizedBox(width: 4.0),
+                  //           IconButton(
+                  //             style: IconButton.styleFrom(
+                  //               backgroundColor: Theme.of(
+                  //                 context,
+                  //               ).colorScheme.surface,
+                  //               foregroundColor: Theme.of(
+                  //                 context,
+                  //               ).colorScheme.primary,
+                  //               shape: const CircleBorder(),
+                  //             ),
+                  //             onPressed: () {
+                  //               context.read<ThemeProvider>().toggleTheme();
+                  //             },
+                  //             icon: Icon(
+                  //               context.watch<ThemeProvider>().themeMode ==
+                  //                       ThemeMode.dark
+                  //                   ? Icons.dark_mode
+                  //                   : Icons.light_mode,
+                  //             ),
+                  //           ),
+
+                  //           /* const SizedBox(width: 4.0),
+                  //           IconButton(
+                  //             style: buttonStyle,
+                  //             onPressed: () {
+                  //               FocusScope.of(context).unfocus();
+                  //               _sendQueryUpdate(state, searchController.text);
+                  //             },
+                  //             icon: const Icon(Icons.search),
+                  //           ),*/
+                  //           const SizedBox(width: 4.0),
+                  //           IconButton(
+                  //             style: IconButton.styleFrom(
+                  //               backgroundColor: Theme.of(
+                  //                 context,
+                  //               ).colorScheme.surface,
+                  //               foregroundColor: Colors.pink,
+                  //               shape: const CircleBorder(),
+                  //             ),
+                  //             onPressed: () {
+                  //               Navigator.push(
+                  //                 context,
+                  //                 MaterialPageRoute(
+                  //                   builder: (context) =>
+                  //                       const FavoritesScreen(),
+                  //                 ),
+                  //               );
+                  //             },
+                  //             icon: const Icon(Icons.favorite),
+                  //           ),
+                  //         ],
+                  //       ),
+                  //     ),
+                  //   ),
                   if (state is MapLoaded)
                     Positioned(
-                      top: _isOffline ? 36 : 0,
-                      right: 0,
-                      left: 0,
-                      child: Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: Row(
-                          children: [
-                            IconButton(
-                              style: IconButton.styleFrom(
-                                backgroundColor: Theme.of(
-                                  context,
-                                ).colorScheme.surface,
-                                foregroundColor: Theme.of(
-                                  context,
-                                ).colorScheme.primary,
-                                shape: const CircleBorder(),
+                      top: _isOffline ? 60 : 16,
+                      left: 16,
+                      right: 16,
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 250),
+                        child: Container(
+                          key: ValueKey<bool>(
+                            Theme.of(context).brightness == Brightness.dark,
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                          decoration: BoxDecoration(
+                            color:
+                                Theme.of(context).brightness == Brightness.dark
+                                ? Theme.of(context).colorScheme.surface
+                                : Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.08),
+                                blurRadius: 10,
+                                offset: const Offset(0, 6),
                               ),
-                              onPressed: () {},
-                              icon: const Icon(Icons.arrow_back_rounded),
-                            ),
-
-                            const SizedBox(width: 4.0),
-                            Expanded(
-                              child: TextField(
-                                controller: searchController,
-                                onChanged: (value) {
-                                  // Detect common mobile keyboard behavior where
-                                  // typing two spaces converts to a period+space (". ").
-                                  // If the previous text ended with a space and the
-                                  // new text ends with ". ", we assume the user
-                                  // wanted two spaces and revert the auto-period.
-                                  String toSend = value;
-                                  if (value.endsWith('. ') &&
-                                      _lastSearchText.endsWith(' ')) {
-                                    toSend =
-                                        '${value.substring(0, value.length - 2)}  ';
-                                    // Update controller to reflect corrected text and
-                                    // keep the cursor at the end.
-                                    searchController.value = TextEditingValue(
-                                      text: toSend,
-                                      selection: TextSelection.collapsed(
-                                        offset: toSend.length,
-                                      ),
+                            ],
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  controller: searchController,
+                                  cursorColor: const Color(0xFF4D67AE),
+                                  style: TextStyle(
+                                    fontFamily: 'Poppins',
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 16,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurface,
+                                  ),
+                                  onChanged: (value) {
+                                    String toSend = value;
+                                    if (value.endsWith('. ') &&
+                                        _lastSearchText.endsWith(' ')) {
+                                      toSend =
+                                          '${value.substring(0, value.length - 2)}  ';
+                                      searchController.value = TextEditingValue(
+                                        text: toSend,
+                                        selection: TextSelection.collapsed(
+                                          offset: toSend.length,
+                                        ),
+                                      );
+                                    }
+                                    _lastSearchText = toSend;
+                                    context.read<MapBloc>().add(
+                                      SearchQueryUpdated(toSend),
                                     );
-                                  }
-                                  _lastSearchText = toSend;
-                                  context.read<MapBloc>().add(
-                                    SearchQueryUpdated(toSend),
-                                  );
-                                },
-                                decoration: InputDecoration(
-                                  hintText:
-                                      Localizations.of<MaterialLocalizations>(
-                                        context,
-                                        MaterialLocalizations,
-                                      )!.searchFieldLabel,
-                                  border: OutlineInputBorder(
-                                    borderRadius: const BorderRadius.all(
-                                      Radius.circular(32.0),
+                                  },
+                                  textInputAction: TextInputAction.search,
+                                  decoration: InputDecoration(
+                                    border: InputBorder.none,
+                                    prefixIcon: const Icon(
+                                      Icons.search_rounded,
+                                      color: Color(0xFF4D67AE),
                                     ),
-                                    borderSide: BorderSide(
+                                    hintText: 'Buscar rutas o lugares...',
+                                    hintStyle: TextStyle(
+                                      fontFamily: 'Poppins',
+                                      fontWeight: FontWeight.w500,
                                       color: Theme.of(
                                         context,
-                                      ).colorScheme.outlineVariant,
+                                      ).colorScheme.onSurface.withValues(alpha:0.6),
                                     ),
-                                  ),
-                                  enabledBorder: OutlineInputBorder(
-                                    borderRadius: const BorderRadius.all(
-                                      Radius.circular(32.0),
-                                    ),
-                                    borderSide: BorderSide(
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.outlineVariant,
-                                    ),
-                                  ),
-                                  focusedBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.all(
-                                      Radius.circular(32.0),
-                                    ),
-                                    borderSide: BorderSide(
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.primary,
-                                    ),
-                                  ),
-                                  filled: true,
-                                  fillColor: Theme.of(
-                                    context,
-                                  ).colorScheme.surface,
-                                  contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 12.0,
-                                    vertical: 10.0,
                                   ),
                                 ),
                               ),
-                            ),
-
-                            const SizedBox(width: 4.0),
-                            IconButton(
-                              style: IconButton.styleFrom(
-                                backgroundColor: Theme.of(
-                                  context,
-                                ).colorScheme.surface,
-                                foregroundColor: Theme.of(
-                                  context,
-                                ).colorScheme.primary,
-                                shape: const CircleBorder(),
+                              const SizedBox(width: 12),
+                              _buildQuickActionButton(
+                                icon: Icons.tune_rounded,
+                                onTap: () => _openFilterSheet(state),
+                                iconColor: const Color(0xFF4D67AE),
                               ),
-                              onPressed: () => _openFilterSheet(state),
-                              icon: const Icon(Icons.filter_list),
-                            ),
-
-                            const SizedBox(width: 4.0),
-                            IconButton(
-                              style: IconButton.styleFrom(
-                                backgroundColor: Theme.of(
-                                  context,
-                                ).colorScheme.surface,
-                                foregroundColor: Theme.of(
-                                  context,
-                                ).colorScheme.primary,
-                                shape: const CircleBorder(),
-                              ),
-                              onPressed: () {
-                                context.read<ThemeProvider>().toggleTheme();
-                              },
-                              icon: Icon(
-                                context.watch<ThemeProvider>().themeMode ==
+                              const SizedBox(width: 8),
+                              _buildQuickActionButton(
+                                icon:
+                                    context.watch<ThemeProvider>().themeMode ==
                                         ThemeMode.dark
-                                    ? Icons.dark_mode
-                                    : Icons.light_mode,
+                                    ? Icons.dark_mode_rounded
+                                    : Icons.light_mode_rounded,
+                                onTap: () {
+                                  context.read<ThemeProvider>().toggleTheme();
+                                },
+                                iconColor:
+                                    Theme.of(context).brightness ==
+                                        Brightness.dark
+                                    ? Theme.of(context).colorScheme.onSurface
+                                    : const Color(0xFF4D67AE),
                               ),
-                            ),
-
-                            /* const SizedBox(width: 4.0),
-                            IconButton(
-                              style: buttonStyle,
-                              onPressed: () {
-                                FocusScope.of(context).unfocus();
-                                _sendQueryUpdate(state, searchController.text);
-                              },
-                              icon: const Icon(Icons.search),
-                            ),*/
-                            const SizedBox(width: 4.0),
-                            IconButton(
-                              style: IconButton.styleFrom(
-                                backgroundColor: Theme.of(
-                                  context,
-                                ).colorScheme.surface,
-                                foregroundColor: Colors.pink,
-                                shape: const CircleBorder(),
+                              const SizedBox(width: 8),
+                              _buildQuickActionButton(
+                                icon: Icons.favorite_rounded,
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          const FavoritesScreen(),
+                                    ),
+                                  );
+                                },
+                                iconColor: const Color(0xFFE63946),
+                                backgroundColor:
+                                    Theme.of(context).brightness ==
+                                        Brightness.dark
+                                    ? Theme.of(
+                                        context,
+                                      ).colorScheme.surfaceContainerHighest
+                                    : const Color(0xFFE63946).withValues(alpha: 0.12),
                               ),
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) =>
-                                        const FavoritesScreen(),
-                                  ),
-                                );
-                              },
-                              icon: const Icon(Icons.favorite),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ),
