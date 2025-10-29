@@ -165,17 +165,23 @@ class AvailablePoisRoutesSheet extends StatelessWidget {
                                 // Realce de selección usando color primario (puedes ajustar opacidad si lo prefieres)
                                 selectedTileColor: primaryColor,
                                 onTap: () async {
-                                  // Centra el mapa en el punto medio de la ruta y selecciona la fila
-                                  final center = LatLng(
-                                    (route.initialLatitude +
-                                            route.finalLatitude) /
-                                        2,
-                                    (route.initialLongitude +
-                                            route.finalLongitude) /
-                                        2,
-                                  );
+                                  // Enfoca la cámara para mostrar toda la ruta (geometry o fallback a inicio/fin)
+                                  final List<LatLng> pts = (route.geometry != null && route.geometry.isNotEmpty)
+                                      ? route.geometry
+                                      : <LatLng>[
+                                          LatLng(route.initialLatitude, route.initialLongitude),
+                                          LatLng(route.finalLatitude, route.finalLongitude),
+                                        ];
+                                  if (pts.isNotEmpty) {
+                                    final bounds = LatLngBounds.fromPoints(pts);
+                                    mapController.fitCamera(
+                                      CameraFit.bounds(
+                                        bounds: bounds,
+                                        padding: const EdgeInsets.all(48),
+                                      ),
+                                    );
+                                  }
                                   setSelectedRouteIndex(index);
-                                  onMoveMap(center, zoom: 14);
                                   await LocalStorage.setLastRouteName(
                                     route.name,
                                   );
@@ -270,13 +276,23 @@ class AvailablePoisRoutesSheet extends StatelessWidget {
                         // Realce de selección para la ruta activa
                         selectedTileColor: primaryColor,
                         onTap: () async {
-                          // Centra el mapa en el punto medio de la ruta y actualiza selección
-                          final center = LatLng(
-                            (route.initialLatitude + route.finalLatitude) / 2,
-                            (route.initialLongitude + route.finalLongitude) / 2,
-                          );
+                          // Enfoca la cámara para mostrar toda la ruta (geometry o inicio/fin)
+                          final List<LatLng> pts = (route.geometry != null && route.geometry.isNotEmpty)
+                              ? route.geometry
+                              : <LatLng>[
+                                  LatLng(route.initialLatitude, route.initialLongitude),
+                                  LatLng(route.finalLatitude, route.finalLongitude),
+                                ];
+                          if (pts.isNotEmpty) {
+                            final bounds = LatLngBounds.fromPoints(pts);
+                            mapController.fitCamera(
+                              CameraFit.bounds(
+                                bounds: bounds,
+                                padding: const EdgeInsets.all(48),
+                              ),
+                            );
+                          }
                           setSelectedRouteIndex(index);
-                          onMoveMap(center, zoom: 14);
                           await LocalStorage.setLastRouteName(route.name);
                           await LocalStorage.setLastRouteWithPois(route);
                         },

@@ -260,8 +260,8 @@ class _MapPageState extends State<MapPage> {
                               ...state.filteredPois.map(
                                 (poi) => Marker(
                                   point: LatLng(poi.latitud, poi.longitud),
-                                  width: 80,
-                                  height: 60,
+                                  width: 120,
+                                  height: 84,
                                   child: GestureDetector(
                                     onTap: () {
                                       Navigator.push(
@@ -274,11 +274,25 @@ class _MapPageState extends State<MapPage> {
 
                                     child: Column(
                                       mainAxisSize: MainAxisSize.min,
-                                      children: const [
-                                        Icon(
+                                      children: [
+                                        const Icon(
                                           Icons.location_pin,
                                           color: Colors.red,
                                           size: 40,
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          poi.nombre,
+                                          textAlign: TextAlign.center,
+                                          softWrap: true,
+                                          maxLines: 2,
+                                          overflow: TextOverflow.fade,
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .onSurface,
+                                          ),
                                         ),
                                       ],
                                     ),
