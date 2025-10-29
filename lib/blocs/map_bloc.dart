@@ -484,6 +484,7 @@ class MapBloc extends Bloc<MapEvent, MapState> {
     double initialBearing;
     bool isReroute = false;
     MapLoaded? loadedSnapshotToRestore;
+    MapNavigating? navigatingSnapshotToRestore;
 
     if (state is MapLoaded) {
       final current = state as MapLoaded;
@@ -501,6 +502,7 @@ class MapBloc extends Bloc<MapEvent, MapState> {
       start = nav.userLocation ?? nav.start;
       initialBearing = nav.bearing ?? 0.0;
       isReroute = true;
+      navigatingSnapshotToRestore = nav;
       // do not emit MapLoading to avoid UI flicker during reroute
     }
 
@@ -511,12 +513,12 @@ class MapBloc extends Bloc<MapEvent, MapState> {
     );
     if (dist > 6000000) {
       emit(MapError("Tu ubicación actual está demasiado lejos del destino. "));
-      // If starting from MapLoaded, restore previous snapshot; if rerouting, keep current nav state
+      // If starting from MapLoaded, restore previous snapshot; if rerouting, restore current nav state
       if (!isReroute) {
         final snap = loadedSnapshotToRestore ?? _previousLoadedState;
-        if (snap != null) {
-          emit(snap);
-        }
+        if (snap != null) emit(snap);
+      } else if (navigatingSnapshotToRestore != null) {
+        emit(navigatingSnapshotToRestore);
       }
       return;
     }
@@ -557,10 +559,12 @@ class MapBloc extends Bloc<MapEvent, MapState> {
             'Falta configurar la API Key de OpenRouteService. Define ORS_API_KEY con --dart-define.',
           ),
         );
-        // Si veníamos desde MapLoaded, restaurar el snapshot para evitar pantalla de carga permanente
+        // Si veníamos desde MapLoaded, restaurar; si era reroute, restaurar el estado de navegación actual
         if (!isReroute) {
           final snap = loadedSnapshotToRestore ?? _previousLoadedState;
           if (snap != null) emit(snap);
+        } else if (navigatingSnapshotToRestore != null) {
+          emit(navigatingSnapshotToRestore);
         }
         return;
       }
@@ -570,7 +574,14 @@ class MapBloc extends Bloc<MapEvent, MapState> {
 
         final features = (data['features'] as List?) ?? [];
         if (features.isEmpty) {
-          emit(MapError("No se encontraron rutas disponibles"));
+          emit(MapError("No se encontraron rutas disponibles para este destino."));
+          // Restaurar estado previo para no dejar la UI en carga o error permanente
+          if (!isReroute) {
+            final snap = loadedSnapshotToRestore ?? _previousLoadedState;
+            if (snap != null) emit(snap);
+          } else if (navigatingSnapshotToRestore != null) {
+            emit(navigatingSnapshotToRestore);
+          }
           return;
         }
 
@@ -591,6 +602,13 @@ class MapBloc extends Bloc<MapEvent, MapState> {
           final steps = (segment['steps'] as List?);
           if (steps == null || steps.isEmpty) {
             emit(MapError("No se encontraron pasos en la ruta."));
+            // Restaurar estado previo
+            if (!isReroute) {
+              final snap = loadedSnapshotToRestore ?? _previousLoadedState;
+              if (snap != null) emit(snap);
+            } else if (navigatingSnapshotToRestore != null) {
+              emit(navigatingSnapshotToRestore);
+            }
             return;
           }
           for (final s in steps) {
@@ -662,15 +680,28 @@ class MapBloc extends Bloc<MapEvent, MapState> {
           ),
         );
       } else {
-      
         emit(
           MapError(
-            'Error al obtener ruta: ${response.statusCode}\n${response.body}',
+            'Error al obtener ruta: no se puede encontrar ruta válida (código ${response.statusCode}).',
           ),
         );
+        // Restaurar estado previo
+        if (!isReroute) {
+          final snap = loadedSnapshotToRestore ?? _previousLoadedState;
+          if (snap != null) emit(snap);
+        } else if (navigatingSnapshotToRestore != null) {
+          emit(navigatingSnapshotToRestore);
+        }
       }
     } catch (e) {
       emit(MapError("Error al navegar: $e"));
+      // Restaurar estado previo
+      if (!isReroute) {
+        final snap = loadedSnapshotToRestore ?? _previousLoadedState;
+        if (snap != null) emit(snap);
+      } else if (navigatingSnapshotToRestore != null) {
+        emit(navigatingSnapshotToRestore);
+      }
     }
   }
 

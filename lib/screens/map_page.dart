@@ -45,6 +45,8 @@ class _MapPageState extends State<MapPage> {
 
   bool _isOffline = false;
   Timer? _netTimer;
+  double _currentZoom = 15.0;
+  bool _showPoiLabels = true; // toggle POI name visibility based on zoom
 
   final double _fabPositionPadding = 10;
   @override
@@ -307,6 +309,18 @@ class _MapPageState extends State<MapPage> {
                         initialCenter: LatLng(-35.6960057, -71.4060907),
 
                         initialZoom: 15,
+                        onMapEvent: (event) {
+                          final z = event.camera.zoom;
+                          if (z != _currentZoom) {
+                            final show = z >= 14.0;
+                            if (show != _showPoiLabels) {
+                              setState(() {
+                                _showPoiLabels = show;
+                              });
+                            }
+                            _currentZoom = z;
+                          }
+                        },
                         // Testing helper: tap the map to update the user's position
                         onTap: (tapPosition, point) {
                           try {
@@ -355,19 +369,20 @@ class _MapPageState extends State<MapPage> {
                                           size: 40,
                                         ),
                                         const SizedBox(height: 2),
-                                        Text(
-                                          poi.nombre,
-                                          textAlign: TextAlign.center,
-                                          softWrap: true,
-                                          maxLines: 2,
-                                          overflow: TextOverflow.fade,
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            color: Theme.of(context)
-                                                .colorScheme
-                                                .onSurface,
+                                        if (_showPoiLabels)
+                                          Text(
+                                            poi.nombre,
+                                            textAlign: TextAlign.center,
+                                            softWrap: true,
+                                            maxLines: 2,
+                                            overflow: TextOverflow.fade,
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .onSurface,
+                                            ),
                                           ),
-                                        ),
                                       ],
                                     ),
                                   ),

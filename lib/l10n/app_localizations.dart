@@ -357,6 +357,42 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'{count, plural, one {# POI} other {# POI}}'**
   String poi_count_chip(int count);
+
+  /// Error cuando el origen está demasiado lejos del destino
+  ///
+  /// In es, this message translates to:
+  /// **'Tu ubicación actual está demasiado lejos del destino.'**
+  String get error_distance_too_far;
+
+  /// Falta clave de API de ORS
+  ///
+  /// In es, this message translates to:
+  /// **'Falta configurar la API Key de OpenRouteService. Define ORS_API_KEY con --dart-define.'**
+  String get error_missing_ors_key;
+
+  /// No hay rutas para el destino
+  ///
+  /// In es, this message translates to:
+  /// **'No se encontraron rutas disponibles para este destino.'**
+  String get error_no_routes_found;
+
+  /// La respuesta de ruta no contiene pasos
+  ///
+  /// In es, this message translates to:
+  /// **'No se encontraron pasos en la ruta.'**
+  String get error_no_steps_found;
+
+  /// Fallo HTTP al obtener ruta
+  ///
+  /// In es, this message translates to:
+  /// **'Error al obtener ruta: no se puede encontrar ruta válida (código {code}).'**
+  String error_http_route_failed(int code);
+
+  /// Excepción durante la navegación
+  ///
+  /// In es, this message translates to:
+  /// **'Error al navegar: {message}'**
+  String error_navigation_exception(Object message);
 }
 
 class _AppLocalizationsDelegate
