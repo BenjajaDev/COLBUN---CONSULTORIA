@@ -1,0 +1,348 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../bloc/theme_bloc.dart';
+import '../utils/app_colors.dart';
+import '../../../l10n/app_localizations.dart';
+// =============================================================================
+// COMPONENTE CHATBOT HEADER
+// =============================================================================
+
+/// Componente que representa la barra de aplicación (AppBar) personalizada
+/// del chatbot, incluyendo el título, interruptor de tema y menú de opciones.
+class ChatbotHeader extends StatelessWidget implements PreferredSizeWidget {
+  // ============================ PROPIEDADES ==================================
+
+  final VoidCallback onClearHistory;
+  final VoidCallback onContactWhatsApp;
+
+  /// Constructor del componente ChatbotHeader
+  const ChatbotHeader({
+    super.key,
+    required this.onClearHistory,
+    required this.onContactWhatsApp,
+  });
+
+  // ============================ CONSTRUCCIÓN DE LA UI ========================
+
+  /// Construye la interfaz de usuario de la barra de aplicación del chatbot
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<ThemeBloc, ThemeState>(
+      builder: (context, state) {
+        return AppBar(
+          systemOverlayStyle: SystemUiOverlayStyle(
+            // Hacemos que la barra de estado sea transparente
+            statusBarColor: Colors.transparent,
+
+            // Ponemos los iconos (hora, batería) en color claro para que se lean bien
+            statusBarIconBrightness:
+                state.isDarkMode ? Brightness.light : Brightness.dark,
+          ),
+          elevation: 0, // Sin sombra para un diseño más plano
+          backgroundColor:
+              state.isDarkMode ? AppColors.darkprimary : AppColors.lightprimary,
+          iconTheme: const IconThemeData(color: AppColors.lightbackground),
+          title: Text(
+            AppLocalizations.of(context)!.titleAsistente,
+            style: const TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w600,
+              fontFamily: 'Poppins',
+              color: Color(0xFFFFFFFF),
+            ),
+          ),
+          actions: [
+            // Botón de tamaño de fuente
+            Semantics(
+              label: 'Cambiar tamaño de fuente',
+              hint: 'Toca para cambiar el tamaño de fuente',
+              button: true,
+              child: PopupMenuButton<FontSize>(
+                tooltip: 'Tamaño de fuente',
+                icon: const Icon(
+                  Icons.text_fields,
+                  color: Colors.white,
+                ),
+                color: state.isDarkMode
+                    ? AppColors.darkprimary
+                    : AppColors.lightprimary,
+                onSelected: (FontSize size) {
+                  context.read<ThemeBloc>().add(ChangeFontSizeEvent(size));
+                },
+                itemBuilder: (BuildContext context) => <PopupMenuEntry<FontSize>>[
+                  PopupMenuItem<FontSize>(
+                    value: FontSize.small,
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.text_fields,
+                          size: 16,
+                          color: state.fontSize == FontSize.small
+                              ? Colors.green
+                              : Colors.white,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          AppLocalizations.of(context)!.fontSmall,
+                          style: TextStyle(
+                            color: state.fontSize == FontSize.small
+                                ? Colors.green
+                                : Colors.white,
+                            fontFamily: 'Poppins',
+                            fontWeight: state.fontSize == FontSize.small
+                                ? FontWeight.w600
+                                : FontWeight.w400,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem<FontSize>(
+                    value: FontSize.medium,
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.text_fields,
+                          size: 20,
+                          color: state.fontSize == FontSize.medium
+                              ? Colors.green
+                              : Colors.white,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          AppLocalizations.of(context)!.fontMedium,
+                          style: TextStyle(
+                            color: state.fontSize == FontSize.medium
+                                ? Colors.green
+                                : Colors.white,
+                            fontFamily: 'Poppins',
+                            fontWeight: state.fontSize == FontSize.medium
+                                ? FontWeight.w600
+                                : FontWeight.w400,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem<FontSize>(
+                    value: FontSize.large,
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.text_fields,
+                          size: 24,
+                          color: state.fontSize == FontSize.large
+                              ? Colors.green
+                              : Colors.white,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          AppLocalizations.of(context)!.fontLarge,
+                          style: TextStyle(
+                            color: state.fontSize == FontSize.large
+                                ? Colors.green
+                                : Colors.white,
+                            fontFamily: 'Poppins',
+                            fontWeight: state.fontSize == FontSize.large
+                                ? FontWeight.w600
+                                : FontWeight.w400,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Interruptor de cambio de tema (claro/oscuro)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+              child: Semantics(
+                label: state.isDarkMode ? 'Tema oscuro activado' : 'Tema claro activado',
+                hint: 'Toca para cambiar entre tema oscuro y claro',
+                child: Row(
+                  children: [
+                    // Icono que cambia según el tema actual
+                    ExcludeSemantics(
+                      child: Icon(
+                        state.isDarkMode ? Icons.nightlight_round : Icons.wb_sunny,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+
+                    // Interruptor para cambiar entre temas claro y oscuro
+                    Switch(
+                      value: state.isDarkMode,
+                      onChanged: (value) {
+                        // Dispara el evento para cambiar el tema
+                        context.read<ThemeBloc>().add(ToggleThemeEvent());
+                      },
+                      activeThumbColor: Colors.white,
+                      activeTrackColor: Colors.white.withValues(alpha: 0.5)
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Menú de opciones adicionales (tres puntos verticales)
+            SizedBox(
+              width: 44,
+              height: 44,
+              child: Semantics(
+                label: 'Menú de opciones',
+                hint: 'Toca dos veces para abrir el menú con más opciones',
+                button: true,
+                child: PopupMenuButton(
+                  icon: const Icon(Icons.more_vert, color: Color(0xFFFFFFFF)),
+                  tooltip: 'Menú de opciones',
+                  color: state.isDarkMode
+                      ? AppColors.darkprimary
+                      : AppColors.lightprimary,
+                  iconSize: 32,
+                  position: PopupMenuPosition.under,
+                  elevation: 8,
+                  offset: const Offset(0, 15),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8.0),
+                  ),
+                // Maneja la selección de opciones del menú
+                onSelected: (value) async {
+                  if (value == 'Whatsapp') {
+                    onContactWhatsApp();
+                  } else if (value == 'Borrar Historial') {
+                    // Mostrar diálogo de confirmación antes de borrar
+                    final confirmed = await showDialog<bool>(
+                      context: context,
+                      barrierDismissible: false,
+                      builder: (ctx) {
+                        final primaryColor = state.isDarkMode
+                            ? AppColors.darkprimary
+                            : AppColors.lightprimary;
+                        return AlertDialog(
+                          // Reduce horizontal inset para dar más espacio al título
+                          insetPadding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 24.0),
+                          titlePadding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+                          contentPadding: const EdgeInsets.fromLTRB(24, 12, 24, 12),
+                          actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          title:  Text(
+                            AppLocalizations.of(context)!.deseaBorrar,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontFamily: 'Poppins',
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          content: const SizedBox.shrink(),
+                          actions: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                // 'No, volver' on the left
+                                Expanded(
+                                  child: ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: primaryColor,
+                                      foregroundColor: Colors.white,
+                                      elevation: 0,
+                                    ),
+                                    onPressed: () {
+                                      Navigator.of(ctx).pop(false);
+                                    },
+                                    child:  Text(AppLocalizations.of(context)!.btnVolver, style: const TextStyle(fontFamily: 'Poppins')),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                // 'Si, Eliminar' on the right
+                                Expanded(
+                                  child: FilledButton(
+                                    style: FilledButton.styleFrom(
+                                      backgroundColor: Colors.red[700],
+                                      foregroundColor: Colors.white,
+                                    ),
+                                    onPressed: () {
+                                      Navigator.of(ctx).pop(true);
+                                    },
+                                    child:  Text(AppLocalizations.of(context)!.btnEliminar, style: const TextStyle(fontFamily: 'Poppins')),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        );
+                      },
+                    );
+
+                    if (confirmed == true) {
+                      onClearHistory();
+                    }
+                  }
+                },
+                // Construye los ítems del menú desplegable
+                itemBuilder: (BuildContext context) {
+                  FocusScope.of(context)
+                      .unfocus(); // Cierra el teclado si está abierto
+
+                  return [
+                    // Opción para contactar por WhatsApp
+                    PopupMenuItem(
+                      value: 'Whatsapp',
+                      child: ListTile(
+                        leading: const Icon(Icons.chat, color: Colors.green),
+                        title: Text(
+                          AppLocalizations.of(context)!.contactarWhatsapp,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontFamily: 'Poppins',
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    // Separador entre opciones
+                    const PopupMenuItem(
+                      enabled: false,
+                      height: 0,
+                      child: Divider(
+                        color: Colors.white,
+                        height: 1,
+                      ),
+                    ),
+
+                    // Opción para borrar el historial de conversación
+                    PopupMenuItem(
+                      value: 'Borrar Historial',
+                      child: ListTile(
+                        leading: const Icon(Icons.delete, color: Colors.red),
+                        title: Text(
+                          AppLocalizations.of(context)!.borrarHistorial,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w400,
+                            fontFamily: 'Poppins',
+                          ),
+                        ),
+                      ),
+                    ),
+                  ];
+                },
+              ),
+            ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // ============================ PROPIEDADES DEL WIDGET =======================
+
+  /// Define la altura preferida para la AppBar (altura estándar de toolbar)
+  @override
+  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
+}

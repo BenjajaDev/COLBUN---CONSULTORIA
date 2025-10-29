@@ -1,0 +1,77 @@
+Listado de rutas de carpetas para el volumen JUEGOS
+El n£mero de serie del volumen es 807D-4121
+J:.
+³   estructura.txt
+³   firebase_options.dart
+³   main.dart
+³   
+ÃÄÄÄfeatures
+³   ÃÄÄÄauth
+³   ³   ÃÄÄÄbloc
+³   ³   ³       auth_bloc.dart
+³   ³   ³       auth_event.dart
+³   ³   ³       auth_state.dart
+³   ³   ³       
+³   ³   ÃÄÄÄscreen
+³   ³   ³       auth_screen.dart
+³   ³   ³       
+³   ³   ÀÄÄÄwidgets
+³   ³           login_form.dart
+³   ³           register_form.dart
+³   ³           
+³   ÃÄÄÄchatbot
+³   ³   ÃÄÄÄbloc
+³   ³   ³       faq_bloc.dart
+³   ³   ³       faq_event.dart
+³   ³   ³       faq_state.dart
+³   ³   ³       theme_bloc.dart
+³   ³   ³       theme_event.dart
+³   ³   ³       theme_state.dart
+³   ³   ³       
+³   ³   ÃÄÄÄcomponents
+³   ³   ³       chatbot_body.dart
+³   ³   ³       chatbot_footer.dart
+³   ³   ³       chatbot_header.dart
+³   ³   ³       
+³   ³   ÃÄÄÄmodels
+³   ³   ³       bot_response.dart
+³   ³   ³       
+³   ³   ÃÄÄÄscreen
+³   ³   ³       chatbot_screen.dart
+³   ³   ³       
+³   ³   ÀÄÄÄutils
+³   ³           app_colors.dart
+³   ³           
+³   ÀÄÄÄhome
+³       ÃÄÄÄscreen
+³       ³       home_screen.dart
+³       ³       
+³       ÀÄÄÄwidgets
+³               app_drawer.dart
+³               
+ÃÄÄÄmodels
+³       conversation_model.dart
+³       emergency_model.dart
+³       faq_model.dart
+³       tourism_model.dart
+³       user_model.dart
+³       
+ÃÄÄÄservices
+³       auth_service.dart
+³       cache_service.dart
+³       chat_history_service.dart
+³       firestore_conversations.dart
+³       firestore_emergency.dart
+³       firestore_faq_service.dart
+³       firestore_tourism.dart
+³       language_service.dart
+³       metrics_service.dart
+³       openai_service.dart
+³       whatsapp_service.dart
+³       
+ÃÄÄÄshared_widgets
+³       custom_button.dart
+³       
+ÀÄÄÄutils
+        debug_logger.dart
+        

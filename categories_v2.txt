@@ -1,0 +1,137 @@
+[
+  {
+    "id": "autoridades",
+    "name": "Autoridades",
+    "icon": "👥",
+    "priority": 7,
+    "description": "Información de autoridades municipales",
+    "updated_at": {
+      "_seconds": 1759443343,
+      "_nanoseconds": 314000000
+    },
+    "created_at": {
+      "_seconds": 1759443343,
+      "_nanoseconds": 314000000
+    }
+  },
+  {
+    "id": "educacion",
+    "name": "Educación",
+    "icon": "🎓",
+    "priority": 5,
+    "description": "Establecimientos educacionales",
+    "updated_at": {
+      "_seconds": 1759443343,
+      "_nanoseconds": 201000000
+    },
+    "created_at": {
+      "_seconds": 1759443343,
+      "_nanoseconds": 201000000
+    }
+  },
+  {
+    "id": "emergencias",
+    "name": "Emergencias",
+    "icon": "🚨",
+    "priority": 6,
+    "description": "Números de emergencia y seguridad",
+    "updated_at": {
+      "_seconds": 1759443343,
+      "_nanoseconds": 293000000
+    },
+    "created_at": {
+      "_seconds": 1759443343,
+      "_nanoseconds": 293000000
+    }
+  },
+  {
+    "id": "informacion_general",
+    "name": "Información General",
+    "icon": "ℹ️",
+    "priority": 8,
+    "description": "Información general sobre Colbún",
+    "updated_at": {
+      "_seconds": 1759443343,
+      "_nanoseconds": 349000000
+    },
+    "created_at": {
+      "_seconds": 1759443343,
+      "_nanoseconds": 349000000
+    }
+  },
+  {
+    "id": "salud",
+    "name": "Salud",
+    "icon": "🏥",
+    "priority": 4,
+    "description": "Servicios de salud y emergencias",
+    "updated_at": {
+      "_seconds": 1759443343,
+      "_nanoseconds": 105000000
+    },
+    "created_at": {
+      "_seconds": 1759443343,
+      "_nanoseconds": 105000000
+    }
+  },
+  {
+    "id": "saludos_despedidas",
+    "name": "Saludos y Despedidas",
+    "icon": "👋",
+    "priority": 9,
+    "description": "Interacciones básicas del chatbot",
+    "updated_at": {
+      "_seconds": 1759443343,
+      "_nanoseconds": 374000000
+    },
+    "created_at": {
+      "_seconds": 1759443343,
+      "_nanoseconds": 374000000
+    }
+  },
+  {
+    "id": "servicios_municipales",
+    "name": "Servicios Municipales",
+    "icon": "🏛️",
+    "priority": 1,
+    "description": "Información sobre servicios municipales",
+    "updated_at": {
+      "_seconds": 1759443342,
+      "_nanoseconds": 905000000
+    },
+    "created_at": {
+      "_seconds": 1759443342,
+      "_nanoseconds": 905000000
+    }
+  },
+  {
+    "id": "tramites",
+    "name": "Trámites",
+    "icon": "📋",
+    "priority": 2,
+    "description": "Trámites y documentos municipales",
+    "updated_at": {
+      "_seconds": 1759443343,
+      "_nanoseconds": 15000000
+    },
+    "created_at": {
+      "_seconds": 1759443343,
+      "_nanoseconds": 15000000
+    }
+  },
+  {
+    "id": "turismo",
+    "name": "Turismo",
+    "icon": "🏔️",
+    "priority": 3,
+    "description": "Atractivos turísticos y actividades",
+    "updated_at": {
+      "_seconds": 1759443343,
+      "_nanoseconds": 53000000
+    },
+    "created_at": {
+      "_seconds": 1759443343,
+      "_nanoseconds": 53000000
+    }
+  }
+]
