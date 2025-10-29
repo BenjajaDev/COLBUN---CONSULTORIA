@@ -680,6 +680,15 @@ class _ChatbotScreenState extends State<ChatbotScreen>
         // Conversación creada en Firestore
       }
 
+      // SI YA SE RESTAURÓ EL HISTORIAL LOCAL: Solo sincronizar, no reemplazar mensajes
+      if (_hasRestoredLocalHistory && messages.isNotEmpty) {
+        _log('✅ Historial ya restaurado desde caché local (${messages.length} mensajes) - saltando carga desde Firestore');
+        setState(() {
+          _isLoadingConversation = false;
+        });
+        return;
+      }
+
       final conversationId = _currentConversationId!;
       final conversationData =
           await _firestoreConnection.getCompleteConversation(conversationId);
@@ -820,8 +829,9 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     await _chatHistoryService.clearHistory(conversationId: oldConversationId);
     _log('🗑️ Historial local borrado');
 
-    // 4. Resetear el ID de conversación
+    // 4. Resetear el ID de conversación Y la bandera de restauración
     _currentConversationId = null;
+    _hasRestoredLocalHistory = false;
 
     // 5. Crear nueva conversación (solo si está online)
     if (_isOnline) {
