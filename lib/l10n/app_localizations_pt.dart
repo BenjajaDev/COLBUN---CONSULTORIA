@@ -139,4 +139,32 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get emergency_ambulance_chile => 'Ambulância (SAMU)';
+
+  @override
+  String get iniciar_ruta => 'Iniciar rota';
+
+  @override
+  String get ver_detalles => 'Ver detalhes';
+
+  @override
+  String route_count_chip(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '# rotas',
+      one: '# rota',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String poi_count_chip(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '# POIs',
+      one: '# POI',
+    );
+    return '$_temp0';
+  }
 }

@@ -333,6 +333,30 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Ambulancia (SAMU)'**
   String get emergency_ambulance_chile;
+
+  /// Botón principal para iniciar la navegación de un POI
+  ///
+  /// In es, this message translates to:
+  /// **'Iniciar ruta'**
+  String get iniciar_ruta;
+
+  /// Botón secundario para abrir el detalle de un POI
+  ///
+  /// In es, this message translates to:
+  /// **'Ver detalles'**
+  String get ver_detalles;
+
+  /// Etiqueta del chip que indica la cantidad de rutas disponibles o coincidentes
+  ///
+  /// In es, this message translates to:
+  /// **'{count, plural, one {# ruta} other {# rutas}}'**
+  String route_count_chip(int count);
+
+  /// Etiqueta del chip que indica la cantidad de POI disponibles o coincidentes
+  ///
+  /// In es, this message translates to:
+  /// **'{count, plural, one {# POI} other {# POI}}'**
+  String poi_count_chip(int count);
 }
 
 class _AppLocalizationsDelegate

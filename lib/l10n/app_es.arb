@@ -131,4 +131,31 @@
   "@emergency_firefighters_chile": {"description": "Nombre para Bomberos de Chile"},
   "emergency_ambulance_chile": "Ambulancia (SAMU)",
   "@emergency_ambulance_chile": {"description": "Nombre para Servicio de Ambulancias SAMU"}
+  ,
+  "iniciar_ruta": "Iniciar ruta",
+  "@iniciar_ruta": {
+    "description": "Botón principal para iniciar la navegación de un POI"
+  },
+  "ver_detalles": "Ver detalles",
+  "@ver_detalles": {
+    "description": "Botón secundario para abrir el detalle de un POI"
+  },
+  "route_count_chip": "{count, plural, one {# ruta} other {# rutas}}",
+  "@route_count_chip": {
+    "description": "Etiqueta del chip que indica la cantidad de rutas disponibles o coincidentes",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "poi_count_chip": "{count, plural, one {# POI} other {# POI}}",
+  "@poi_count_chip": {
+    "description": "Etiqueta del chip que indica la cantidad de POI disponibles o coincidentes",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
 }

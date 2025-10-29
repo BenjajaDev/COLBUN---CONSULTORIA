@@ -66,5 +66,31 @@
     "telefonos_emergencia_title": "Telefones de emergência",
     "emergency_police_chile": "Polícia (Carabineros)",
     "emergency_firefighters_chile": "Bombeiros",
-    "emergency_ambulance_chile": "Ambulância (SAMU)"
+    "emergency_ambulance_chile": "Ambulância (SAMU)",
+    "iniciar_ruta": "Iniciar rota",
+    "@iniciar_ruta": {
+        "description": "Botão principal para iniciar a navegação de um POI"
+    },
+    "ver_detalles": "Ver detalhes",
+    "@ver_detalles": {
+        "description": "Botão secundário para abrir os detalhes de um POI"
+    },
+    "route_count_chip": "{count, plural, one {# rota} other {# rotas}}",
+    "@route_count_chip": {
+        "description": "Rótulo do chip que indica a quantidade de rotas disponíveis ou correspondentes",
+        "placeholders": {
+            "count": {
+                "type": "int"
+            }
+        }
+    },
+    "poi_count_chip": "{count, plural, one {# POI} other {# POIs}}",
+    "@poi_count_chip": {
+        "description": "Rótulo do chip que indica a quantidade de POIs disponíveis ou correspondentes",
+        "placeholders": {
+            "count": {
+                "type": "int"
+            }
+        }
+    }
 }
