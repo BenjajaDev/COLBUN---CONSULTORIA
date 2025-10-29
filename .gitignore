@@ -11,6 +11,7 @@
 .svn/
 .swiftpm/
 migrate_working_dir/
+*.env
 
 # IntelliJ related
 *.iml
@@ -43,3 +44,10 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+#Script introducir faqs 
+scripts/config/serviceAccountKey.json
+scripts/node_modules/
+/.github/copilot-instructions.md
+
+chatbotexplicado.md

@@ -1,0 +1,38 @@
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "chatbot-colbun",
+          "appId": "1:597064504946:android:712eb2ac546871b993d4eb",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "chatbot-colbun",
+          "configurations": {
+            "android": "1:597064504946:android:712eb2ac546871b993d4eb",
+            "ios": "1:597064504946:ios:643ac1907e5bab4393d4eb",
+            "macos": "1:597064504946:ios:643ac1907e5bab4393d4eb",
+            "web": "1:597064504946:web:3a1b9c801e72c98b93d4eb",
+            "windows": "1:597064504946:web:4afc02609c78e24393d4eb"
+          }
+        }
+      }
+    }
+  },
+  "functions": [
+  {
+    "source": "functions",
+    "codebase": "default",
+    "ignore": [
+      "node_modules",
+      ".git",
+      "firebase-debug.log",
+      "firebase-debug.*.log",
+      "*.local"
+    ]
+  }
+]
+}
