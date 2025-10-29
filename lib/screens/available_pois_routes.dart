@@ -83,6 +83,8 @@ class AvailablePoisRoutesSheet extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final textTheme = theme.textTheme;
+    // ViewInsets detecta el teclado y evita "BOTTOM OVERFLOWED" ajustando el padding inferior.
+    final double keyboardInset = MediaQuery.of(context).viewInsets.bottom;
 
     final bool isLoaded = state is MapLoaded;
     final String query = isLoaded ? (state as MapLoaded).query : '';
@@ -772,143 +774,149 @@ class AvailablePoisRoutesSheet extends StatelessWidget {
       );
     }
 
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 320),
+    return AnimatedPadding(
+      // Padding animado que reserva el espacio del teclado para evitar "BOTTOM OVERFLOWED" sin alterar la estética.
+      padding: EdgeInsets.only(bottom: keyboardInset),
+      duration: const Duration(milliseconds: 220),
       curve: Curves.easeOutCubic,
-      decoration: BoxDecoration(
-        color: colorScheme.surface.withValues(
-          alpha: theme.brightness == Brightness.dark ? 0.96 : 0.94,
-        ),
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.12),
-            blurRadius: 24,
-            offset: const Offset(0, -6),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 320),
+        curve: Curves.easeOutCubic,
+        decoration: BoxDecoration(
+          color: colorScheme.surface.withValues(
+            alpha: theme.brightness == Brightness.dark ? 0.96 : 0.94,
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const SizedBox(height: 6),
-          Center(
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.12),
+              blurRadius: 24,
+              offset: const Offset(0, -6),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const SizedBox(height: 6),
+            Center(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onVerticalDragUpdate: handleDragUpdate,
+                onVerticalDragEnd: handleDragEnd,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 6,
+                  ),
+                  child: Container(
+                    width: 52,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: colorScheme.outlineVariant.withValues(alpha: 0.6),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            GestureDetector(
+              behavior: HitTestBehavior.translucent,
               onVerticalDragUpdate: handleDragUpdate,
               onVerticalDragEnd: handleDragEnd,
               child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 6,
-                ),
-                child: Container(
-                  width: 52,
-                  height: 5,
-                  decoration: BoxDecoration(
-                    color: colorScheme.outlineVariant.withValues(alpha: 0.6),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
-          GestureDetector(
-            behavior: HitTestBehavior.translucent,
-            onVerticalDragUpdate: handleDragUpdate,
-            onVerticalDragEnd: handleDragEnd,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (selectedRoute != null) ...[
-                    DecoratedBox(
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: colorScheme.shadow.withAlpha(28),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Material(
-                        type: MaterialType.transparency,
-                        shape: const CircleBorder(),
-                        child: InkWell(
-                          customBorder: const CircleBorder(),
-                          onTap: onClearSelectedRoute,
-                          child: Padding(
-                            padding: const EdgeInsets.all(10),
-                            child: Icon(
-                              Icons.arrow_back_rounded,
-                              color: theme.brightness == Brightness.dark
-                                  ? colorScheme.primary
-                                  : colorScheme.onSurface,
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (selectedRoute != null) ...[
+                      DecoratedBox(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: colorScheme.shadow.withAlpha(28),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Material(
+                          type: MaterialType.transparency,
+                          shape: const CircleBorder(),
+                          child: InkWell(
+                            customBorder: const CircleBorder(),
+                            onTap: onClearSelectedRoute,
+                            child: Padding(
+                              padding: const EdgeInsets.all(10),
+                              child: Icon(
+                                Icons.arrow_back_rounded,
+                                color: theme.brightness == Brightness.dark
+                                    ? colorScheme.primary
+                                    : colorScheme.onSurface,
+                              ),
                             ),
                           ),
                         ),
                       ),
+                      const SizedBox(width: 12),
+                    ],
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 250),
+                            child: Text(
+                              headerTitle,
+                              key: ValueKey<String>(headerTitle),
+                              style: textTheme.headlineSmall?.copyWith(
+                                fontFamily: 'Poppins',
+                                fontWeight: FontWeight.w700,
+                                color: colorScheme.onSurface,
+                              ),
+                            ),
+                          ),
+                          if (headerChips.isNotEmpty) ...[
+                            const SizedBox(height: 12),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: headerChips,
+                            ),
+                          ],
+                        ],
+                      ),
                     ),
-                    const SizedBox(width: 12),
                   ],
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 250),
-                          child: Text(
-                            headerTitle,
-                            key: ValueKey<String>(headerTitle),
-                            style: textTheme.headlineSmall?.copyWith(
-                              fontFamily: 'Poppins',
-                              fontWeight: FontWeight.w700,
-                              color: colorScheme.onSurface,
-                            ),
-                          ),
-                        ),
-                        if (headerChips.isNotEmpty) ...[
-                          const SizedBox(height: 12),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: headerChips,
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 18),
-          Expanded(
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 300),
-              switchInCurve: Curves.easeOutCubic,
-              switchOutCurve: Curves.easeInCubic,
-              child: hasSearch
-                  ? KeyedSubtree(
-                      key: const ValueKey<String>('search-view'),
-                      child: buildSearchView(),
-                    )
-                  : selectedRoute == null
-                  ? KeyedSubtree(
-                      key: const ValueKey<String>('routes-view'),
-                      child: buildRoutesView(),
-                    )
-                  : KeyedSubtree(
-                      key: const ValueKey<String>('poi-view'),
-                      child: buildSelectedRouteView(),
-                    ),
+            const SizedBox(height: 18),
+            Expanded(
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                switchInCurve: Curves.easeOutCubic,
+                switchOutCurve: Curves.easeInCubic,
+                child: hasSearch
+                    ? KeyedSubtree(
+                        key: const ValueKey<String>('search-view'),
+                        child: buildSearchView(),
+                      )
+                    : selectedRoute == null
+                    ? KeyedSubtree(
+                        key: const ValueKey<String>('routes-view'),
+                        child: buildRoutesView(),
+                      )
+                    : KeyedSubtree(
+                        key: const ValueKey<String>('poi-view'),
+                        child: buildSelectedRouteView(),
+                      ),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

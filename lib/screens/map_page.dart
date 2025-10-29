@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 
@@ -33,7 +33,10 @@ class _MapPageState extends State<MapPage> {
       DraggableScrollableController();
   String _lastSearchText = '';
   int? selectedRouteIndex;
-  final double _initialSheetChildSize = 0.25;
+  // Inicial definido en 0.28 para que el modo colapsado coincida con el nuevo mínimo sin generar "BOTTOM OVERFLOWED".
+  final double _initialSheetChildSize = 0.28;
+  // Seguimiento del tamaño objetivo para animar el sheet según la visibilidad del teclado y evitar overflow.
+  double _currentSheetTargetSize = 0.28;
   double _dragScrollSheetExtent = 0;
   double _widgetHeight = 0;
   double _fabPosition = 0;
@@ -243,6 +246,47 @@ class _MapPageState extends State<MapPage> {
                     }
                   });
                 }
+              }
+              final mediaQuery = MediaQuery.of(context);
+              final double keyboardInset = mediaQuery.viewInsets.bottom;
+              final bool isKeyboardVisible = keyboardInset > 0;
+              // Ajuste dinámico de los límites del sheet para evitar "BOTTOM OVERFLOWED" al mostrarse u ocultarse el teclado.
+              const double collapsedMinSize = 0.28;
+              const double collapsedMaxSize = 0.72;
+              const double expandedMinSize = 0.9;
+              const double expandedMaxSize = 0.96;
+              const double collapsedInitialSize = collapsedMinSize;
+              const double expandedInitialSize = 0.92;
+              final double targetMinSize = isKeyboardVisible
+                  ? expandedMinSize
+                  : collapsedMinSize;
+              final double targetMaxSize = isKeyboardVisible
+                  ? expandedMaxSize
+                  : collapsedMaxSize;
+              final double targetInitialSize = isKeyboardVisible
+                  ? expandedInitialSize
+                  : collapsedInitialSize;
+
+              if ((targetInitialSize - _currentSheetTargetSize).abs() > 0.001) {
+                final double viewportHeight = mediaQuery.size.height;
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (!mounted) {
+                    return;
+                  }
+                  if (_draggableSheetController.isAttached) {
+                    _draggableSheetController.animateTo(
+                      targetInitialSize.clamp(targetMinSize, targetMaxSize),
+                      duration: const Duration(milliseconds: 260),
+                      curve: Curves.easeOutCubic,
+                    );
+                  }
+                  setState(() {
+                    _currentSheetTargetSize = targetInitialSize;
+                    _dragScrollSheetExtent = targetInitialSize;
+                    _widgetHeight = viewportHeight;
+                    _fabPosition = targetInitialSize * viewportHeight;
+                  });
+                });
               }
               // Choose tile style depending on current theme
               final bool isDark =
@@ -484,9 +528,9 @@ class _MapPageState extends State<MapPage> {
                       },
                       child: DraggableScrollableSheet(
                         controller: _draggableSheetController,
-                        initialChildSize: _initialSheetChildSize,
-                        minChildSize: 0.2,
-                        maxChildSize: 0.6,
+                        initialChildSize: targetInitialSize,
+                        minChildSize: targetMinSize,
+                        maxChildSize: targetMaxSize,
                         snap: true,
                         builder: (context, scrollController) {
                           return AvailablePoisRoutesSheet(
@@ -515,8 +559,8 @@ class _MapPageState extends State<MapPage> {
                             mapController: mapController,
                             scrollController: scrollController,
                             draggableController: _draggableSheetController,
-                            minChildSize: 0.2,
-                            maxChildSize: 0.6,
+                            minChildSize: targetMinSize,
+                            maxChildSize: targetMaxSize,
                           );
                         },
                       ),
@@ -532,9 +576,10 @@ class _MapPageState extends State<MapPage> {
                         return true;
                       },
                       child: DraggableScrollableSheet(
-                        initialChildSize: _initialSheetChildSize,
-                        minChildSize: 0.2,
-                        maxChildSize: 0.6,
+                        controller: _draggableSheetController,
+                        initialChildSize: targetInitialSize,
+                        minChildSize: targetMinSize,
+                        maxChildSize: targetMaxSize,
                         snap: true,
                         builder: (context, scrollController) {
                           // compute distance/time/eta from instructions
@@ -573,177 +618,191 @@ class _MapPageState extends State<MapPage> {
                             eta,
                           ).format(context);
 
-                          return Container(
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.surface,
-                              borderRadius: BorderRadius.vertical(
-                                top: Radius.circular(20),
-                              ),
-                              boxShadow: [
-                                BoxShadow(color: Colors.black26, blurRadius: 8),
-                              ],
-                            ),
-                            child: SingleChildScrollView(
-                              controller: scrollController,
-                              child: Padding(
-                                padding: const EdgeInsets.fromLTRB(
-                                  16,
-                                  12,
-                                  16,
-                                  20,
+                          return AnimatedPadding(
+                            // Padding animado que reserva el espacio del teclado para evitar "BOTTOM OVERFLOWED".
+                            padding: EdgeInsets.only(bottom: keyboardInset),
+                            duration: const Duration(milliseconds: 220),
+                            curve: Curves.easeOutCubic,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.surface,
+                                borderRadius: BorderRadius.vertical(
+                                  top: Radius.circular(20),
                                 ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Center(
-                                      child: Container(
-                                        margin: const EdgeInsets.only(top: 8),
-                                        width: 50,
-                                        height: 5,
-                                        decoration: BoxDecoration(
-                                          color: Colors.grey.shade400,
-                                          borderRadius: BorderRadius.circular(
-                                            10,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black26,
+                                    blurRadius: 8,
+                                  ),
+                                ],
+                              ),
+                              child: SingleChildScrollView(
+                                controller: scrollController,
+                                child: Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    16,
+                                    12,
+                                    16,
+                                    20,
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Center(
+                                        child: Container(
+                                          margin: const EdgeInsets.only(top: 8),
+                                          width: 50,
+                                          height: 5,
+                                          decoration: BoxDecoration(
+                                            color: Colors.grey.shade400,
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
                                           ),
                                         ),
                                       ),
-                                    ),
-                                    const SizedBox(height: 10),
-                                    Row(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                AppLocalizations.of(
-                                                  context,
-                                                )!.ruta_en_curso,
-                                                style: TextStyle(
-                                                  fontSize: 18,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: Theme.of(
+                                      const SizedBox(height: 10),
+                                      Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  AppLocalizations.of(
                                                     context,
-                                                  ).colorScheme.onSurface,
+                                                  )!.ruta_en_curso,
+                                                  style: TextStyle(
+                                                    fontSize: 18,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Theme.of(
+                                                      context,
+                                                    ).colorScheme.onSurface,
+                                                  ),
                                                 ),
-                                              ),
-                                              const SizedBox(height: 8),
-                                              Row(
-                                                children: [
-                                                  Icon(
-                                                    Icons.map,
-                                                    color: Theme.of(
-                                                      context,
-                                                    ).colorScheme.onSurface,
-                                                  ),
-                                                  const SizedBox(width: 8),
-                                                  // Toggle tema claro/oscuro
-                                                  IconButton(
-                                                    style: IconButton.styleFrom(
-                                                      backgroundColor: Theme.of(
+                                                const SizedBox(height: 8),
+                                                Row(
+                                                  children: [
+                                                    Icon(
+                                                      Icons.map,
+                                                      color: Theme.of(
                                                         context,
-                                                      ).colorScheme.surface,
-                                                      foregroundColor: Theme.of(
-                                                        context,
-                                                      ).colorScheme.primary,
-                                                      shape:
-                                                          const CircleBorder(),
+                                                      ).colorScheme.onSurface,
                                                     ),
-                                                    onPressed: () {
-                                                      context
-                                                          .read<ThemeProvider>()
-                                                          .toggleTheme();
-                                                    },
-                                                    icon: Icon(
-                                                      context
-                                                                  .watch<
-                                                                    ThemeProvider
-                                                                  >()
-                                                                  .themeMode ==
-                                                              ThemeMode.dark
-                                                          ? Icons.dark_mode
-                                                          : Icons.light_mode,
+                                                    const SizedBox(width: 8),
+                                                    // Toggle tema claro/oscuro
+                                                    IconButton(
+                                                      style: IconButton.styleFrom(
+                                                        backgroundColor:
+                                                            Theme.of(context)
+                                                                .colorScheme
+                                                                .surface,
+                                                        foregroundColor:
+                                                            Theme.of(context)
+                                                                .colorScheme
+                                                                .primary,
+                                                        shape:
+                                                            const CircleBorder(),
+                                                      ),
+                                                      onPressed: () {
+                                                        context
+                                                            .read<
+                                                              ThemeProvider
+                                                            >()
+                                                            .toggleTheme();
+                                                      },
+                                                      icon: Icon(
+                                                        context
+                                                                    .watch<
+                                                                      ThemeProvider
+                                                                    >()
+                                                                    .themeMode ==
+                                                                ThemeMode.dark
+                                                            ? Icons.dark_mode
+                                                            : Icons.light_mode,
+                                                      ),
                                                     ),
-                                                  ),
 
-                                                  Text(
-                                                    AppLocalizations.of(
-                                                      context,
-                                                    )!.distancia_fmt(
-                                                      distanceText,
+                                                    Text(
+                                                      AppLocalizations.of(
+                                                        context,
+                                                      )!.distancia_fmt(
+                                                        distanceText,
+                                                      ),
                                                     ),
-                                                  ),
-                                                ],
-                                              ),
-                                              const SizedBox(height: 6),
-                                              Row(
-                                                children: [
-                                                  Icon(
-                                                    Icons.access_time,
-                                                    color: Theme.of(
-                                                      context,
-                                                    ).colorScheme.onSurface,
-                                                  ),
-                                                  const SizedBox(width: 8),
-                                                  Text(
-                                                    AppLocalizations.of(
-                                                      context,
-                                                    )!.tiempo_aprox_fmt(
-                                                      durationText,
+                                                  ],
+                                                ),
+                                                const SizedBox(height: 6),
+                                                Row(
+                                                  children: [
+                                                    Icon(
+                                                      Icons.access_time,
+                                                      color: Theme.of(
+                                                        context,
+                                                      ).colorScheme.onSurface,
                                                     ),
-                                                  ),
-                                                ],
-                                              ),
-                                              const SizedBox(height: 6),
-                                              Row(
-                                                children: [
-                                                  Icon(
-                                                    Icons.schedule,
-                                                    color: Theme.of(
-                                                      context,
-                                                    ).colorScheme.onSurface,
-                                                  ),
-                                                  const SizedBox(width: 8),
-                                                  Text(
-                                                    AppLocalizations.of(
-                                                      context,
-                                                    )!.llegada_aprox_fmt(
-                                                      etaText,
+                                                    const SizedBox(width: 8),
+                                                    Text(
+                                                      AppLocalizations.of(
+                                                        context,
+                                                      )!.tiempo_aprox_fmt(
+                                                        durationText,
+                                                      ),
                                                     ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ],
+                                                  ],
+                                                ),
+                                                const SizedBox(height: 6),
+                                                Row(
+                                                  children: [
+                                                    Icon(
+                                                      Icons.schedule,
+                                                      color: Theme.of(
+                                                        context,
+                                                      ).colorScheme.onSurface,
+                                                    ),
+                                                    const SizedBox(width: 8),
+                                                    Text(
+                                                      AppLocalizations.of(
+                                                        context,
+                                                      )!.llegada_aprox_fmt(
+                                                        etaText,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ],
+                                            ),
                                           ),
-                                        ),
-                                        ElevatedButton(
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: Theme.of(
-                                              context,
-                                            ).colorScheme.primary,
-                                            foregroundColor: Theme.of(
-                                              context,
-                                            ).colorScheme.onPrimary,
+                                          ElevatedButton(
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: Theme.of(
+                                                context,
+                                              ).colorScheme.primary,
+                                              foregroundColor: Theme.of(
+                                                context,
+                                              ).colorScheme.onPrimary,
+                                            ),
+                                            onPressed: () {
+                                              // cancel navigation
+                                              context.read<MapBloc>().add(
+                                                CancelNavigation(),
+                                              );
+                                            },
+                                            child: Text(
+                                              AppLocalizations.of(
+                                                context,
+                                              )!.cancelar,
+                                            ),
                                           ),
-                                          onPressed: () {
-                                            // cancel navigation
-                                            context.read<MapBloc>().add(
-                                              CancelNavigation(),
-                                            );
-                                          },
-                                          child: Text(
-                                            AppLocalizations.of(
-                                              context,
-                                            )!.cancelar,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 12),
-                                  ],
+                                        ],
+                                      ),
+                                      const SizedBox(height: 12),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),
@@ -994,9 +1053,10 @@ class _MapPageState extends State<MapPage> {
                                     hintStyle: TextStyle(
                                       fontFamily: 'Poppins',
                                       fontWeight: FontWeight.w500,
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.onSurface.withValues(alpha:0.6),
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurface
+                                          .withValues(alpha: 0.6),
                                     ),
                                   ),
                                 ),
@@ -1042,7 +1102,9 @@ class _MapPageState extends State<MapPage> {
                                     ? Theme.of(
                                         context,
                                       ).colorScheme.surfaceContainerHighest
-                                    : const Color(0xFFE63946).withValues(alpha: 0.12),
+                                    : const Color(
+                                        0xFFE63946,
+                                      ).withValues(alpha: 0.12),
                               ),
                             ],
                           ),
