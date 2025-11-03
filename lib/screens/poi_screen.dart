@@ -11,6 +11,8 @@ import 'package:latlong2/latlong.dart';
 import 'package:consultoria_chat_bot/states/map_state.dart';
 import 'package:consultoria_chat_bot/blocs/map_bloc.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+// NUEVO: para poder navegar a la lista de favoritos desde el SnackBar
+import 'package:consultoria_chat_bot/screens/favorites_screen.dart';
 
 class PoiScreen extends StatefulWidget {
   final POI poi;
@@ -151,55 +153,58 @@ class _PoiScreenState extends State<PoiScreen> {
                                     fit: BoxFit.contain,
                                     loadingBuilder:
                                         (context, child, loadingProgress) {
-                                      if (loadingProgress == null) return child;
-                                      final theme = Theme.of(context);
-                                      final expected = loadingProgress
-                                          .expectedTotalBytes;
-                                      final loaded = loadingProgress
-                                          .cumulativeBytesLoaded;
-                    final value = expected != null
-                      ? loaded / expected
-                                          : null;
-                                      return Container(
-                                        padding: const EdgeInsets.all(24),
-                                        color: theme.colorScheme
-                                            .surfaceContainerLow,
-                                        child: Center(
-                                          child: SizedBox(
-                                            width: 28,
-                                            height: 28,
-                                            child: CircularProgressIndicator(
-                                              value: value,
-                                              strokeWidth: 3,
+                                          if (loadingProgress == null)
+                                            return child;
+                                          final theme = Theme.of(context);
+                                          final expected = loadingProgress
+                                              .expectedTotalBytes;
+                                          final loaded = loadingProgress
+                                              .cumulativeBytesLoaded;
+                                          final value = expected != null
+                                              ? loaded / expected
+                                              : null;
+                                          return Container(
+                                            padding: const EdgeInsets.all(24),
+                                            color: theme
+                                                .colorScheme
+                                                .surfaceContainerLow,
+                                            child: Center(
+                                              child: SizedBox(
+                                                width: 28,
+                                                height: 28,
+                                                child:
+                                                    CircularProgressIndicator(
+                                                      value: value,
+                                                      strokeWidth: 3,
+                                                    ),
+                                              ),
                                             ),
-                                          ),
-                                        ),
-                                      );
-                                    },
+                                          );
+                                        },
                                     errorBuilder: (context, error, stack) {
                                       return Container(
                                         padding: const EdgeInsets.all(24),
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .surfaceContainerLow,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.surfaceContainerLow,
                                         child: Column(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
                                             Icon(
                                               Icons.broken_image_outlined,
                                               size: 48,
-                                              color: Theme.of(context)
-                                                  .colorScheme
-                                                  .onSurfaceVariant,
+                                              color: Theme.of(
+                                                context,
+                                              ).colorScheme.onSurfaceVariant,
                                             ),
                                             const SizedBox(height: 12),
                                             Text(
                                               'Image unavailable',
                                               textAlign: TextAlign.center,
                                               style: TextStyle(
-                                                color: Theme.of(context)
-                                                    .colorScheme
-                                                    .onSurfaceVariant,
+                                                color: Theme.of(
+                                                  context,
+                                                ).colorScheme.onSurfaceVariant,
                                               ),
                                             ),
                                           ],
@@ -210,18 +215,18 @@ class _PoiScreenState extends State<PoiScreen> {
                                 } else {
                                   dialogChild = Container(
                                     padding: const EdgeInsets.all(24),
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .surfaceContainerLow,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.surfaceContainerLow,
                                     child: Column(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         Icon(
                                           Icons.broken_image_outlined,
                                           size: 48,
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .onSurfaceVariant,
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.onSurfaceVariant,
                                         ),
                                       ],
                                     ),
@@ -241,15 +246,15 @@ class _PoiScreenState extends State<PoiScreen> {
                                   return Container(
                                     width: double.infinity,
                                     height: 250,
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .surfaceContainerLow,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.surfaceContainerLow,
                                     child: Icon(
                                       Icons.broken_image_outlined,
                                       size: 48,
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onSurfaceVariant,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurfaceVariant,
                                     ),
                                   );
                                 }
@@ -260,45 +265,46 @@ class _PoiScreenState extends State<PoiScreen> {
                                   height: 250,
                                   loadingBuilder:
                                       (context, child, loadingProgress) {
-                                    if (loadingProgress == null) return child;
-                                    final expected = loadingProgress
-                                        .expectedTotalBytes;
-                                    final loaded = loadingProgress
-                                        .cumulativeBytesLoaded;
-                  final value = expected != null
-                    ? loaded / expected
-                                        : null;
-                                    return Container(
-                                      width: double.infinity,
-                                      height: 250,
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .surfaceContainerLow,
-                                      child: Center(
-                                        child: SizedBox(
-                                          width: 28,
-                                          height: 28,
-                                          child: CircularProgressIndicator(
-                                            value: value,
-                                            strokeWidth: 3,
+                                        if (loadingProgress == null)
+                                          return child;
+                                        final expected =
+                                            loadingProgress.expectedTotalBytes;
+                                        final loaded = loadingProgress
+                                            .cumulativeBytesLoaded;
+                                        final value = expected != null
+                                            ? loaded / expected
+                                            : null;
+                                        return Container(
+                                          width: double.infinity,
+                                          height: 250,
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.surfaceContainerLow,
+                                          child: Center(
+                                            child: SizedBox(
+                                              width: 28,
+                                              height: 28,
+                                              child: CircularProgressIndicator(
+                                                value: value,
+                                                strokeWidth: 3,
+                                              ),
+                                            ),
                                           ),
-                                        ),
-                                      ),
-                                    );
-                                  },
+                                        );
+                                      },
                                   errorBuilder: (context, error, stack) {
                                     return Container(
                                       width: double.infinity,
                                       height: 250,
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .surfaceContainerLow,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.surfaceContainerLow,
                                       child: Icon(
                                         Icons.broken_image_outlined,
                                         size: 48,
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .onSurfaceVariant,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.onSurfaceVariant,
                                       ),
                                     );
                                   },
@@ -329,20 +335,27 @@ class _PoiScreenState extends State<PoiScreen> {
                                       return ActionChip(
                                         label: Text(
                                           () {
-                                            final Map<String, dynamic> nombreMap =
+                                            final Map<String, dynamic>
+                                            nombreMap =
                                                 (items[index]['nombre'] as Map?)
-                                                        ?.cast<String, dynamic>() ??
+                                                    ?.cast<String, dynamic>() ??
                                                 <String, dynamic>{};
                                             final code = Localizations.localeOf(
                                               context,
                                             ).languageCode;
-                                            final langValue = (nombreMap[code]?.toString() ?? '')
-                                                .trim();
+                                            final langValue =
+                                                (nombreMap[code]?.toString() ??
+                                                        '')
+                                                    .trim();
                                             if (langValue.isEmpty) {
                                               final esValue =
-                                                  (nombreMap['es']?.toString() ?? '')
+                                                  (nombreMap['es']
+                                                              ?.toString() ??
+                                                          '')
                                                       .trim();
-                                              return esValue.isNotEmpty ? esValue : langValue;
+                                              return esValue.isNotEmpty
+                                                  ? esValue
+                                                  : langValue;
                                             }
                                             return langValue;
                                           }(),
@@ -365,26 +378,76 @@ class _PoiScreenState extends State<PoiScreen> {
                                 ),
                               ),
 
-                              // Icono de favorito
+                              // ======= FAVORITO: AnimatedSwitcher + SnackBar con "Ver favoritos" =======
                               BlocBuilder<FavoritesCubit, FavoritesState>(
                                 builder: (context, favoritesState) {
                                   final isFavorite = favoritesState.contains(
                                     widget.poi.id,
                                   );
-                                  return IconButton(
-                                    icon: Icon(
-                                      isFavorite
-                                          ? Icons.favorite
-                                          : Icons.favorite_border,
-                                      color: isFavorite
-                                          ? Colors.pink
-                                          : Colors.grey,
+
+                                  return AnimatedSwitcher(
+                                    duration: const Duration(milliseconds: 300),
+                                    transitionBuilder: (child, anim) =>
+                                        ScaleTransition(
+                                          scale: anim,
+                                          child: child,
+                                        ),
+                                    child: IconButton(
+                                      key: ValueKey<bool>(isFavorite),
+                                      icon: Icon(
+                                        isFavorite
+                                            ? Icons.favorite
+                                            : Icons.favorite_border,
+                                        color: isFavorite
+                                            ? Colors.pink
+                                            : Colors.grey,
+                                      ),
+                                      onPressed: () {
+                                        // estado previo, para decidir mensaje/acción
+                                        final wasFavorite = isFavorite;
+
+                                        // lógica intacta
+                                        context
+                                            .read<FavoritesCubit>()
+                                            .toggleFavorite(widget.poi);
+
+                                        // mensaje + acción opcional
+                                        final msg = wasFavorite
+                                            ? 'Eliminado de favoritos'
+                                            : 'Añadido a favoritos';
+
+                                        ScaffoldMessenger.of(context)
+                                          ..hideCurrentSnackBar()
+                                          ..showSnackBar(
+                                            SnackBar(
+                                              content: Text(msg),
+                                              duration: const Duration(
+                                                seconds: 2,
+                                              ),
+                                              behavior:
+                                                  SnackBarBehavior.floating,
+                                              // acción solo cuando se agrega
+                                              action: wasFavorite
+                                                  ? null
+                                                  : SnackBarAction(
+                                                      label: 'Ver favoritos',
+                                                      textColor: const Color(
+                                                        0xFF4D67AE,
+                                                      ),
+                                                      onPressed: () {
+                                                        Navigator.push(
+                                                          context,
+                                                          MaterialPageRoute(
+                                                            builder: (_) =>
+                                                                const FavoritesScreen(),
+                                                          ),
+                                                        );
+                                                      },
+                                                    ),
+                                            ),
+                                          );
+                                      },
                                     ),
-                                    onPressed: () {
-                                      context
-                                          .read<FavoritesCubit>()
-                                          .toggleFavorite(widget.poi);
-                                    },
                                   );
                                 },
                               ),
@@ -414,7 +477,7 @@ class _PoiScreenState extends State<PoiScreen> {
                                 ),
                                 child: DropdownButton<String>(
                                   value: valorSeleccionado,
-                                  underline: SizedBox(),
+                                  underline: const SizedBox(),
                                   borderRadius: BorderRadius.circular(18),
                                   style: TextStyle(
                                     color: Theme.of(
@@ -654,7 +717,7 @@ class _PoiScreenState extends State<PoiScreen> {
                                   },
                                 ),
                               ),
-                              Spacer(),
+                              const Spacer(),
                               ElevatedButton.icon(
                                 onPressed: () {
                                   Navigator.push(
@@ -699,36 +762,44 @@ class _PoiScreenState extends State<PoiScreen> {
                                   child: Builder(
                                     builder: (context) {
                                       final loc = AppLocalizations.of(context)!;
-                                      final sel = valorSeleccionado ?? 'Primavera';
+                                      final sel =
+                                          valorSeleccionado ?? 'Primavera';
                                       String seasonLabel;
                                       String recommendation;
                                       switch (sel) {
                                         case 'Otoño':
                                           seasonLabel = loc.otono;
-                                          recommendation = loc.recomendacion_temporada_otono;
+                                          recommendation =
+                                              loc.recomendacion_temporada_otono;
                                           break;
                                         case 'Invierno':
                                           seasonLabel = loc.invierno;
-                                          recommendation = loc.recomendacion_temporada_invierno;
+                                          recommendation = loc
+                                              .recomendacion_temporada_invierno;
                                           break;
                                         case 'Primavera':
                                           seasonLabel = loc.primavera;
-                                          recommendation = loc.recomendacion_temporada_primavera;
+                                          recommendation = loc
+                                              .recomendacion_temporada_primavera;
                                           break;
                                         case 'Verano':
                                           seasonLabel = loc.verano;
-                                          recommendation = loc.recomendacion_temporada_verano;
+                                          recommendation = loc
+                                              .recomendacion_temporada_verano;
                                           break;
                                         default:
                                           seasonLabel = sel;
                                           recommendation = '';
                                       }
-                                      final text = '${loc.temporada_actual_fmt(seasonLabel)}\n$recommendation';
+                                      final text =
+                                          '${loc.temporada_actual_fmt(seasonLabel)}\n$recommendation';
                                       return Text(
                                         text,
                                         style: TextStyle(
                                           fontSize: 16,
-                                          color: Theme.of(context).colorScheme.onSecondaryContainer,
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.onSecondaryContainer,
                                         ),
                                       );
                                     },
@@ -756,22 +827,20 @@ class _PoiScreenState extends State<PoiScreen> {
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 15,
                                 ),
-                                child: Text(
-                                  () {
-                                    final code = Localizations.localeOf(
-                                      context,
-                                    ).languageCode;
-                                    final current = (widget.poi.descripcion[code] ?? '')
-                                        .toString()
-                                        .trim();
-                                    if (current.isEmpty) {
-                                      return (widget.poi.descripcion['es'] ?? '')
-                                          .toString();
-                                    }
-                                    return current;
-                                  }(),
-                                  style: const TextStyle(fontSize: 16),
-                                ),
+                                child: Text(() {
+                                  final code = Localizations.localeOf(
+                                    context,
+                                  ).languageCode;
+                                  final current =
+                                      (widget.poi.descripcion[code] ?? '')
+                                          .toString()
+                                          .trim();
+                                  if (current.isEmpty) {
+                                    return (widget.poi.descripcion['es'] ?? '')
+                                        .toString();
+                                  }
+                                  return current;
+                                }(), style: const TextStyle(fontSize: 16)),
                               ),
 
                               //Tabs Recomendados / Cerca de ti
@@ -893,12 +962,10 @@ class _PoiScreenState extends State<PoiScreen> {
                                         height: 140,
                                         child: PageView.builder(
                                           controller: _recomendadosController,
-                                          itemCount: state
-                                              .recommended
-                                              .length, //vinculado al estado
+                                          itemCount: state.recommended.length,
                                           itemBuilder: (context, index) {
-                                            final rec = state
-                                                .recommended[index]; //usa datos del estado
+                                            final rec =
+                                                state.recommended[index];
                                             return Padding(
                                               padding:
                                                   const EdgeInsets.symmetric(
@@ -1025,9 +1092,7 @@ class _PoiScreenState extends State<PoiScreen> {
                                       mainAxisAlignment:
                                           MainAxisAlignment.center,
                                       children: List.generate(
-                                        state
-                                            .recommended
-                                            .length, //  indicadores ligados al estado
+                                        state.recommended.length,
                                         (i) => Container(
                                           width: 8,
                                           height: 8,
@@ -1062,19 +1127,14 @@ class _PoiScreenState extends State<PoiScreen> {
                                         height: 140,
                                         child: PageView.builder(
                                           controller: _cercanosController,
-                                          itemCount: state
-                                              .nearby
-                                              .length, //vinculado al estado
+                                          itemCount: state.nearby.length,
                                           itemBuilder: (context, index) {
-                                            final p = state
-                                                .nearby[index]; //usa datos del estado
-                                            final double? km =
-                                                dkm[p
-                                                    .id]; //  distancia para subtitulo
+                                            final p = state.nearby[index];
+                                            final double? km = dkm[p.id];
                                             final String? subtitleText =
                                                 km == null
                                                 ? null
-                                                : "${km.toStringAsFixed(1)} km"; // formato texto km
+                                                : "${km.toStringAsFixed(1)} km";
                                             return Padding(
                                               padding:
                                                   const EdgeInsets.symmetric(
@@ -1147,9 +1207,7 @@ class _PoiScreenState extends State<PoiScreen> {
                                       mainAxisAlignment:
                                           MainAxisAlignment.center,
                                       children: List.generate(
-                                        state
-                                            .nearby
-                                            .length, // indicadores ligados al estado
+                                        state.nearby.length,
                                         (i) => Container(
                                           width: 8,
                                           height: 8,
