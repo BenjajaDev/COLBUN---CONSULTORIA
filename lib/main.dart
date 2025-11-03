@@ -13,9 +13,28 @@ import 'package:provider/provider.dart';
 import 'package:consultoria_chat_bot/theme.dart';
 import 'firebase_options.dart';
 
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:consultoria_chat_bot/model/route_model.dart';
+import 'package:consultoria_chat_bot/model/poi_model.dart';
+import 'package:consultoria_chat_bot/model/hive_adapters.dart';
+import 'package:consultoria_chat_bot/services/network_service.dart';
+import 'package:consultoria_chat_bot/services/local_storage_service.dart';
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  //  --- CONFIGURACIÓN DE HIVE ---
+  // 1. Inicializa Hive en el directorio de la app
+  await Hive.initFlutter();
+  
+  // 2. Registra los "traductores" (Adaptadores) que creamos
+  Hive.registerAdapter(MapRouteAdapter()); // El generado para MapRoute (typeId: 0)
+  Hive.registerAdapter(POIAdapter());      // El generado para POI (typeId: 1)
+  Hive.registerAdapter(LatLngAdapter());    // El que hicimos a mano (typeId: 100)
+  // --- FIN CONFIGURACIÓN HIVE ---
+
+
   // Lock app to portrait by default; specific screens may override temporarily.
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
@@ -38,11 +57,26 @@ class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   // This widget is the root of your application.
-  @override
+  @override 
   Widget build(BuildContext context) {
+
+    final firestoreService = FireStoreService();
+    final networkService = NetworkService();
+    final localStorageService = LocalStorageService();
+
     return MultiBlocProvider(
       providers: [
-        BlocProvider(create: (context) => MapBloc(FireStoreService())),
+        BlocProvider(
+          create: (context) => MapBloc(
+            firestoreService,
+            networkService,
+            localStorageService,
+          ),
+        ),
+        
+        // (El código antiguo que daba error era este:)
+        // BlocProvider(create: (context) => MapBloc(FireStoreService())),
+
         BlocProvider(create: (context) => PoiBloc()),
         BlocProvider(create: (context) => FavoritesCubit()),
       ],

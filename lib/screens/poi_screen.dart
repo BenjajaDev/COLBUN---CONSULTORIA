@@ -12,6 +12,8 @@ import 'package:consultoria_chat_bot/states/map_state.dart';
 import 'package:consultoria_chat_bot/blocs/map_bloc.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'package:cached_network_image/cached_network_image.dart';
+
 class PoiScreen extends StatefulWidget {
   final POI poi;
   const PoiScreen(this.poi, {super.key});
@@ -146,60 +148,61 @@ class _PoiScreenState extends State<PoiScreen> {
                                 final bool hasUrl = url.trim().isNotEmpty;
                                 Widget dialogChild;
                                 if (hasUrl) {
-                                  dialogChild = Image.network(
-                                    url,
+                                  dialogChild = CachedNetworkImage(
+                                    imageUrl:
+                                        url, // 'url' ahora se llama 'imageUrl'
                                     fit: BoxFit.contain,
-                                    loadingBuilder:
-                                        (context, child, loadingProgress) {
-                                      if (loadingProgress == null) return child;
-                                      final theme = Theme.of(context);
-                                      final expected = loadingProgress
-                                          .expectedTotalBytes;
-                                      final loaded = loadingProgress
-                                          .cumulativeBytesLoaded;
-                    final value = expected != null
-                      ? loaded / expected
-                                          : null;
-                                      return Container(
-                                        padding: const EdgeInsets.all(24),
-                                        color: theme.colorScheme
-                                            .surfaceContainerLow,
-                                        child: Center(
-                                          child: SizedBox(
-                                            width: 28,
-                                            height: 28,
-                                            child: CircularProgressIndicator(
-                                              value: value,
-                                              strokeWidth: 3,
+
+                                    // 2. 'loadingBuilder' se reemplaza por 'progressIndicatorBuilder'
+                                    //    El objeto de progreso es más simple: 'downloadProgress.progress'
+                                    progressIndicatorBuilder:
+                                        (context, url, downloadProgress) {
+                                          final theme = Theme.of(context);
+                                          // 'downloadProgress.progress' ya te da el valor (ej: 0.5)
+                                          final value =
+                                              downloadProgress.progress;
+                                          return Container(
+                                            padding: const EdgeInsets.all(24),
+                                            color: theme
+                                                .colorScheme
+                                                .surfaceContainerLow,
+                                            child: Center(
+                                              child: SizedBox(
+                                                width: 28,
+                                                height: 28,
+                                                child:
+                                                    CircularProgressIndicator(
+                                                      value: value,
+                                                      strokeWidth: 3,
+                                                    ),
+                                              ),
                                             ),
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                    errorBuilder: (context, error, stack) {
+                                          );
+                                        },
+                                    errorWidget: (context, url, error) {
                                       return Container(
                                         padding: const EdgeInsets.all(24),
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .surfaceContainerLow,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.surfaceContainerLow,
                                         child: Column(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
                                             Icon(
                                               Icons.broken_image_outlined,
                                               size: 48,
-                                              color: Theme.of(context)
-                                                  .colorScheme
-                                                  .onSurfaceVariant,
+                                              color: Theme.of(
+                                                context,
+                                              ).colorScheme.onSurfaceVariant,
                                             ),
                                             const SizedBox(height: 12),
                                             Text(
                                               'Image unavailable',
                                               textAlign: TextAlign.center,
                                               style: TextStyle(
-                                                color: Theme.of(context)
-                                                    .colorScheme
-                                                    .onSurfaceVariant,
+                                                color: Theme.of(
+                                                  context,
+                                                ).colorScheme.onSurfaceVariant,
                                               ),
                                             ),
                                           ],
@@ -210,18 +213,18 @@ class _PoiScreenState extends State<PoiScreen> {
                                 } else {
                                   dialogChild = Container(
                                     padding: const EdgeInsets.all(24),
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .surfaceContainerLow,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.surfaceContainerLow,
                                     child: Column(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         Icon(
                                           Icons.broken_image_outlined,
                                           size: 48,
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .onSurfaceVariant,
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.onSurfaceVariant,
                                         ),
                                       ],
                                     ),
@@ -241,64 +244,63 @@ class _PoiScreenState extends State<PoiScreen> {
                                   return Container(
                                     width: double.infinity,
                                     height: 250,
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .surfaceContainerLow,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.surfaceContainerLow,
                                     child: Icon(
                                       Icons.broken_image_outlined,
                                       size: 48,
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onSurfaceVariant,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurfaceVariant,
                                     ),
                                   );
                                 }
-                                return Image.network(
-                                  url,
+                                return CachedNetworkImage(
+                                  imageUrl:
+                                      url, // <- Parámetro se llama 'imageUrl'
                                   fit: BoxFit.cover,
                                   width: double.infinity,
                                   height: 250,
-                                  loadingBuilder:
-                                      (context, child, loadingProgress) {
-                                    if (loadingProgress == null) return child;
-                                    final expected = loadingProgress
-                                        .expectedTotalBytes;
-                                    final loaded = loadingProgress
-                                        .cumulativeBytesLoaded;
-                  final value = expected != null
-                    ? loaded / expected
-                                        : null;
-                                    return Container(
-                                      width: double.infinity,
-                                      height: 250,
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .surfaceContainerLow,
-                                      child: Center(
-                                        child: SizedBox(
-                                          width: 28,
-                                          height: 28,
-                                          child: CircularProgressIndicator(
-                                            value: value,
-                                            strokeWidth: 3,
+
+                                  // 'loadingBuilder' se convierte en 'progressIndicatorBuilder'
+                                  progressIndicatorBuilder:
+                                      (context, url, downloadProgress) {
+                                        final value = downloadProgress
+                                            .progress; // <- Obtenemos el progreso
+                                        return Container(
+                                          width: double.infinity,
+                                          height: 250,
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.surfaceContainerLow,
+                                          child: Center(
+                                            child: SizedBox(
+                                              width: 28,
+                                              height: 28,
+                                              child: CircularProgressIndicator(
+                                                value: value,
+                                                strokeWidth: 3,
+                                              ),
+                                            ),
                                           ),
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                  errorBuilder: (context, error, stack) {
+                                        );
+                                      },
+
+                                  // 'errorBuilder' se convierte en 'errorWidget'
+                                  errorWidget: (context, url, error) {
                                     return Container(
                                       width: double.infinity,
                                       height: 250,
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .surfaceContainerLow,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.surfaceContainerLow,
                                       child: Icon(
                                         Icons.broken_image_outlined,
                                         size: 48,
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .onSurfaceVariant,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.onSurfaceVariant,
                                       ),
                                     );
                                   },
@@ -329,20 +331,27 @@ class _PoiScreenState extends State<PoiScreen> {
                                       return ActionChip(
                                         label: Text(
                                           () {
-                                            final Map<String, dynamic> nombreMap =
+                                            final Map<String, dynamic>
+                                            nombreMap =
                                                 (items[index]['nombre'] as Map?)
-                                                        ?.cast<String, dynamic>() ??
+                                                    ?.cast<String, dynamic>() ??
                                                 <String, dynamic>{};
                                             final code = Localizations.localeOf(
                                               context,
                                             ).languageCode;
-                                            final langValue = (nombreMap[code]?.toString() ?? '')
-                                                .trim();
+                                            final langValue =
+                                                (nombreMap[code]?.toString() ??
+                                                        '')
+                                                    .trim();
                                             if (langValue.isEmpty) {
                                               final esValue =
-                                                  (nombreMap['es']?.toString() ?? '')
+                                                  (nombreMap['es']
+                                                              ?.toString() ??
+                                                          '')
                                                       .trim();
-                                              return esValue.isNotEmpty ? esValue : langValue;
+                                              return esValue.isNotEmpty
+                                                  ? esValue
+                                                  : langValue;
                                             }
                                             return langValue;
                                           }(),
@@ -699,36 +708,44 @@ class _PoiScreenState extends State<PoiScreen> {
                                   child: Builder(
                                     builder: (context) {
                                       final loc = AppLocalizations.of(context)!;
-                                      final sel = valorSeleccionado ?? 'Primavera';
+                                      final sel =
+                                          valorSeleccionado ?? 'Primavera';
                                       String seasonLabel;
                                       String recommendation;
                                       switch (sel) {
                                         case 'Otoño':
                                           seasonLabel = loc.otono;
-                                          recommendation = loc.recomendacion_temporada_otono;
+                                          recommendation =
+                                              loc.recomendacion_temporada_otono;
                                           break;
                                         case 'Invierno':
                                           seasonLabel = loc.invierno;
-                                          recommendation = loc.recomendacion_temporada_invierno;
+                                          recommendation = loc
+                                              .recomendacion_temporada_invierno;
                                           break;
                                         case 'Primavera':
                                           seasonLabel = loc.primavera;
-                                          recommendation = loc.recomendacion_temporada_primavera;
+                                          recommendation = loc
+                                              .recomendacion_temporada_primavera;
                                           break;
                                         case 'Verano':
                                           seasonLabel = loc.verano;
-                                          recommendation = loc.recomendacion_temporada_verano;
+                                          recommendation = loc
+                                              .recomendacion_temporada_verano;
                                           break;
                                         default:
                                           seasonLabel = sel;
                                           recommendation = '';
                                       }
-                                      final text = '${loc.temporada_actual_fmt(seasonLabel)}\n$recommendation';
+                                      final text =
+                                          '${loc.temporada_actual_fmt(seasonLabel)}\n$recommendation';
                                       return Text(
                                         text,
                                         style: TextStyle(
                                           fontSize: 16,
-                                          color: Theme.of(context).colorScheme.onSecondaryContainer,
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.onSecondaryContainer,
                                         ),
                                       );
                                     },
@@ -756,22 +773,20 @@ class _PoiScreenState extends State<PoiScreen> {
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 15,
                                 ),
-                                child: Text(
-                                  () {
-                                    final code = Localizations.localeOf(
-                                      context,
-                                    ).languageCode;
-                                    final current = (widget.poi.descripcion[code] ?? '')
-                                        .toString()
-                                        .trim();
-                                    if (current.isEmpty) {
-                                      return (widget.poi.descripcion['es'] ?? '')
-                                          .toString();
-                                    }
-                                    return current;
-                                  }(),
-                                  style: const TextStyle(fontSize: 16),
-                                ),
+                                child: Text(() {
+                                  final code = Localizations.localeOf(
+                                    context,
+                                  ).languageCode;
+                                  final current =
+                                      (widget.poi.descripcion[code] ?? '')
+                                          .toString()
+                                          .trim();
+                                  if (current.isEmpty) {
+                                    return (widget.poi.descripcion['es'] ?? '')
+                                        .toString();
+                                  }
+                                  return current;
+                                }(), style: const TextStyle(fontSize: 16)),
                               ),
 
                               //Tabs Recomendados / Cerca de ti
