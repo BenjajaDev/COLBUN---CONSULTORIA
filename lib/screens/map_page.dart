@@ -995,6 +995,7 @@ class _MapPageState extends State<MapPage> {
                       left: 16,
                       right: 16,
                       child: _buildCurrentInstructionBanner(
+                        // ignore: unnecessary_cast
                         (state as MapNavigating).instructions,
                       ),
                     ),
