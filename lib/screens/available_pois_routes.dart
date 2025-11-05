@@ -4,6 +4,7 @@ import 'package:consultoria_chat_bot/l10n/app_localizations.dart';
 import 'package:consultoria_chat_bot/screens/poi_screen.dart';
 import 'package:consultoria_chat_bot/services/local_storage.dart';
 import 'package:consultoria_chat_bot/states/map_state.dart';
+import 'package:consultoria_chat_bot/services/analytics_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -261,6 +262,8 @@ class AvailablePoisRoutesSheet extends StatelessWidget {
                 ),
               );
             }
+            // Analytics: abrir ruta
+            await AnalyticsService.logAbrirRuta(route.id, route.name);
             setSelectedRouteIndex(index);
 
             await LocalStorage.setLastRouteName(route.name);
@@ -555,6 +558,8 @@ class AvailablePoisRoutesSheet extends StatelessWidget {
               onMoveMap(LatLng(poi.latitud, poi.longitud), zoom: 16);
             },
             onOpenDetail: () {
+              // Analytics: abrir POI desde detalle de ruta
+              AnalyticsService.logAbrirPOI(poi.id, poi.nombre);
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => PoiScreen(poi)),
@@ -635,6 +640,8 @@ class AvailablePoisRoutesSheet extends StatelessWidget {
                     onMoveMap(LatLng(poi.latitud, poi.longitud), zoom: 16);
                   },
                   onOpenDetail: () {
+                    // Analytics: abrir POI desde resultados de búsqueda
+                    AnalyticsService.logAbrirPOI(poi.id, poi.nombre);
                     Navigator.push(
                       context,
                       MaterialPageRoute(builder: (context) => PoiScreen(poi)),

@@ -9,6 +9,7 @@ import 'package:consultoria_chat_bot/screens/poi_screen.dart';
 import 'package:consultoria_chat_bot/screens/favorites_screen.dart';
 import 'package:consultoria_chat_bot/states/map_state.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_map_tile_caching/flutter_map_tile_caching.dart';
 import '../widget/filter_modal.dart';
 import 'available_pois_routes.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -16,6 +17,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:consultoria_chat_bot/theme.dart';
 import 'package:consultoria_chat_bot/l10n/app_localizations.dart';
+import 'package:consultoria_chat_bot/services/analytics_service.dart';
 
 const String kMapTilerApiKey = 'HiDxah3SS2m47uoakaIA';
 
@@ -27,6 +29,9 @@ class MapPage extends StatefulWidget {
 }
 
 class _MapPageState extends State<MapPage> {
+  final _tileProvider = FMTCTileProvider(
+    stores: const {'mapStore': BrowseStoreStrategy.readUpdateCreate},
+  );
   final MapController mapController = MapController();
   final TextEditingController searchController = TextEditingController();
   final DraggableScrollableController _draggableSheetController =
@@ -339,6 +344,7 @@ class _MapPageState extends State<MapPage> {
                       children: [
                         TileLayer(
                           key: ValueKey(tilesUrl),
+                          tileProvider: _tileProvider,
                           urlTemplate: tilesUrl,
                           userAgentPackageName: 'com.example.app',
                         ),
@@ -352,6 +358,8 @@ class _MapPageState extends State<MapPage> {
                                   height: 84,
                                   child: GestureDetector(
                                     onTap: () {
+                                      // Analytics: abrir POI desde marcador del mapa
+                                      AnalyticsService.logAbrirPOI(poi.id, poi.nombre);
                                       Navigator.push(
                                         context,
                                         MaterialPageRoute(
@@ -1070,6 +1078,14 @@ class _MapPageState extends State<MapPage> {
                                     context.read<MapBloc>().add(
                                       SearchQueryUpdated(toSend),
                                     );
+                                  },
+                                  onSubmitted: (term) async {
+                                    final s = context.read<MapBloc>().state;
+                                    int total = 0;
+                                    if (s is MapLoaded) {
+                                      total = (s.filteredRoutes.length) + (s.filteredPois.length);
+                                    }
+                                    await AnalyticsService.logRealizarBusqueda(term, total);
                                   },
                                   textInputAction: TextInputAction.search,
                                   decoration: InputDecoration(

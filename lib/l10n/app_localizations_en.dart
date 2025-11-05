@@ -167,29 +167,4 @@ class AppLocalizationsEn extends AppLocalizations {
     );
     return '$_temp0';
   }
-
-  @override
-  String get error_distance_too_far =>
-      'Your current location is too far from the destination.';
-
-  @override
-  String get error_missing_ors_key =>
-      'OpenRouteService API key is missing. Define ORS_API_KEY using --dart-define.';
-
-  @override
-  String get error_no_routes_found =>
-      'No routes available for this destination.';
-
-  @override
-  String get error_no_steps_found => 'No steps found in the route.';
-
-  @override
-  String error_http_route_failed(int code) {
-    return 'Failed to get route (code $code).';
-  }
-
-  @override
-  String error_navigation_exception(Object message) {
-    return 'Navigation error: $message';
-  }
 }

@@ -167,29 +167,4 @@ class AppLocalizationsPt extends AppLocalizations {
     );
     return '$_temp0';
   }
-
-  @override
-  String get error_distance_too_far =>
-      'Sua localização atual está muito distante do destino.';
-
-  @override
-  String get error_missing_ors_key =>
-      'A chave da API do OpenRouteService está ausente. Defina ORS_API_KEY usando --dart-define.';
-
-  @override
-  String get error_no_routes_found =>
-      'Não há rotas disponíveis para este destino.';
-
-  @override
-  String get error_no_steps_found => 'Nenhum passo encontrado na rota.';
-
-  @override
-  String error_http_route_failed(int code) {
-    return 'Falha ao obter rota (código $code).';
-  }
-
-  @override
-  String error_navigation_exception(Object message) {
-    return 'Erro de navegação: $message';
-  }
 }
