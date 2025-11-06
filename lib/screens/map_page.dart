@@ -26,7 +26,7 @@ class MapPage extends StatefulWidget {
   State<MapPage> createState() => _MapPageState();
 }
 
-class _MapPageState extends State<MapPage> {
+class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
   final MapController mapController = MapController();
   final TextEditingController searchController = TextEditingController();
   final DraggableScrollableController _draggableSheetController =
@@ -51,8 +51,9 @@ class _MapPageState extends State<MapPage> {
   final double _fabPositionPadding = 10;
   @override
   void initState() {
-    BlocProvider.of<MapBloc>(context).add(LoadRoute());
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    BlocProvider.of<MapBloc>(context).add(LoadRoute());
     WidgetsBinding.instance.addPostFrameCallback((_) {
       setState(() {
         _fabPosition =
@@ -117,11 +118,19 @@ class _MapPageState extends State<MapPage> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     mapController.dispose();
     searchController.dispose();
     _draggableSheetController.dispose();
     _netTimer?.cancel();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (!mounted) return;
+    context.read<MapBloc>().add(AppLifecycleChanged(state));
   }
 
   void _openFilterSheet(MapLoaded state) {
@@ -307,8 +316,18 @@ class _MapPageState extends State<MapPage> {
 
                       options: MapOptions(
                         initialCenter: LatLng(-35.6960057, -71.4060907),
-
                         initialZoom: 15,
+                        minZoom: 4,
+                        maxZoom: 18,
+                        cameraConstraint: CameraConstraint.contain(
+                          bounds: LatLngBounds(
+                            LatLng(-85, -180),
+                            LatLng(85, 180),
+                          ),
+                        ),
+                        interactionOptions: const InteractionOptions(
+                          flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+                        ),
                         onMapEvent: (event) {
                           final z = event.camera.zoom;
                           if (z != _currentZoom) {
@@ -341,6 +360,7 @@ class _MapPageState extends State<MapPage> {
                           key: ValueKey(tilesUrl),
                           urlTemplate: tilesUrl,
                           userAgentPackageName: 'com.example.app',
+                          maxNativeZoom: 18,
                         ),
                         MarkerLayer(
                           markers: [

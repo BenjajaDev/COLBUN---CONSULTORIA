@@ -1,6 +1,5 @@
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:consultoria_chat_bot/model/route_model.dart';
-import 'package:consultoria_chat_bot/model/poi_model.dart';
 
 // Nombres para nuestras "cajas" de almacenamiento
 const String kRoutesBoxName = 'routes_box';

@@ -1,4 +1,5 @@
-﻿import 'package:consultoria_chat_bot/blocs/map_bloc.dart';
+﻿import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:consultoria_chat_bot/blocs/map_bloc.dart';
 import 'package:consultoria_chat_bot/blocs/poi_bloc.dart';
 import 'package:consultoria_chat_bot/blocs/favorites_cubit.dart';
 import 'package:consultoria_chat_bot/l10n/app_localizations.dart';
@@ -23,6 +24,11 @@ import 'package:consultoria_chat_bot/services/local_storage_service.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  FirebaseFirestore.instance.settings = const Settings(
+    persistenceEnabled: true,
+    cacheSizeBytes: 40 * 1024 * 1024,
+  );
 
   //  --- CONFIGURACIÓN DE HIVE ---
   // 1. Inicializa Hive en el directorio de la app

@@ -1,3 +1,4 @@
+import 'package:flutter/widgets.dart';
 import 'package:latlong2/latlong.dart';
 
 /// 🔹 Eventos principales del mapa
@@ -56,3 +57,8 @@ class RequestNavigation extends MapEvent {
 
 /// 🚦 Evento: detener navegación
 class CancelNavigation extends MapEvent {}
+
+class AppLifecycleChanged extends MapEvent {
+  final AppLifecycleState state;
+  AppLifecycleChanged(this.state);
+}

@@ -37,6 +37,8 @@ class FavoritesScreen extends StatelessWidget {
                     width: 56,
                     height: 56,
                     fit: BoxFit.cover,
+                    cacheWidth: 360,
+                    cacheHeight: 360,
                     errorBuilder: (context, error, stackTrace) {
                       return Container(
                         width: 56,

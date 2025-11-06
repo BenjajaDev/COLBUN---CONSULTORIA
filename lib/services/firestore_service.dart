@@ -8,6 +8,7 @@ import 'package:latlong2/latlong.dart';
 class FireStoreService {
   final CollectionReference _routesCollection = FirebaseFirestore.instance
       .collection('ruta');
+  DocumentSnapshot? _lastRouteDocument;
 
   double? _toDouble(dynamic value) {
     if (value == null) return null;
@@ -17,6 +18,37 @@ class FireStoreService {
       return double.tryParse(sanitized);
     }
     return null;
+  }
+
+  void resetRoutesPagination() {
+    _lastRouteDocument = null;
+  }
+
+  LatLng? _latLngFromMap(dynamic point) {
+    if (point is Map) {
+      final latValue = point['lat'] ?? point['latitude'];
+      final lngValue = point['lng'] ?? point['longitude'];
+      final lat = (latValue is num) ? latValue.toDouble() : double.tryParse('$latValue');
+      final lng = (lngValue is num) ? lngValue.toDouble() : double.tryParse('$lngValue');
+      if (lat != null && lng != null) {
+        return LatLng(lat, lng);
+      }
+    }
+    return null;
+  }
+
+  POI _poiFromFirestore(String id, Map<String, dynamic> data) {
+    return POI(
+      id: id,
+      nombre: data['nombre']?.toString() ?? '',
+      descripcion: Map<String, dynamic>.from(data['descripcion'] ?? {}),
+      imagen: data['imagen']?.toString() ?? '',
+      latitud: (data['latitud'] ?? 0).toDouble(),
+      longitud: (data['longitud'] ?? 0).toDouble(),
+      categorias: List<String>.from(data['categoria'] ?? data['categorias'] ?? []),
+      actividades: List<String>.from(data['actividades'] ?? []),
+      vistas360: Map<String, dynamic>.from(data['vistas360'] ?? {}),
+    );
   }
 
   Future<List<POI>> fetchAllPOIs(String routeId) async {
@@ -29,65 +61,90 @@ class FireStoreService {
 
       return querySnapshot.docs.map((doc) {
         final data = doc.data();
-        return POI(
-          id: doc.id,
-          nombre: data['nombre']?.toString() ?? '',
-          descripcion: Map<String, dynamic>.from(data['descripcion'] ?? {}),
-          imagen: data['imagen']?.toString() ?? '',
-          latitud: (data['latitud'] ?? 0).toDouble(),
-          longitud: (data['longitud'] ?? 0).toDouble(),
-          categorias: List<String>.from(data['categoria'] ?? []),
-          actividades: List<String>.from(data['actividades'] ?? []),
-          vistas360: Map<String, dynamic>.from(data['vistas360'] ?? {}),
-        );
+        return _poiFromFirestore(doc.id, data);
       }).toList();
     } catch (e) {
       throw Exception('Error fetching POIs: $e');
     }
   }
 
-  Future<List<MapRoute>> fetchRoutes() async {
+  Future<List<MapRoute>> fetchRoutes({int limit = 30, bool reset = false}) async {
     try {
-      final querySnapshotFull = await _routesCollection.get();
-      final querySnapshot = querySnapshotFull.docs.where(
-        (doc) => doc.id.toString() != "sin_asignar",
-      );
-
-      final List<MapRoute> routes = [];
-
-      for (final doc in querySnapshot) {
-        final data = doc.data() as Map<String, dynamic>;
-        final pois = await fetchAllPOIs(doc.id);
-        final List<LatLng> geometry = data['geometry'] != null
-            ? (data['geometry'] as List).map((point) {
-                final lat = (point['lat'] ?? 0).toDouble();
-                final lng = (point['lng'] ?? 0).toDouble();
-                return LatLng(lat, lng);
-              }).toList()
-            : [];
-        routes.add(
-          MapRoute(
-            id: doc.id,
-            initialLatitude: (data['latitud_inicio'] ?? 0).toDouble(),
-            initialLongitude: (data['longitud_inicio'] ?? 0).toDouble(),
-            finalLatitude: (data['latitud_fin'] ?? 0).toDouble(),
-            finalLongitude: (data['longitud_fin'] ?? 0).toDouble(),
-            name: data['nombre']?.toString() ?? '',
-            category: data['categoria']?.toString(),
-            distanceKm:
-                _toDouble(data['distancia_km']) ??
-                _toDouble(data['distancia']) ??
-                _toDouble(data['distance_km']),
-            season: data['temporada']?.toString(),
-            pois: pois,
-            geometry: geometry,
-          ),
-        );
+      if (reset) {
+        resetRoutesPagination();
       }
 
-      return routes;
+      Query query = _routesCollection
+          .orderBy('nombre')
+          .limit(limit);
+      if (_lastRouteDocument != null) {
+        query = query.startAfterDocument(_lastRouteDocument!);
+      }
+
+      final snapshot = await query.get();
+      if (snapshot.docs.isNotEmpty) {
+        _lastRouteDocument = snapshot.docs.last;
+      }
+
+      return snapshot.docs
+          .where((doc) => doc.id.toString() != "sin_asignar")
+          .map((doc) {
+            final raw = doc.data();
+            final data = raw is Map<String, dynamic>
+                ? raw
+                : Map<String, dynamic>.from(raw as Map);
+            final geometry = (data['geometry'] as List? ?? [])
+                .map(_latLngFromMap)
+                .whereType<LatLng>()
+                .toList();
+
+            return MapRoute(
+              id: doc.id,
+              initialLatitude: (data['latitud_inicio'] ?? 0).toDouble(),
+              initialLongitude: (data['longitud_inicio'] ?? 0).toDouble(),
+              finalLatitude: (data['latitud_fin'] ?? 0).toDouble(),
+              finalLongitude: (data['longitud_fin'] ?? 0).toDouble(),
+              name: data['nombre']?.toString() ?? '',
+              category: data['categoria']?.toString(),
+              distanceKm:
+                  _toDouble(data['distancia_km']) ??
+                  _toDouble(data['distancia']) ??
+                  _toDouble(data['distance_km']),
+              season: data['temporada']?.toString(),
+              pois: const <POI>[],
+              geometry: geometry,
+            );
+          })
+          .toList();
     } catch (e) {
       throw Exception('Error fetching Routes: $e');
+    }
+  }
+
+  Future<Map<String, List<POI>>> fetchPoisForRoutes(List<String> routeIds) async {
+    if (routeIds.isEmpty) return {};
+    final Set<String> ids = routeIds.toSet();
+    final Map<String, List<POI>> grouped = {
+      for (final id in ids) id: <POI>[],
+    };
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collectionGroup('poi')
+          .get();
+
+      for (final doc in snapshot.docs) {
+        final parentRouteId = doc.reference.parent.parent?.id;
+        final data = doc.data();
+        final routeId = data['routeId']?.toString() ?? parentRouteId;
+        if (routeId == null || !ids.contains(routeId)) {
+          continue;
+        }
+        grouped.putIfAbsent(routeId, () => <POI>[]);
+        grouped[routeId]!.add(_poiFromFirestore(doc.id, data));
+      }
+      return grouped;
+    } catch (e) {
+      throw Exception('Error fetching POIs for routes: $e');
     }
   }
   Future<List<Map<String, dynamic>>> fetchCategory(List<String> categories) async {

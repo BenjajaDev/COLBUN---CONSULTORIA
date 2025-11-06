@@ -10,6 +10,7 @@ import 'package:consultoria_chat_bot/services/local_storage_service.dart';
 import 'package:consultoria_chat_bot/services/network_service.dart';
 // 🔼 --- FIN SERVICIOS --- 🔼
 import 'package:consultoria_chat_bot/states/map_state.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_compass/flutter_compass.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:geolocator/geolocator.dart';
@@ -37,6 +38,7 @@ class MapBloc extends Bloc<MapEvent, MapState> {
   double? _originalRouteDistanceMeters;      // Distancia total original (m)
   double? _instructionsTotalDurationSeconds; // Duración total original (s)
   String? _currentLanguageCode; // Código de idioma actual para navegación
+  StreamSubscription<Position>? _positionSubscription;
 
   MapBloc(this._firebaseService, this._networkService, this._localStorageService) : super(MapInitial()) {
     on<AddMarker>(_onAddMarker);
@@ -47,6 +49,7 @@ class MapBloc extends Bloc<MapEvent, MapState> {
     on<SearchQueryUpdated>(_onSearchQueryUpdated);
     on<RequestNavigation>(_onRequestNavigation);
     on<CancelNavigation>(_onCancelNavigation);
+    on<AppLifecycleChanged>(_onAppLifecycleChanged);
 
     _startTrackingLocation();
     _startTrackingHeading();
@@ -78,7 +81,18 @@ class MapBloc extends Bloc<MapEvent, MapState> {
 
       if (isOnline) {
         print("[MapBloc] Modo ONLINE: Cargando desde Firebase...");
-        routes = await _firebaseService.fetchRoutes();
+        _firebaseService.resetRoutesPagination();
+        final baseRoutes = await _firebaseService.fetchRoutes(limit: 50, reset: true);
+        final poiMap = await _firebaseService.fetchPoisForRoutes(
+          baseRoutes.map((route) => route.id).toList(),
+        );
+        routes = baseRoutes
+            .map(
+              (route) => route.copyWith(
+                pois: poiMap[route.id] ?? const <POI>[],
+              ),
+            )
+            .toList();
         categories = await _firebaseService.fetchAllCategories();
         activities = await _firebaseService.fetchAllActivities();
 
@@ -829,27 +843,46 @@ class MapBloc extends Bloc<MapEvent, MapState> {
   // =============================
   // 🔹 TRACKING UBICACIÓN Y HEADING
   // =============================
-  /// Inicia el seguimiento de ubicación con alta precisión y sin filtro de distancia
-  /// para navegación fluida.
+  /// Inicia el seguimiento de ubicación usando un balance entre precisión
+  /// y consumo de batería/datos.
   Future<void> _startTrackingLocation() async {
-    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) return;
 
-    LocationPermission permission = await Geolocator.checkPermission();
+    var permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) return;
     }
     if (permission == LocationPermission.deniedForever) return;
 
-    Geolocator.getPositionStream(
+    await _positionSubscription?.cancel();
+    final stream = Geolocator.getPositionStream(
       locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.bestForNavigation,
-        distanceFilter: 0,
+        accuracy: LocationAccuracy.medium,
+        distanceFilter: 30,
       ),
-    ).listen((Position position) {
+    );
+    _positionSubscription = stream.listen((position) {
       add(UpdateUserLocation(LatLng(position.latitude, position.longitude)));
     });
+  }
+
+  Future<void> _pauseLocationStream() async {
+    if (_positionSubscription == null) return;
+    if (!_positionSubscription!.isPaused) {
+      _positionSubscription!.pause();
+    }
+  }
+
+  Future<void> _resumeLocationStream() async {
+    if (_positionSubscription == null) {
+      await _startTrackingLocation();
+      return;
+    }
+    if (_positionSubscription!.isPaused) {
+      _positionSubscription!.resume();
+    }
   }
 
   /// Inicia el seguimiento de la brújula del dispositivo.
@@ -858,6 +891,29 @@ class MapBloc extends Bloc<MapEvent, MapState> {
       final heading = event.heading ?? 0.0;
       add(UpdateHeading(heading));
     });
+  }
+
+  @override
+  Future<void> close() async {
+    await _positionSubscription?.cancel();
+    return super.close();
+  }
+
+  Future<void> _onAppLifecycleChanged(
+    AppLifecycleChanged event,
+    Emitter<MapState> emit,
+  ) async {
+    switch (event.state) {
+      case AppLifecycleState.resumed:
+        await _resumeLocationStream();
+        break;
+      case AppLifecycleState.paused:
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.detached:
+      case AppLifecycleState.hidden:
+        await _pauseLocationStream();
+        break;
+    }
   }
 
   /// Calcula el rumbo (en grados 0-360) desde 'from' hacia 'to'.
