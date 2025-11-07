@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 
@@ -33,13 +33,15 @@ class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
       DraggableScrollableController();
   String _lastSearchText = '';
   int? selectedRouteIndex;
-  // Inicial definido en 0.28 para que el modo colapsado coincida con el nuevo mínimo sin generar "BOTTOM OVERFLOWED".
+  // Inicial definido en 0.28 para que el modo colapsado coincida con el nuevo m├¡nimo sin generar "BOTTOM OVERFLOWED".
   final double _initialSheetChildSize = 0.28;
-  // Seguimiento del tamaño objetivo para animar el sheet según la visibilidad del teclado y evitar overflow.
+  // Seguimiento del tama├▒o objetivo para animar el sheet seg├║n la visibilidad del teclado y evitar overflow.
   double _currentSheetTargetSize = 0.28;
   double _dragScrollSheetExtent = 0;
   double _widgetHeight = 0;
   double _fabPosition = 0;
+  //PERF OPT: ValueNotifier para mover sólo los FAB sin repintar todo el Stack.
+  final ValueNotifier<double> _fabOffsetNotifier = ValueNotifier<double>(0);
   Type? _lastStateType;
   bool _centeredOnNavStart = false; // Center map once when navigation starts
 
@@ -58,6 +60,7 @@ class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
       setState(() {
         _fabPosition =
             _initialSheetChildSize * MediaQuery.of(context).size.height;
+        _fabOffsetNotifier.value = _fabPosition;
       });
     });
     _startNetworkMonitoring();
@@ -122,6 +125,7 @@ class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
     mapController.dispose();
     searchController.dispose();
     _draggableSheetController.dispose();
+    _fabOffsetNotifier.dispose();
     _netTimer?.cancel();
     super.dispose();
   }
@@ -198,6 +202,7 @@ class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
             }
           },
           child: BlocBuilder<MapBloc, MapState>(
+            // PERF OPT: dividir este BlocBuilder en BlocSelectors (posición vs filtros) para reducir rebuilds globales.
             builder: (context, state) {
               // Recalculate FAB position on state type change and reset one-time centering on nav start
               final currentType = state.runtimeType;
@@ -210,6 +215,7 @@ class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
                     _widgetHeight = height;
                     _dragScrollSheetExtent = _initialSheetChildSize;
                     _fabPosition = _initialSheetChildSize * height;
+                    _fabOffsetNotifier.value = _fabPosition;
                     // Reset one-time centering when entering navigation
                     if (state is MapNavigating) {
                       _centeredOnNavStart = false;
@@ -261,7 +267,7 @@ class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
               final mediaQuery = MediaQuery.of(context);
               final double keyboardInset = mediaQuery.viewInsets.bottom;
               final bool isKeyboardVisible = keyboardInset > 0;
-              // Ajuste dinámico de los límites del sheet para evitar "BOTTOM OVERFLOWED" al mostrarse u ocultarse el teclado.
+              // Ajuste din├ímico de los l├¡mites del sheet para evitar "BOTTOM OVERFLOWED" al mostrarse u ocultarse el teclado.
               const double collapsedMinSize = 0.28;
               const double collapsedMaxSize = 0.72;
               const double expandedMinSize = 0.9;
@@ -296,6 +302,7 @@ class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
                     _dragScrollSheetExtent = targetInitialSize;
                     _widgetHeight = viewportHeight;
                     _fabPosition = targetInitialSize * viewportHeight;
+                    _fabOffsetNotifier.value = _fabPosition;
                   });
                 });
               }
@@ -362,6 +369,7 @@ class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
                           userAgentPackageName: 'com.example.app',
                           maxNativeZoom: 18,
                         ),
+                        //PERF OPT: MarkerLayer.builder o FlutterMapStatefulBuilder evitarían reconstruir todos los POIs con cada tick del Bloc.
                         MarkerLayer(
                           markers: [
                             if (state is MapLoaded)
@@ -464,6 +472,7 @@ class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
                                 ),
                           ],
                         ),
+                        //UI OPT: PolylineLayer puede cachearse por filtro y reutilizar la misma referencia para mapas estáticos.
                         if (state is MapLoaded)
                           PolylineLayer(
                             polylines: state.filteredRoutes.map((route) {
@@ -501,9 +510,15 @@ class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
                     ),
                   ),
 
-                  Positioned(
-                    bottom: _fabPosition + _fabPositionPadding,
-                    right: 16,
+                  ValueListenableBuilder<double>(
+                    valueListenable: _fabOffsetNotifier,
+                    builder: (context, offset, child) {
+                      return Positioned(
+                        bottom: offset + _fabPositionPadding,
+                        right: 16,
+                        child: child!,
+                      );
+                    },
                     child: FloatingActionButton(
                       heroTag: 'centerFab',
                       backgroundColor: const Color(0xFF4D67AE),
@@ -514,15 +529,21 @@ class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
                               ? state.userLocation!
                               : LatLng(-35.6960057, -71.4060907),
                           15,
-                        ); // ðŸ‘ˆ Centrar
+                        ); // 👈 Centrar
                       },
                       child: const Icon(Icons.my_location, color: Colors.white),
                     ),
                   ),
                   // FAB de emergencia, ubicado encima del botón de centrar ubicación
-                  Positioned(
-                    bottom: _fabPosition + _fabPositionPadding + 72,
-                    right: 16,
+                  ValueListenableBuilder<double>(
+                    valueListenable: _fabOffsetNotifier,
+                    builder: (context, offset, child) {
+                      return Positioned(
+                        bottom: offset + _fabPositionPadding + 72,
+                        right: 16,
+                        child: child!,
+                      );
+                    },
                     child: FloatingActionButton(
                       heroTag: 'emergencyFab',
                       backgroundColor: Theme.of(context).colorScheme.error,
@@ -568,11 +589,18 @@ class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
                   if (state is MapLoaded)
                     NotificationListener<DraggableScrollableNotification>(
                       onNotification: (notification) {
-                        setState(() {
-                          _widgetHeight = MediaQuery.of(context).size.height;
-                          _dragScrollSheetExtent = notification.extent;
-                          _fabPosition = _dragScrollSheetExtent * _widgetHeight;
-                        });
+                        // setState(() {
+                        //   _widgetHeight = MediaQuery.of(context).size.height;
+                        //   _dragScrollSheetExtent = notification.extent;
+                        //   _fabPosition = _dragScrollSheetExtent * _widgetHeight;
+                        // });
+                        //PERF OPT: mover solo los FAB usando el ValueNotifier evita repaints masivos durante el drag.
+                        _widgetHeight = MediaQuery.of(context).size.height;
+                        _dragScrollSheetExtent = notification.extent;
+                        final double newFabPosition =
+                            _dragScrollSheetExtent * _widgetHeight;
+                        _fabPosition = newFabPosition;
+                        _fabOffsetNotifier.value = newFabPosition;
                         return true;
                       },
                       child: DraggableScrollableSheet(
@@ -617,11 +645,18 @@ class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
                   if (state is MapNavigating)
                     NotificationListener<DraggableScrollableNotification>(
                       onNotification: (notification) {
-                        setState(() {
-                          _widgetHeight = MediaQuery.of(context).size.height;
-                          _dragScrollSheetExtent = notification.extent;
-                          _fabPosition = _dragScrollSheetExtent * _widgetHeight;
-                        });
+                        // setState(() {
+                        //   _widgetHeight = MediaQuery.of(context).size.height;
+                        //   _dragScrollSheetExtent = notification.extent;
+                        //   _fabPosition = _dragScrollSheetExtent * _widgetHeight;
+                        // });
+                        // ⚡ PERF OPT: misma lógica en navegación para evitar rebuilds del Stack durante el arrastre.
+                        _widgetHeight = MediaQuery.of(context).size.height;
+                        _dragScrollSheetExtent = notification.extent;
+                        final double newFabPosition =
+                            _dragScrollSheetExtent * _widgetHeight;
+                        _fabPosition = newFabPosition;
+                        _fabOffsetNotifier.value = newFabPosition;
                         return true;
                       },
                       child: DraggableScrollableSheet(

@@ -205,6 +205,7 @@ class AvailablePoisRoutesSheet extends StatelessWidget {
     }
 
     /// Tarjeta de ruta con animaciones suaves y acentos acordes al estado seleccionado.
+    // UI OPT: convertir este builder en un StatefulWidget con AutomaticKeepAliveClientMixin mantendría el scroll estable entre tabs.
     Widget buildRouteCard({required dynamic route, required int index}) {
       final bool isSelected = selectedRouteIndex == index;
       final int poiCount = (route.pois is List)
@@ -330,6 +331,7 @@ class AvailablePoisRoutesSheet extends StatelessWidget {
     }
 
     /// Tarjeta para cada POI que agrupa acciones rápidas (navegar, ver detalles, previsualizar).
+    // 🧠 UI OPT: envolver este card en un widget con AutomaticKeepAliveClientMixin evita que se reinicialice al alternar vistas.
     Widget buildPoiCard({
       required dynamic poi,
       required VoidCallback onPreview,
@@ -576,6 +578,7 @@ class AvailablePoisRoutesSheet extends StatelessWidget {
     }
 
     /// Vista de resultados cuando se realiza una búsqueda sobre rutas o POIs.
+    //PERF OPT: este bloque podría usar un BlocSelector exclusivo del query/filtros para evitar rebuilds provocados por cambios de ubicación.
     Widget buildSearchView() {
       if (!isLoaded) {
         return buildSheetListView(
@@ -610,47 +613,60 @@ class AvailablePoisRoutesSheet extends StatelessWidget {
           if (filteredRoutes.isNotEmpty) ...[
             buildSectionTitle(AppLocalizations.of(context)!.rutas_disponibles),
             const SizedBox(height: 12),
-            ...List.generate(filteredRoutes.length, (index) {
-              final route = filteredRoutes[index];
-              final bool isLastRoute =
-                  index == filteredRoutes.length - 1 && filteredPois.isEmpty;
-              return Padding(
-                padding: EdgeInsets.only(bottom: isLastRoute ? 0 : 12),
-                child: buildRouteCard(route: route, index: index),
-              );
-            }),
+            // ⚡ PERF OPT: ListView.builder evita instanciar todos los cards al cambiar el sheet.
+            ListView.builder(
+              key: const ValueKey<String>('search-routes-builder'),
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: filteredRoutes.length,
+              itemBuilder: (context, index) {
+                final route = filteredRoutes[index];
+                final bool isLastRoute =
+                    index == filteredRoutes.length - 1 && filteredPois.isEmpty;
+                return Padding(
+                  padding: EdgeInsets.only(bottom: isLastRoute ? 0 : 12),
+                  child: buildRouteCard(route: route, index: index),
+                );
+              },
+            ),
             if (filteredPois.isNotEmpty) const SizedBox(height: 24),
           ],
           if (filteredPois.isNotEmpty) ...[
             buildSectionTitle(AppLocalizations.of(context)!.resultado_busqueda),
             const SizedBox(height: 12),
-            ...List.generate(filteredPois.length, (index) {
-              final poi = filteredPois[index];
-              final bool isLastPoi = index == filteredPois.length - 1;
-              return Padding(
-                padding: EdgeInsets.only(bottom: isLastPoi ? 0 : 12),
-                child: buildPoiCard(
-                  poi: poi,
-                  onPreview: () {
-                    onMoveMap(LatLng(poi.latitud, poi.longitud), zoom: 16);
-                  },
-                  onOpenDetail: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => PoiScreen(poi)),
-                    );
-                  },
-                  onNavigate: () {
-                    context.read<MapBloc>().add(
-                      RequestNavigation(
-                        LatLng(poi.latitud, poi.longitud),
-                        Localizations.localeOf(context).languageCode,
-                      ),
-                    );
-                  },
-                ),
-              );
-            }),
+            ListView.builder(
+              key: const ValueKey<String>('search-pois-builder'),
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: filteredPois.length,
+              itemBuilder: (context, index) {
+                final poi = filteredPois[index];
+                final bool isLastPoi = index == filteredPois.length - 1;
+                return Padding(
+                  padding: EdgeInsets.only(bottom: isLastPoi ? 0 : 12),
+                  child: buildPoiCard(
+                    poi: poi,
+                    onPreview: () {
+                      onMoveMap(LatLng(poi.latitud, poi.longitud), zoom: 16);
+                    },
+                    onOpenDetail: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => PoiScreen(poi)),
+                      );
+                    },
+                    onNavigate: () {
+                      context.read<MapBloc>().add(
+                        RequestNavigation(
+                          LatLng(poi.latitud, poi.longitud),
+                          Localizations.localeOf(context).languageCode,
+                        ),
+                      );
+                    },
+                  ),
+                );
+              },
+            ),
           ],
         ],
       );
@@ -735,6 +751,7 @@ class AvailablePoisRoutesSheet extends StatelessWidget {
       if (!draggableController.isAttached) {
         return;
       }
+      // ⚠️ Evitar doble control de arrastre: si el sheet ya maneja onDrag, esta lógica debería desactivarse para no pelear contra el controlador.
       final double primaryDelta = details.primaryDelta ?? 0;
       if (primaryDelta == 0) {
         return;
@@ -755,6 +772,7 @@ class AvailablePoisRoutesSheet extends StatelessWidget {
       if (!draggableController.isAttached) {
         return;
       }
+      //Evitar doble control de arrastre, dejar que uno solo (sheet o GestureDetector) decida el snap final.
       final Set<double> snapCandidates = {minChildSize, maxChildSize, 0.4};
       final List<double> snapSizes =
           snapCandidates

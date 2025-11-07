@@ -40,6 +40,20 @@ class MapBloc extends Bloc<MapEvent, MapState> {
   String? _currentLanguageCode; // Código de idioma actual para navegación
   StreamSubscription<Position>? _positionSubscription;
 
+  // ⚡ OPTIMIZACIÓN: umbral para ignorar variaciones mínimas de heading.
+  static const double _headingThresholdDegrees = 3.0;
+
+  // ⚡ OPTIMIZACIÓN: distancia mínima para recalcular filtros dependientes de ubicación.
+  static const double _positionRecalcThresholdMeters = 120.0;
+
+  // ⚡ OPTIMIZACIÓN: cache de filtros para saltar recomputar rutas/POIs cada tick.
+  String? _lastFilterCacheKey;
+  List<MapRoute>? _lastFilteredRoutesCache;
+  List<POI>? _lastFilteredPoisCache;
+  List<LatLng>? _lastMarkerCache;
+  LatLng? _lastFilterUserLocation;
+  double? _lastHeadingDegrees;
+
   MapBloc(this._firebaseService, this._networkService, this._localStorageService) : super(MapInitial()) {
     on<AddMarker>(_onAddMarker);
     on<UpdateUserLocation>(_onUpdateUserLocation);
@@ -62,25 +76,14 @@ class MapBloc extends Bloc<MapEvent, MapState> {
   /// ONLINE: Carga desde Firestore y guarda en caché local (Hive).
   /// OFFLINE: Carga desde caché local (Hive).
   Future<void> _onLoadRoute(LoadRoute event, Emitter<MapState> emit) async {
-    // 🔽 PRINT 1 🔽
-    print("[MapBloc] --- Evento _onLoadRoute RECIBIDO. Iniciando carga... ---");
-    
     emit(MapLoading());
     try {
-      // 🔽 PRINT 2 🔽
-      print("[MapBloc] Entrando al bloque TRY...");
-      
       final bool isOnline = await _networkService.isConnected();
-      
-      // 🔽 PRINT 3 🔽
-      print("--- [MapBloc] ¿Hay conexión?: $isOnline ---");
-
       List<MapRoute> routes;
       List<Map<String, dynamic>> categories;
       List<Map<String, dynamic>> activities;
 
       if (isOnline) {
-        print("[MapBloc] Modo ONLINE: Cargando desde Firebase...");
         _firebaseService.resetRoutesPagination();
         final baseRoutes = await _firebaseService.fetchRoutes(limit: 50, reset: true);
         final poiMap = await _firebaseService.fetchPoisForRoutes(
@@ -99,19 +102,12 @@ class MapBloc extends Bloc<MapEvent, MapState> {
         await _localStorageService.saveAllRoutes(routes);
         await _localStorageService.saveCategories(categories);
         await _localStorageService.saveActivities(activities);
-        
-        print("[MapBloc] Modo ONLINE: ${routes.length} rutas guardadas en Hive.");
-
       } else {
-        print("[MapBloc] Modo OFFLINE: Cargando desde Hive...");
         routes = await _localStorageService.getAllRoutes();
         categories = await _localStorageService.getCategories();
         activities = await _localStorageService.getActivities();
 
-        print("[MapBloc] Modo OFFLINE: ${routes.length} rutas encontradas en Hive.");
-
         if (routes.isEmpty) {
-          print("[MapBloc] ¡ERROR! No se encontró nada en Hive.");
           emit(MapError("Estás sin conexión y no hay datos guardados."));
           return; 
         }
@@ -136,7 +132,6 @@ class MapBloc extends Bloc<MapEvent, MapState> {
       );
       // --- 🔼 FIN DE LA PARTE QUE FALTABA 🔼 ---
 
-      print("[MapBloc] Emitiendo estado MapLoaded...");
       emit(
         MapLoaded(
           center: const LatLng(-35.6960057, -71.4060907),
@@ -151,11 +146,7 @@ class MapBloc extends Bloc<MapEvent, MapState> {
         ),
       );
     
-    } catch (e, stackTrace) { 
-      print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-      print("[MapBloc] ¡ERROR FATAL CAPTURADO! $e");
-      print("[MapBloc] StackTrace: $stackTrace");
-      print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+    } catch (e) { 
       emit(MapError("Error al cargar datos: $e"));
     }
   }
@@ -180,6 +171,7 @@ class MapBloc extends Bloc<MapEvent, MapState> {
   void _onUpdateUserLocation(UpdateUserLocation event, Emitter<MapState> emit) {
   if (state is! MapLoaded && state is! MapNavigating) return;
 
+
   final currentPos = event.position;
 
   // ✅ Exploración normal (sin navegación)
@@ -189,6 +181,9 @@ class MapBloc extends Bloc<MapEvent, MapState> {
       userLocation: currentPos,
       center: currentPos,
     );
+    if (!_shouldRecalculateFilters(updatedState)) {
+      return;
+    }
     emit(_recalculateFilters(updatedState));
     return;
   }
@@ -311,7 +306,15 @@ class MapBloc extends Bloc<MapEvent, MapState> {
   void _onUpdateHeading(UpdateHeading event, Emitter<MapState> emit) {
     if (state is! MapLoaded) return;
     final current = state as MapLoaded;
-    emit(current.copyWith(heading: event.heading));
+    final double previousHeading = _lastHeadingDegrees ?? current.heading;
+    final double newHeading = event.heading;
+    if ((newHeading - previousHeading).abs() < _headingThresholdDegrees) {
+      // OPTIMIZACIÓN: ignora variaciones mínimas para no despertar el Bloc y reconstruir el mapa en cada tick.
+      return;
+    }
+    _lastHeadingDegrees = newHeading;
+    emit(current.copyWith(heading: newHeading));
+    // MEJORA: heading podría exponerse vía ValueNotifier para que solo el marker escuche cambios finos sin pasar por BlocBuilder.
   }
 
   // =============================
@@ -359,6 +362,19 @@ class MapBloc extends Bloc<MapEvent, MapState> {
 
   /// Recalcula rutas/POIs filtrados y los marcadores visibles.
   MapLoaded _recalculateFilters(MapLoaded base) {
+    final String cacheKey = _buildFilterCacheKey(base);
+    if (_lastFilterCacheKey == cacheKey &&
+        _lastFilteredRoutesCache != null &&
+        _lastFilteredPoisCache != null &&
+        _lastMarkerCache != null) {
+      // OPTIMIZACIÓN: reutiliza el último resultado y evita trabajo O(rutas×pois) cuando los filtros no cambian.
+      return base.copyWith(
+        filteredRoutes: _lastFilteredRoutesCache,
+        filteredPois: _lastFilteredPoisCache,
+        markers: _lastMarkerCache,
+      );
+    }
+
     final filteredRoutes = _filterRoutes(
       base.allRoutes,
       query: base.query,
@@ -376,11 +392,58 @@ class MapBloc extends Bloc<MapEvent, MapState> {
       activity: base.selectedActivity,
     );
 
+    final markers = _buildMarkers(filteredPois);
+
+    _lastFilterCacheKey = cacheKey;
+    _lastFilteredRoutesCache = filteredRoutes;
+    _lastFilteredPoisCache = filteredPois;
+    _lastMarkerCache = markers;
+    _lastFilterUserLocation = base.userLocation;
+
     return base.copyWith(
       filteredRoutes: filteredRoutes,
       filteredPois: filteredPois,
-      markers: _buildMarkers(filteredPois),
+      markers: markers,
     );
+  }
+
+  //OPTIMIZACIÓN: genera una firma ligera a partir de filtros y ubicación para comparar cambios rápidamente.
+  String _buildFilterCacheKey(MapLoaded base) {
+    final userLat = base.userLocation != null
+        ? base.userLocation!.latitude.toStringAsFixed(4)
+        : 'null';
+    final userLng = base.userLocation != null
+        ? base.userLocation!.longitude.toStringAsFixed(4)
+        : 'null';
+    return [
+      base.query,
+      base.selectedCategory ?? 'null',
+      base.selectedActivity ?? 'null',
+      base.selectedSeason ?? 'null',
+      base.selectedDistanceKm?.toStringAsFixed(2) ?? 'null',
+      userLat,
+      userLng,
+    ].join('|');
+  }
+
+  bool _shouldRecalculateFilters(MapLoaded base) {
+    final nextKey = _buildFilterCacheKey(base);
+    if (_lastFilterCacheKey != nextKey) {
+      return true;
+    }
+    if (base.userLocation == null || _lastFilterUserLocation == null) {
+      return base.userLocation != _lastFilterUserLocation;
+    }
+    final movedMeters = _distanceCalculator.as(
+      LengthUnit.Meter,
+      base.userLocation!,
+      _lastFilterUserLocation!,
+    );
+    if (movedMeters > _positionRecalcThresholdMeters) {
+      //OPTIMIZACIÓN: solo recalcula si el usuario se desplazó lo suficiente para afectar filtros dependientes de distancia.
+      return true;
+    }
+    return false;
   }
 
   // =============================
@@ -866,6 +929,7 @@ class MapBloc extends Bloc<MapEvent, MapState> {
     _positionSubscription = stream.listen((position) {
       add(UpdateUserLocation(LatLng(position.latitude, position.longitude)));
     });
+    // PERF OPT: envolver este stream con un throttle (ej. Rx) permitiría bajar aún más la frecuencia de eventos en dispositivos muy ruidosos.
   }
 
   Future<void> _pauseLocationStream() async {
@@ -891,6 +955,7 @@ class MapBloc extends Bloc<MapEvent, MapState> {
       final heading = event.heading ?? 0.0;
       add(UpdateHeading(heading));
     });
+    // PERF OPT: se podría agregar un debounce aquí mismo antes de invocar al Bloc para reducir el churn de eventos.
   }
 
   @override
