@@ -11,7 +11,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:consultoria_chat_bot/states/map_state.dart';
 import 'package:consultoria_chat_bot/blocs/map_bloc.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-
+import 'package:consultoria_chat_bot/screens/favorites_screen.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 class PoiScreen extends StatefulWidget {
@@ -375,28 +375,80 @@ class _PoiScreenState extends State<PoiScreen> {
                               ),
 
                               // Icono de favorito
+                              // ======= FAVORITO: AnimatedSwitcher + SnackBar con "Ver favoritos" =======
                               BlocBuilder<FavoritesCubit, FavoritesState>(
                                 builder: (context, favoritesState) {
                                   final isFavorite = favoritesState.contains(
                                     widget.poi.id,
                                   );
-                                  return IconButton(
-                                    icon: Icon(
-                                      isFavorite
-                                          ? Icons.favorite
-                                          : Icons.favorite_border,
-                                      color: isFavorite
-                                          ? Colors.pink
-                                          : Colors.grey,
+
+                                  return AnimatedSwitcher(
+                                    duration: const Duration(milliseconds: 300),
+                                    transitionBuilder: (child, anim) =>
+                                        ScaleTransition(
+                                          scale: anim,
+                                          child: child,
+                                        ),
+                                    child: IconButton(
+                                      key: ValueKey<bool>(isFavorite),
+                                      icon: Icon(
+                                        isFavorite
+                                            ? Icons.favorite
+                                            : Icons.favorite_border,
+                                        color: isFavorite
+                                            ? Colors.pink
+                                            : Colors.grey,
+                                      ),
+                                      onPressed: () {
+                                        // estado previo, para decidir mensaje/acción
+                                        final wasFavorite = isFavorite;
+
+                                        // lógica intacta
+                                        context
+                                            .read<FavoritesCubit>()
+                                            .toggleFavorite(widget.poi);
+
+                                        // mensaje + acción opcional
+                                        final msg = wasFavorite
+                                            ? 'Eliminado de favoritos'
+                                            : 'Añadido a favoritos';
+
+                                        ScaffoldMessenger.of(context)
+                                          ..hideCurrentSnackBar()
+                                          ..showSnackBar(
+                                            SnackBar(
+                                              content: Text(msg),
+                                              duration: const Duration(
+                                                seconds: 2,
+                                              ),
+                                              behavior:
+                                                  SnackBarBehavior.floating,
+                                              // acción solo cuando se agrega
+                                              action: wasFavorite
+                                                  ? null
+                                                  : SnackBarAction(
+                                                      label: 'Ver favoritos',
+                                                      textColor: const Color(
+                                                        0xFF4D67AE,
+                                                      ),
+                                                      onPressed: () {
+                                                        Navigator.push(
+                                                          context,
+                                                          MaterialPageRoute(
+                                                            builder: (_) =>
+                                                                const FavoritesScreen(),
+                                                          ),
+                                                        );
+                                                      },
+                                                    ),
+                                            ),
+                                          );
+                                      },
                                     ),
-                                    onPressed: () {
-                                      context
-                                          .read<FavoritesCubit>()
-                                          .toggleFavorite(widget.poi);
-                                    },
                                   );
                                 },
                               ),
+                              // ======= FIN FAVORITO =======
                             ],
                           ),
                         ),

@@ -73,6 +73,38 @@ class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
     });
   }
 
+  // === Helper reutilizable: MISMO estilo que el toast/snackbar de "Añadido a favoritos" ===
+  void _showStyledSnackBar(
+    BuildContext context, {
+    required String message,
+    SnackBarAction? action,
+  }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          message,
+          style: TextStyle(
+            color: theme.colorScheme.onSurface,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: isDark
+            ? theme.colorScheme.surface
+            : Colors.white, // igual que favs
+        elevation: 6,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        duration: const Duration(seconds: 3),
+        action: action,
+      ),
+    );
+  }
+  // === Fin helper ===
+
   Widget _buildQuickActionButton({
     required IconData icon,
     required VoidCallback onTap,
@@ -179,6 +211,7 @@ class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
                 selectedRouteIndex = null;
               });
             }
+            _showStyledSnackBar(context, message: 'Filtros aplicados');
           },
         );
       },
@@ -406,9 +439,9 @@ class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
                                             overflow: TextOverflow.fade,
                                             style: TextStyle(
                                               fontSize: 11,
-                                              color: Theme.of(context)
-                                                  .colorScheme
-                                                  .onSurface,
+                                              color: Theme.of(
+                                                context,
+                                              ).colorScheme.onSurface,
                                             ),
                                           ),
                                       ],
