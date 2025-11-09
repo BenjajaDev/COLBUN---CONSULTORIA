@@ -4,6 +4,7 @@ import 'package:consultoria_chat_bot/l10n/app_localizations.dart';
 import 'package:consultoria_chat_bot/screens/poi_screen.dart';
 import 'package:consultoria_chat_bot/services/local_storage.dart';
 import 'package:consultoria_chat_bot/states/map_state.dart';
+import 'package:consultoria_chat_bot/services/analytics_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -244,12 +245,27 @@ class AvailablePoisRoutesSheet extends StatelessWidget {
         child: InkWell(
           borderRadius: BorderRadius.circular(18),
           onTap: () async {
-            final center = LatLng(
-              (route.initialLatitude + route.finalLatitude) / 2,
-              (route.initialLongitude + route.finalLongitude) / 2,
-            );
+            // Enfoca la cámara para mostrar toda la ruta (geometry o fallback a inicio/fin)
+            final List<LatLng> pts =
+                (route.geometry != null && route.geometry.isNotEmpty)
+                ? route.geometry
+                : <LatLng>[
+                    LatLng(route.initialLatitude, route.initialLongitude),
+                    LatLng(route.finalLatitude, route.finalLongitude),
+                  ];
+            if (pts.isNotEmpty) {
+              final bounds = LatLngBounds.fromPoints(pts);
+              mapController.fitCamera(
+                CameraFit.bounds(
+                  bounds: bounds,
+                  padding: const EdgeInsets.all(48),
+                ),
+              );
+            }
+            // Analytics: abrir ruta
+            await AnalyticsService.logAbrirRuta(route.id, route.name);
             setSelectedRouteIndex(index);
-            onMoveMap(center, zoom: 14);
+
             await LocalStorage.setLastRouteName(route.name);
             await LocalStorage.setLastRouteWithPois(route);
           },
@@ -542,6 +558,8 @@ class AvailablePoisRoutesSheet extends StatelessWidget {
               onMoveMap(LatLng(poi.latitud, poi.longitud), zoom: 16);
             },
             onOpenDetail: () {
+              // Analytics: abrir POI desde detalle de ruta
+              AnalyticsService.logAbrirPOI(poi.id, poi.nombre);
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => PoiScreen(poi)),
@@ -622,6 +640,8 @@ class AvailablePoisRoutesSheet extends StatelessWidget {
                     onMoveMap(LatLng(poi.latitud, poi.longitud), zoom: 16);
                   },
                   onOpenDetail: () {
+                    // Analytics: abrir POI desde resultados de búsqueda
+                    AnalyticsService.logAbrirPOI(poi.id, poi.nombre);
                     Navigator.push(
                       context,
                       MaterialPageRoute(builder: (context) => PoiScreen(poi)),

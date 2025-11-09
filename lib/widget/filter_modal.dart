@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../blocs/map_bloc.dart';
 import '../events/map_event.dart';
 import 'package:consultoria_chat_bot/l10n/app_localizations.dart';
+import 'package:consultoria_chat_bot/services/analytics_service.dart';
 
 class FilterModal extends StatefulWidget {
   final List<Map<String, dynamic>> categories;
@@ -212,7 +213,7 @@ class _FilterModalState extends State<FilterModal> {
 											borderRadius: BorderRadius.circular(12),
 										),
 									),
-																onPressed: () {
+																						onPressed: () async {
 																	Navigator.of(context).pop();
 																	final cleanCategory = (tempCategory == null || (tempCategory?.trim().isEmpty ?? true)) ? null : tempCategory;
 																	final cleanActivity = (tempActivity == null || (tempActivity?.trim().isEmpty ?? true)) ? null : tempActivity;
@@ -225,6 +226,14 @@ class _FilterModalState extends State<FilterModal> {
 																			query: widget.searchController.text.trim(),
 																		),
 																	);
+																						// Analytics: aplicar filtros (categoría + distancia)
+																						await AnalyticsService.logAplicarFiltro(
+																							categoria: cleanCategory ?? 'todas',
+																							distanciaMaxKm: cleanDistance,
+																							temporada: (widget.initialSeason == null || (widget.initialSeason?.trim().isEmpty ?? true))
+																								? 'todas'
+																								: widget.initialSeason,
+																						);
 																	if (widget.onFiltersApplied != null) {
 																		widget.onFiltersApplied!();
 																	}

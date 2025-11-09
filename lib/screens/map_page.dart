@@ -9,6 +9,7 @@ import 'package:consultoria_chat_bot/screens/poi_screen.dart';
 import 'package:consultoria_chat_bot/screens/favorites_screen.dart';
 import 'package:consultoria_chat_bot/states/map_state.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_map_tile_caching/flutter_map_tile_caching.dart';
 import '../widget/filter_modal.dart';
 import 'available_pois_routes.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -16,6 +17,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:consultoria_chat_bot/theme.dart';
 import 'package:consultoria_chat_bot/l10n/app_localizations.dart';
+import 'package:consultoria_chat_bot/services/analytics_service.dart';
 
 const String kMapTilerApiKey = 'HiDxah3SS2m47uoakaIA';
 
@@ -27,6 +29,9 @@ class MapPage extends StatefulWidget {
 }
 
 class _MapPageState extends State<MapPage> {
+  final _tileProvider = FMTCTileProvider(
+    stores: const {'mapStore': BrowseStoreStrategy.readUpdateCreate},
+  );
   final MapController mapController = MapController();
   final TextEditingController searchController = TextEditingController();
   final DraggableScrollableController _draggableSheetController =
@@ -45,6 +50,8 @@ class _MapPageState extends State<MapPage> {
 
   bool _isOffline = false;
   Timer? _netTimer;
+  double _currentZoom = 15.0;
+  bool _showPoiLabels = true; // toggle POI name visibility based on zoom
 
   final double _fabPositionPadding = 10;
 
@@ -347,6 +354,18 @@ class _MapPageState extends State<MapPage> {
                       options: MapOptions(
                         initialCenter: const LatLng(-35.6960057, -71.4060907),
                         initialZoom: 15,
+                        onMapEvent: (event) {
+                          final z = event.camera.zoom;
+                          if (z != _currentZoom) {
+                            final show = z >= 14.0;
+                            if (show != _showPoiLabels) {
+                              setState(() {
+                                _showPoiLabels = show;
+                              });
+                            }
+                            _currentZoom = z;
+                          }
+                        },
                         // Testing helper: tap the map to update the user's position
                         onTap: (tapPosition, point) {
                           try {
@@ -365,6 +384,7 @@ class _MapPageState extends State<MapPage> {
                       children: [
                         TileLayer(
                           key: ValueKey(tilesUrl),
+                          tileProvider: _tileProvider,
                           urlTemplate: tilesUrl,
                           userAgentPackageName: 'com.example.app',
                         ),
@@ -378,6 +398,8 @@ class _MapPageState extends State<MapPage> {
                                   height: 84,
                                   child: GestureDetector(
                                     onTap: () {
+                                      // Analytics: abrir POI desde marcador del mapa
+                                      AnalyticsService.logAbrirPOI(poi.id, poi.nombre);
                                       Navigator.push(
                                         context,
                                         MaterialPageRoute(
@@ -394,19 +416,20 @@ class _MapPageState extends State<MapPage> {
                                           size: 40,
                                         ),
                                         const SizedBox(height: 2),
-                                        Text(
-                                          poi.nombre,
-                                          textAlign: TextAlign.center,
-                                          softWrap: true,
-                                          maxLines: 2,
-                                          overflow: TextOverflow.fade,
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            color: Theme.of(
-                                              context,
-                                            ).colorScheme.onSurface,
+                                        if (_showPoiLabels)
+                                          Text(
+                                            poi.nombre,
+                                            textAlign: TextAlign.center,
+                                            softWrap: true,
+                                            maxLines: 2,
+                                            overflow: TextOverflow.fade,
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .onSurface,
+                                            ),
                                           ),
-                                        ),
                                       ],
                                     ),
                                   ),
@@ -918,6 +941,14 @@ class _MapPageState extends State<MapPage> {
                                     context.read<MapBloc>().add(
                                       SearchQueryUpdated(toSend),
                                     );
+                                  },
+                                  onSubmitted: (term) async {
+                                    final s = context.read<MapBloc>().state;
+                                    int total = 0;
+                                    if (s is MapLoaded) {
+                                      total = (s.filteredRoutes.length) + (s.filteredPois.length);
+                                    }
+                                    await AnalyticsService.logRealizarBusqueda(term, total);
                                   },
                                   textInputAction: TextInputAction.search,
                                   decoration: InputDecoration(
