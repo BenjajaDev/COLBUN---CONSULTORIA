@@ -20,6 +20,8 @@ import 'package:consultoria_chat_bot/model/hive_adapters.dart';
 import 'package:consultoria_chat_bot/services/network_service.dart';
 import 'package:consultoria_chat_bot/services/local_storage_service.dart';
 
+import 'dart:io';
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
@@ -47,7 +49,26 @@ Future<void> main() async {
   } catch (_) {}
   // Debug helper: print whether compile-time defines are present.
   // We avoid printing the full keys to not leak secrets in logs.
- 
+
+  //Solo llama la base de datos si hay conexión
+  bool online = false;
+  try {
+    final result = await InternetAddress.lookup('one.one.one.one')
+        .timeout(const Duration(seconds: 3));
+    online = result.isNotEmpty && result. first.rawAddress.isNotEmpty;
+  } catch(_) {
+    online = false;
+  }
+
+  if (online) {
+    try {
+      final contacts = await FireStoreService().fetchEmergencyContacts();
+      if (contacts.isNotEmpty) {
+        await LocalStorage.setEmergencyContacts(contacts);
+      }
+    } catch (_) {}
+  }
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  
 
   runApp(const MyApp());

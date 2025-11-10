@@ -64,8 +64,10 @@ class _MapPageState extends State<MapPage> {
 
   void _startNetworkMonitoring() {
     _checkConnectivity();
-    _netTimer = Timer.periodic(const Duration(seconds: 5), (_) {
-      _checkConnectivity();
+    _netTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (_isOffline) {
+        _checkConnectivity();
+      }
     });
   }
 

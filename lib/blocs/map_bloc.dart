@@ -38,6 +38,10 @@ class MapBloc extends Bloc<MapEvent, MapState> {
   double? _instructionsTotalDurationSeconds; // Duración total original (s)
   String? _currentLanguageCode; // Código de idioma actual para navegación
 
+  //Control del stream de ubicación
+  StreamSubscription<Position>? _positionSub;
+  bool _isNavigationTracking = false;
+
   MapBloc(this._firebaseService, this._networkService, this._localStorageService) : super(MapInitial()) {
     on<AddMarker>(_onAddMarker);
     on<UpdateUserLocation>(_onUpdateUserLocation);
@@ -48,7 +52,7 @@ class MapBloc extends Bloc<MapEvent, MapState> {
     on<RequestNavigation>(_onRequestNavigation);
     on<CancelNavigation>(_onCancelNavigation);
 
-    _startTrackingLocation();
+    _startTrackingLocation(navigation: false);
     _startTrackingHeading();
   }
 
@@ -737,6 +741,7 @@ class MapBloc extends Bloc<MapEvent, MapState> {
             },
           ),
         );
+        _startTrackingLocation(navigation: true);
       } else {
         emit(
           MapError(
@@ -831,24 +836,36 @@ class MapBloc extends Bloc<MapEvent, MapState> {
   // =============================
   /// Inicia el seguimiento de ubicación con alta precisión y sin filtro de distancia
   /// para navegación fluida.
-  Future<void> _startTrackingLocation() async {
-    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+  Future<void> _startTrackingLocation({required bool navigation}) async {
+    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) return;
 
-    LocationPermission permission = await Geolocator.checkPermission();
+    var permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) return;
     }
     if (permission == LocationPermission.deniedForever) return;
 
-    Geolocator.getPositionStream(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.bestForNavigation,
-        distanceFilter: 0,
-      ),
-    ).listen((Position position) {
-      add(UpdateUserLocation(LatLng(position.latitude, position.longitude)));
+    // cancelar la anterior si existía
+    await _positionSub?.cancel();
+
+    final LocationSettings settings = navigation
+        ? const LocationSettings(
+      accuracy: LocationAccuracy.bestForNavigation,
+      distanceFilter: 0,
+    )
+        : const LocationSettings(
+      accuracy: LocationAccuracy.high,
+      distanceFilter: 8, // ahorro en modo exploración
+    );
+
+    _isNavigationTracking = navigation;
+
+    _positionSub = Geolocator.getPositionStream(
+      locationSettings: settings,
+    ).listen((pos) {
+      add(UpdateUserLocation(LatLng(pos.latitude, pos.longitude)));
     });
   }
 
@@ -901,7 +918,13 @@ class MapBloc extends Bloc<MapEvent, MapState> {
         categories: [],
         activities: [],
       ));
+      _startTrackingLocation(navigation: false);
     }
+  }
+  @override
+  Future<void> close() async{
+    await _positionSub?.cancel();
+    return super.close();
   }
   
 }
