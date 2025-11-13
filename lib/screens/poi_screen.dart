@@ -129,6 +129,8 @@ class _PoiScreenState extends State<PoiScreen> {
                               ),
                             ),
                             IconButton(
+                              // Accesibilidad: etiqueta describe el botón para cerrar la ficha.
+                              tooltip: 'Cerrar ficha del POI',
                               icon: Icon(
                                 Icons.close,
                                 color: Theme.of(context).colorScheme.onSurface,
@@ -139,135 +141,150 @@ class _PoiScreenState extends State<PoiScreen> {
                         ),
 
                         // ==================== IMAGEN PRINCIPAL ====================
-                        GestureDetector(
-                          onTap: () {
-                            showDialog(
-                              context: context,
-                              builder: (context) {
-                                final String url = widget.poi.imagen;
-                                final bool hasUrl = url.trim().isNotEmpty;
-                                Widget dialogChild;
-                                if (hasUrl) {
-                                  dialogChild = CachedNetworkImage(
-                                    imageUrl:
-                                        url, // 'url' ahora se llama 'imageUrl'
-                                    fit: BoxFit.contain,
-
-                                    // 2. 'loadingBuilder' se reemplaza por 'progressIndicatorBuilder'
-                                    //    El objeto de progreso es más simple: 'downloadProgress.progress'
-                                    progressIndicatorBuilder:
-                                        (context, url, downloadProgress) {
-                                          final theme = Theme.of(context);
-                                          // 'downloadProgress.progress' ya te da el valor (ej: 0.5)
-                                          final value =
-                                              downloadProgress.progress;
-                                          return Container(
-                                            padding: const EdgeInsets.all(24),
-                                            color: theme
-                                                .colorScheme
-                                                .surfaceContainerLow,
-                                            child: Center(
-                                              child: SizedBox(
-                                                width: 28,
-                                                height: 28,
-                                                child:
-                                                    CircularProgressIndicator(
-                                                      value: value,
-                                                      strokeWidth: 3,
-                                                    ),
+                        Semantics(
+                          // Accesibilidad: describe la imagen principal del POI.
+                          label:
+                              'Imagen principal de ${widget.poi.nombre}. Toca para ampliar.',
+                          image: true,
+                          child: GestureDetector(
+                            onTap: () {
+                              showDialog(
+                                context: context,
+                                builder: (context) {
+                                  final String url = widget.poi.imagen;
+                                  final bool hasUrl = url.trim().isNotEmpty;
+                                  Widget dialogChild;
+                                  final String dialogLabel =
+                                      'Imagen ampliada de ${widget.poi.nombre}';
+                                  if (hasUrl) {
+                                    dialogChild = Semantics(
+                                      // Accesibilidad: etiqueta la vista ampliada.
+                                      label: dialogLabel,
+                                      image: true,
+                                      child: ExcludeSemantics(
+                                        child: CachedNetworkImage(
+                                          imageUrl: url,
+                                          fit: BoxFit.contain,
+                                          progressIndicatorBuilder:
+                                              (context, url, downloadProgress) {
+                                            final theme = Theme.of(context);
+                                            final value =
+                                                downloadProgress.progress;
+                                            return Container(
+                                              padding: const EdgeInsets.all(24),
+                                              color: theme.colorScheme
+                                                  .surfaceContainerLow,
+                                              child: Center(
+                                                child: SizedBox(
+                                                  width: 28,
+                                                  height: 28,
+                                                  child:
+                                                      CircularProgressIndicator(
+                                                    value: value,
+                                                    strokeWidth: 3,
+                                                  ),
+                                                ),
                                               ),
-                                            ),
-                                          );
-                                        },
-                                    errorWidget: (context, url, error) {
-                                      return Container(
-                                        padding: const EdgeInsets.all(24),
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.surfaceContainerLow,
-                                        child: Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Icon(
-                                              Icons.broken_image_outlined,
-                                              size: 48,
+                                            );
+                                          },
+                                          errorWidget: (context, url, error) {
+                                            return Container(
+                                              padding: const EdgeInsets.all(24),
                                               color: Theme.of(
                                                 context,
-                                              ).colorScheme.onSurfaceVariant,
-                                            ),
-                                            const SizedBox(height: 12),
-                                            Text(
-                                              'Image unavailable',
-                                              textAlign: TextAlign.center,
-                                              style: TextStyle(
+                                              ).colorScheme.surfaceContainerLow,
+                                              child: Column(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Icon(
+                                                    Icons.broken_image_outlined,
+                                                    size: 48,
+                                                    color: Theme.of(
+                                                      context,
+                                                    ).colorScheme
+                                                        .onSurfaceVariant,
+                                                  ),
+                                                  const SizedBox(height: 12),
+                                                  Text(
+                                                    'Image unavailable',
+                                                    textAlign: TextAlign.center,
+                                                    style: TextStyle(
+                                                      color: Theme.of(
+                                                        context,
+                                                      ).colorScheme
+                                                          .onSurfaceVariant,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                    );
+                                  } else {
+                                    dialogChild = Semantics(
+                                      label: dialogLabel,
+                                      image: true,
+                                      child: ExcludeSemantics(
+                                        child: Container(
+                                          padding: const EdgeInsets.all(24),
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.surfaceContainerLow,
+                                          child: Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(
+                                                Icons.broken_image_outlined,
+                                                size: 48,
                                                 color: Theme.of(
                                                   context,
                                                 ).colorScheme.onSurfaceVariant,
                                               ),
-                                            ),
-                                          ],
+                                            ],
+                                          ),
                                         ),
-                                      );
-                                    },
-                                  );
-                                } else {
-                                  dialogChild = Container(
-                                    padding: const EdgeInsets.all(24),
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.surfaceContainerLow,
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(
+                                      ),
+                                    );
+                                  }
+                                  return Dialog(child: dialogChild);
+                                },
+                              );
+                            },
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Builder(
+                                builder: (context) {
+                                  final String url = widget.poi.imagen;
+                                  final bool hasUrl = url.trim().isNotEmpty;
+                                  if (!hasUrl) {
+                                    return ExcludeSemantics(
+                                      child: Container(
+                                        width: double.infinity,
+                                        height: 250,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.surfaceContainerLow,
+                                        child: Icon(
                                           Icons.broken_image_outlined,
                                           size: 48,
                                           color: Theme.of(
                                             context,
                                           ).colorScheme.onSurfaceVariant,
                                         ),
-                                      ],
-                                    ),
-                                  );
-                                }
-                                return Dialog(child: dialogChild);
-                              },
-                            );
-                          },
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: Builder(
-                              builder: (context) {
-                                final String url = widget.poi.imagen;
-                                final bool hasUrl = url.trim().isNotEmpty;
-                                if (!hasUrl) {
-                                  return Container(
-                                    width: double.infinity,
-                                    height: 250,
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.surfaceContainerLow,
-                                    child: Icon(
-                                      Icons.broken_image_outlined,
-                                      size: 48,
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.onSurfaceVariant,
-                                    ),
-                                  );
-                                }
-                                return CachedNetworkImage(
-                                  imageUrl:
-                                      url, // <- Parámetro se llama 'imageUrl'
-                                  fit: BoxFit.cover,
-                                  width: double.infinity,
-                                  height: 250,
-
-                                  // 'loadingBuilder' se convierte en 'progressIndicatorBuilder'
-                                  progressIndicatorBuilder:
-                                      (context, url, downloadProgress) {
-                                        final value = downloadProgress
-                                            .progress; // <- Obtenemos el progreso
+                                      ),
+                                    );
+                                  }
+                                  return ExcludeSemantics(
+                                    child: CachedNetworkImage(
+                                      imageUrl: url,
+                                      fit: BoxFit.cover,
+                                      width: double.infinity,
+                                      height: 250,
+                                      progressIndicatorBuilder:
+                                          (context, url, downloadProgress) {
+                                        final value = downloadProgress.progress;
                                         return Container(
                                           width: double.infinity,
                                           height: 250,
@@ -278,7 +295,8 @@ class _PoiScreenState extends State<PoiScreen> {
                                             child: SizedBox(
                                               width: 28,
                                               height: 28,
-                                              child: CircularProgressIndicator(
+                                              child:
+                                                  CircularProgressIndicator(
                                                 value: value,
                                                 strokeWidth: 3,
                                               ),
@@ -286,26 +304,26 @@ class _PoiScreenState extends State<PoiScreen> {
                                           ),
                                         );
                                       },
-
-                                  // 'errorBuilder' se convierte en 'errorWidget'
-                                  errorWidget: (context, url, error) {
-                                    return Container(
-                                      width: double.infinity,
-                                      height: 250,
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.surfaceContainerLow,
-                                      child: Icon(
-                                        Icons.broken_image_outlined,
-                                        size: 48,
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.onSurfaceVariant,
-                                      ),
-                                    );
-                                  },
-                                );
-                              },
+                                      errorWidget: (context, url, error) {
+                                        return Container(
+                                          width: double.infinity,
+                                          height: 250,
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.surfaceContainerLow,
+                                          child: Icon(
+                                            Icons.broken_image_outlined,
+                                            size: 48,
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.onSurfaceVariant,
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  );
+                                },
+                              ),
                             ),
                           ),
                         ),
@@ -391,6 +409,10 @@ class _PoiScreenState extends State<PoiScreen> {
                                         ),
                                     child: IconButton(
                                       key: ValueKey<bool>(isFavorite),
+                                      // Accesibilidad: describe la acción del favorito.
+                                      tooltip: isFavorite
+                                          ? 'Quitar de favoritos'
+                                          : 'Agregar a favoritos',
                                       icon: Icon(
                                         isFavorite
                                             ? Icons.favorite
@@ -716,26 +738,34 @@ class _PoiScreenState extends State<PoiScreen> {
                                 ),
                               ),
                               Spacer(),
-                              ElevatedButton.icon(
-                                onPressed: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) =>
-                                          const EmergencyScreen(),
+                              Tooltip(
+                                message: 'Llamar a contactos de emergencia',
+                                child: Semantics(
+                                  // Accesibilidad: clarifica la acción del botón rojo.
+                                  button: true,
+                                  label: 'Abrir contactos de emergencia',
+                                  child: ElevatedButton.icon(
+                                    onPressed: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              const EmergencyScreen(),
+                                        ),
+                                      );
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      shape: const CircleBorder(),
+                                      backgroundColor: Theme.of(
+                                        context,
+                                      ).colorScheme.error,
+                                      foregroundColor: Theme.of(
+                                        context,
+                                      ).colorScheme.onError,
                                     ),
-                                  );
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  shape: const CircleBorder(),
-                                  backgroundColor: Theme.of(
-                                    context,
-                                  ).colorScheme.error,
-                                  foregroundColor: Theme.of(
-                                    context,
-                                  ).colorScheme.onError,
+                                    label: const Icon(Icons.call, color: null),
+                                  ),
                                 ),
-                                label: const Icon(Icons.call, color: null),
                               ),
                             ],
                           ),
@@ -1270,3 +1300,4 @@ class _PoiScreenState extends State<PoiScreen> {
     }
   }
 }
+

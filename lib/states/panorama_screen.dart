@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:panorama_viewer/panorama_viewer.dart';
 
@@ -28,7 +28,7 @@ class _PanoramaScreenState extends State<PanoramaScreen> {
       DeviceOrientation.landscapeRight,
     ]);
 
-    // --- NUEVO: mostrar overlay y ocultarlo automáticamente ---
+    // --- NUEVO: mostrar overlay y ocultarlo automaticamente ---
     // aparece de inmediato y se desvanece a los 3s
     Future.delayed(const Duration(seconds: 3), () {
       if (!mounted) return;
@@ -48,31 +48,46 @@ class _PanoramaScreenState extends State<PanoramaScreen> {
     return Scaffold(
       body: Stack(
         children: [
-          PanoramaViewer(
-            // Cambia entre giroscopio y control manual
-            sensorControl: isGyroEnabled
-                ? SensorControl.absoluteOrientation
-                : SensorControl.none,
-            child: widget.imagePath.startsWith("http")
-                ? Image.network(widget.imagePath)
-                : Image.asset(widget.imagePath),
+          Semantics(
+            // Accesibilidad: describe el contenido panoramico.
+            label: 'Vista panoramica en 360 grados del lugar seleccionado',
+            child: PanoramaViewer(
+              sensorControl: isGyroEnabled
+                  ? SensorControl.absoluteOrientation
+                  : SensorControl.none,
+              child: widget.imagePath.startsWith("http")
+                  ? Image.network(
+                      widget.imagePath,
+                      excludeFromSemantics: true,
+                    )
+                  : Image.asset(
+                      widget.imagePath,
+                      excludeFromSemantics: true,
+                    ),
+            ),
           ),
 
-          // Botón cerrar (arriba-derecha)
+          // Boton cerrar (arriba-derecha)
           Positioned(
             top: 40,
             right: 20,
             child: IconButton(
+              // Accesibilidad: describe el boton de cierre.
+              tooltip: 'Cerrar vista panoramica',
               icon: const Icon(Icons.close, color: Colors.white, size: 32),
               onPressed: () => Navigator.pop(context),
             ),
           ),
 
-          // Botón para activar/desactivar el giroscopio (abajo-derecha)
+          // Boton para activar/desactivar el giroscopio (abajo-derecha)
           Positioned(
             bottom: 40,
             right: 20,
             child: FloatingActionButton(
+              // Accesibilidad: indica el estado del control.
+              tooltip: isGyroEnabled
+                  ? 'Desactivar control por giroscopio'
+                  : 'Activar control por giroscopio',
               onPressed: () {
                 setState(() {
                   isGyroEnabled = !isGyroEnabled;
@@ -96,46 +111,54 @@ class _PanoramaScreenState extends State<PanoramaScreen> {
               child: AnimatedOpacity(
                 opacity: _showHint ? 1.0 : 0.0,
                 duration: const Duration(milliseconds: 400),
-                child: Center(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha:0.55),
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.25),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
+                child: Semantics(
+                  // Accesibilidad: mensaje audible del overlay.
+                  label:
+                      'Desliza o mueve tu dispositivo para explorar la vista trescientos sesenta grados',
+                  liveRegion: true,
+                  child: Center(
+                    child: ExcludeSemantics(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 10,
                         ),
-                      ],
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: const [
-                        Icon(Icons.touch_app, color: Colors.white, size: 18),
-                        SizedBox(width: 8),
-                        Icon(
-                          Icons.screen_rotation,
-                          color: Colors.white,
-                          size: 18,
-                        ),
-                        SizedBox(width: 10),
-                        Flexible(
-                          child: Text(
-                            'Desliza o mueve tu dispositivo para explorar la vista 360°',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 14,
-                              height: 1.2,
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha:0.55),
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.25),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
                             ),
-                            textAlign: TextAlign.center,
-                          ),
+                          ],
                         ),
-                      ],
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: const [
+                            Icon(Icons.touch_app, color: Colors.white, size: 18),
+                            SizedBox(width: 8),
+                            Icon(
+                              Icons.screen_rotation,
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                            SizedBox(width: 10),
+                            Flexible(
+                              child: Text(
+                                'Desliza o mueve tu dispositivo para explorar la vista 360°',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                  height: 1.2,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -147,3 +170,11 @@ class _PanoramaScreenState extends State<PanoramaScreen> {
     );
   }
 }
+
+
+
+
+
+
+
+

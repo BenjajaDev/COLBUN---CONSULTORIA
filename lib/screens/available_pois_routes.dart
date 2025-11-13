@@ -831,36 +831,43 @@ class AvailablePoisRoutesSheet extends StatelessWidget {
           children: [
             const SizedBox(height: 6),
             Center(
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onVerticalDragUpdate: handleDragUpdate,
-                onVerticalDragEnd: handleDragEnd,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 6,
-                  ),
-                  child: Container(
-                    width: 52,
-                    height: 5,
-                    decoration: BoxDecoration(
-                      color: colorScheme.outlineVariant.withValues(alpha: 0.6),
-                      borderRadius: BorderRadius.circular(999),
+              child: Semantics(
+                // Accesibilidad: anuncia el asa para arrastrar la hoja.
+                label: 'Arrastra para ajustar la hoja de rutas',
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onVerticalDragUpdate: handleDragUpdate,
+                  onVerticalDragEnd: handleDragEnd,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 6,
+                    ),
+                    child: Container(
+                      width: 52,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: colorScheme.outlineVariant.withValues(alpha: 0.6),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
             const SizedBox(height: 10),
-            GestureDetector(
-              behavior: HitTestBehavior.translucent,
-              onVerticalDragUpdate: handleDragUpdate,
-              onVerticalDragEnd: handleDragEnd,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+            Semantics(
+              // Accesibilidad: informa que este encabezado también se puede arrastrar.
+              label: 'Arrastra aquí para expandir o contraer la hoja',
+              child: GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                onVerticalDragUpdate: handleDragUpdate,
+                onVerticalDragEnd: handleDragEnd,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                     if (selectedRoute != null) ...[
                       DecoratedBox(
                         decoration: BoxDecoration(
@@ -873,19 +880,27 @@ class AvailablePoisRoutesSheet extends StatelessWidget {
                             ),
                           ],
                         ),
-                        child: Material(
-                          type: MaterialType.transparency,
-                          shape: const CircleBorder(),
-                          child: InkWell(
-                            customBorder: const CircleBorder(),
-                            onTap: onClearSelectedRoute,
-                            child: Padding(
-                              padding: const EdgeInsets.all(10),
-                              child: Icon(
-                                Icons.arrow_back_rounded,
-                                color: theme.brightness == Brightness.dark
-                                    ? colorScheme.primary
-                                    : colorScheme.onSurface,
+                        child: Semantics(
+                          // Accesibilidad: etiqueta para el botón de volver al listado.
+                          button: true,
+                          label: 'Volver al listado de rutas',
+                          child: Tooltip(
+                            message: 'Volver al listado de rutas',
+                            child: Material(
+                              type: MaterialType.transparency,
+                              shape: const CircleBorder(),
+                              child: InkWell(
+                                customBorder: const CircleBorder(),
+                                onTap: onClearSelectedRoute,
+                                child: Padding(
+                                  padding: const EdgeInsets.all(10),
+                                  child: Icon(
+                                    Icons.arrow_back_rounded,
+                                    color: theme.brightness == Brightness.dark
+                                        ? colorScheme.primary
+                                        : colorScheme.onSurface,
+                                  ),
+                                ),
                               ),
                             ),
                           ),
@@ -924,6 +939,7 @@ class AvailablePoisRoutesSheet extends StatelessWidget {
                 ),
               ),
             ),
+          ),
             const SizedBox(height: 18),
             Expanded(
               child: AnimatedSwitcher(
@@ -952,3 +968,4 @@ class AvailablePoisRoutesSheet extends StatelessWidget {
     );
   }
 }
+

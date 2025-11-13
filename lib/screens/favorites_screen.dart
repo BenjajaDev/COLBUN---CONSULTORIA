@@ -57,7 +57,10 @@ class FavoritesScreen extends StatelessWidget {
                           child: SizedBox(
                             width: 100,
                             height: 90,
-                            child: _PoiImage(url: poi.imagen),
+                            child: _PoiImage(
+                              url: poi.imagen,
+                              semanticLabel: 'Imagen de ${poi.nombre}',
+                            ),
                           ),
                         ),
 
@@ -137,36 +140,44 @@ class FavoritesScreen extends StatelessWidget {
 /// Widget auxiliar para mostrar la imagen del POI
 class _PoiImage extends StatelessWidget {
   final String url;
-  const _PoiImage({required this.url});
+  final String? semanticLabel;
+  const _PoiImage({required this.url, this.semanticLabel});
 
   @override
   Widget build(BuildContext context) {
     final bg = Theme.of(context).colorScheme.surfaceContainerLow;
-    if (url.trim().isEmpty) {
-      return Container(
-        color: bg,
-        alignment: Alignment.center,
-        child: Icon(
-          Icons.photo,
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
-          size: 32,
-        ),
-      );
-    }
-    return Image.network(
-      url,
-      fit: BoxFit.cover,
-      errorBuilder: (context, error, stackTrace) {
-        return Container(
+    final label = semanticLabel ?? 'Imagen del punto de interés';
+
+    Widget buildPlaceholder(IconData icon) => Container(
           color: bg,
           alignment: Alignment.center,
           child: Icon(
-            Icons.broken_image_outlined,
+            icon,
             color: Theme.of(context).colorScheme.onSurfaceVariant,
             size: 32,
           ),
         );
-      },
+
+    if (url.trim().isEmpty) {
+      return Semantics(
+        // Accesibilidad: describe la imagen del POI en favoritos.
+        label: label,
+        image: true,
+        child: ExcludeSemantics(child: buildPlaceholder(Icons.photo)),
+      );
+    }
+    return Semantics(
+      // Accesibilidad: etiqueta la imagen descargada con el nombre del POI.
+      label: label,
+      image: true,
+      child: Image.network(
+        url,
+        fit: BoxFit.cover,
+        excludeFromSemantics: true,
+        errorBuilder: (context, error, stackTrace) {
+          return buildPlaceholder(Icons.broken_image_outlined);
+        },
+      ),
     );
   }
 }

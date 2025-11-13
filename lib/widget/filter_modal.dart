@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../blocs/map_bloc.dart';
 import '../events/map_event.dart';
@@ -146,6 +146,8 @@ class _FilterModalState extends State<FilterModal> {
 									),
 									const Spacer(),
 									IconButton(
+										tooltip: 'Cerrar',
+										// Accesibilidad: etiqueta para el botÃ³n de cerrar filtros.
 										onPressed: () => Navigator.of(context).pop(),
 										icon: const Icon(Icons.close),
 										color: widget.primaryColor,
@@ -239,3 +241,4 @@ class _FilterModalState extends State<FilterModal> {
 		);
 	}
 }
+

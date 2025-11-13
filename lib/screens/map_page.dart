@@ -108,27 +108,37 @@ class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
   Widget _buildQuickActionButton({
     required IconData icon,
     required VoidCallback onTap,
+    required String semanticLabel,
     Color? iconColor,
     Color? backgroundColor,
   }) {
     final theme = Theme.of(context);
     final bool isDark = theme.brightness == Brightness.dark;
-    return Material(
-      color:
-          backgroundColor ??
-          (isDark ? theme.colorScheme.surfaceContainerHighest : Colors.white),
-      shape: const CircleBorder(),
-      elevation: 3,
-      shadowColor: Colors.black.withValues(alpha: 0.08),
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(10),
-          child: Icon(
-            icon,
-            color: iconColor ?? theme.colorScheme.primary,
-            size: 20,
+    return Semantics(
+      // Accesibilidad: describe el botón circular como acción específica.
+      button: true,
+      label: semanticLabel,
+      child: Tooltip(
+        message: semanticLabel,
+        child: Material(
+          color: backgroundColor ??
+              (isDark
+                  ? theme.colorScheme.surfaceContainerHighest
+                  : Colors.white),
+          shape: const CircleBorder(),
+          elevation: 3,
+          shadowColor: Colors.black.withValues(alpha: 0.08),
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.all(10),
+              child: Icon(
+                icon,
+                color: iconColor ?? theme.colorScheme.primary,
+                size: 20,
+              ),
+            ),
           ),
         ),
       ),
@@ -411,40 +421,44 @@ class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
                                   point: LatLng(poi.latitud, poi.longitud),
                                   width: 120,
                                   height: 84,
-                                  child: GestureDetector(
-                                    onTap: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) => PoiScreen(poi),
-                                        ),
-                                      );
-                                    },
-
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        const Icon(
-                                          Icons.location_pin,
-                                          color: Colors.red,
-                                          size: 40,
-                                        ),
-                                        const SizedBox(height: 2),
-                                        if (_showPoiLabels)
-                                          Text(
-                                            poi.nombre,
-                                            textAlign: TextAlign.center,
-                                            softWrap: true,
-                                            maxLines: 2,
-                                            overflow: TextOverflow.fade,
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              color: Theme.of(
-                                                context,
-                                              ).colorScheme.onSurface,
-                                            ),
+                                  child: Semantics(
+                                    // Accesibilidad: expone cada pin como botón descriptivo.
+                                    button: true,
+                                    label: 'Abrir detalle de ${poi.nombre}',
+                                    child: GestureDetector(
+                                      onTap: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) => PoiScreen(poi),
                                           ),
-                                      ],
+                                        );
+                                      },
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(
+                                            Icons.location_pin,
+                                            color: Colors.red,
+                                            size: 40,
+                                          ),
+                                          const SizedBox(height: 2),
+                                          if (_showPoiLabels)
+                                            Text(
+                                              poi.nombre,
+                                              textAlign: TextAlign.center,
+                                              softWrap: true,
+                                              maxLines: 2,
+                                              overflow: TextOverflow.fade,
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                color: Theme.of(
+                                                  context,
+                                                ).colorScheme.onSurface,
+                                              ),
+                                            ),
+                                        ],
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -555,6 +569,8 @@ class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
                     child: FloatingActionButton(
                       heroTag: 'centerFab',
                       backgroundColor: const Color(0xFF4D67AE),
+                      // Accesibilidad: describe acción del FAB.
+                      tooltip: 'Centrar mapa en tu ubicación',
                       onPressed: () {
                         // Use the user's location when available, otherwise fall back to a default center
                         mapController.move(
@@ -581,6 +597,8 @@ class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
                       heroTag: 'emergencyFab',
                       backgroundColor: Theme.of(context).colorScheme.error,
                       foregroundColor: Theme.of(context).colorScheme.onError,
+                      // Accesibilidad: describe acción de emergencia.
+                      tooltip: 'Abrir contactos de emergencia',
                       onPressed: () {
                         Navigator.push(
                           context,
@@ -825,6 +843,9 @@ class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
                                                         shape:
                                                             const CircleBorder(),
                                                       ),
+                                                      // Accesibilidad: describe el botón de tema.
+                                                      tooltip:
+                                                          'Cambiar tema de la aplicación',
                                                       onPressed: () {
                                                         context
                                                             .read<
@@ -1182,6 +1203,7 @@ class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
                               _buildQuickActionButton(
                                 icon: Icons.tune_rounded,
                                 onTap: () => _openFilterSheet(state),
+                                semanticLabel: 'Abrir filtros de búsqueda',
                                 iconColor: const Color(0xFF4D67AE),
                               ),
                               const SizedBox(width: 8),
@@ -1194,6 +1216,7 @@ class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
                                 onTap: () {
                                   context.read<ThemeProvider>().toggleTheme();
                                 },
+                                semanticLabel: 'Cambiar tema de la aplicación',
                                 iconColor:
                                     Theme.of(context).brightness ==
                                         Brightness.dark
@@ -1212,6 +1235,7 @@ class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
                                     ),
                                   );
                                 },
+                                semanticLabel: 'Abrir favoritos guardados',
                                 iconColor: const Color(0xFFE63946),
                                 backgroundColor:
                                     Theme.of(context).brightness ==
