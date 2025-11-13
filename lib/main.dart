@@ -1,10 +1,13 @@
-﻿import 'package:consultoria_chat_bot/blocs/map_bloc.dart';
+﻿import 'dart:ui';
+
+import 'package:consultoria_chat_bot/blocs/map_bloc.dart';
 import 'package:consultoria_chat_bot/blocs/poi_bloc.dart';
 import 'package:consultoria_chat_bot/blocs/favorites_cubit.dart';
 import 'package:consultoria_chat_bot/l10n/app_localizations.dart';
 import 'package:consultoria_chat_bot/screens/map_page.dart';
 import 'package:consultoria_chat_bot/services/firestore_service.dart';
 import 'package:consultoria_chat_bot/services/local_storage.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/services.dart';
@@ -30,6 +33,13 @@ Future<void> main() async {
   await FMTCStore('mapStore').manage.create();// crea el almacenamiento local
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
+  FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+
+  // Captura errores asincrónicos
+  PlatformDispatcher.instance.onError = (error, stack) {
+    FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+    return true;
+  };
   //  --- CONFIGURACIÓN DE HIVE ---
   // 1. Inicializa Hive en el directorio de la app
   await Hive.initFlutter();

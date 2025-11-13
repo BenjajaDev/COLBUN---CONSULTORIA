@@ -266,7 +266,7 @@ class AvailablePoisRoutesSheet extends StatelessWidget {
             await AnalyticsService.logAbrirRuta(route.id, route.name);
             setSelectedRouteIndex(index);
 
-            if (selectedRouteIndex != index){
+            if (selectedRouteIndex != index) {
               await LocalStorage.setLastRouteName(route.name);
               await LocalStorage.setLastRouteWithPois(route);
             }
@@ -559,13 +559,22 @@ class AvailablePoisRoutesSheet extends StatelessWidget {
             onPreview: () {
               onMoveMap(LatLng(poi.latitud, poi.longitud), zoom: 16);
             },
-            onOpenDetail: () {
-              // Analytics: abrir POI desde detalle de ruta
-              AnalyticsService.logAbrirPOI(poi.id, poi.nombre);
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => PoiScreen(poi)),
-              );
+            onOpenDetail: () async {
+              try {
+                // Analytics: abrir POI desde detalle de ruta
+                AnalyticsService.logAbrirPOI(poi.id, poi.nombre);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => PoiScreen(poi)),
+                );
+              } catch (e, stack) {
+                await AnalyticsService.logError(
+                  e,
+                  stack,
+                  contexto: 'Abrir POI',
+                  detalles: {'poi_id': poi.id, 'nombre': poi.nombre},
+                );
+              }
             },
             onNavigate: () {
               context.read<MapBloc>().add(
