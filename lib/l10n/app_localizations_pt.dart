@@ -24,7 +24,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get verano => 'Verão';
 
   @override
-  String get vista360 => 'Vista 360°';
+  String get vista360 => 'Vista 360';
 
   @override
   String get descripcion => 'Descrição';
@@ -42,7 +42,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get rutas_disponibles => 'Rotas disponíveis';
 
   @override
-  String get resultado_busqueda => 'Resultado de busca';
+  String get resultado_busqueda => 'Resultado da busca';
 
   @override
   String get sin_resultado => 'Nenhum resultado encontrado';
@@ -167,4 +167,19 @@ class AppLocalizationsPt extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get error_cargar_imagen => 'Erro ao carregar a imagem';
+
+  @override
+  String get error_cargar_mapa => 'Erro ao carregar o mapa';
+
+  @override
+  String get reintentar => 'Tentar novamente';
+
+  @override
+  String get intentando_reconectar => 'Tentando reconectar...';
+
+  @override
+  String get conexion_recuperada => 'Conexão restabelecida';
 }

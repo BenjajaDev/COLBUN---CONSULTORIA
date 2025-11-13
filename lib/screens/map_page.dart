@@ -55,6 +55,11 @@ class _MapPageState extends State<MapPage> {
 
   final double _fabPositionPadding = 10;
 
+  bool _showMapErrorOverlay = false;
+  String? _mapErrorMessage;
+  bool _isReconnecting = false;
+  bool _showConnectionRecovered = false;
+
   @override
   void initState() {
     BlocProvider.of<MapBloc>(context).add(LoadRoute());
@@ -143,13 +148,43 @@ class _MapPageState extends State<MapPage> {
         'one.one.one.one',
       ).timeout(const Duration(seconds: 3));
       final online = result.isNotEmpty && result.first.rawAddress.isNotEmpty;
-      if (mounted && _isOffline == online) {
-        setState(() => _isOffline = !online);
-      } else if (mounted && _isOffline != !online) {
-        setState(() => _isOffline = !online);
+      if (!mounted) return;
+
+      // Transición de offline -> online: mostrar banner verde y recargar mapa
+      if (_isOffline && online) {
+        setState(() {
+          _isOffline = false;
+          _isReconnecting = false;
+          _showConnectionRecovered = true;
+        });
+
+        context.read<MapBloc>().add(LoadRoute());
+
+        // Ocultar banner verde tras unos segundos
+        Future.delayed(const Duration(seconds: 3), () {
+          if (!mounted) return;
+          if (_showConnectionRecovered) {
+            setState(() {
+              _showConnectionRecovered = false;
+            });
+          }
+        });
+      } else {
+        setState(() {
+          _isOffline = !online;
+          _isReconnecting = false;
+          if (!online) {
+            _showConnectionRecovered = false;
+          }
+        });
       }
     } catch (_) {
-      if (mounted && !_isOffline) setState(() => _isOffline = true);
+      if (!mounted) return;
+      setState(() {
+        _isOffline = true;
+        _isReconnecting = false;
+        _showConnectionRecovered = false;
+      });
     }
   }
 
@@ -226,13 +261,30 @@ class _MapPageState extends State<MapPage> {
         child: BlocListener<MapBloc, MapState>(
           listener: (context, state) {
             if (state is MapError) {
+              final l10n = AppLocalizations.of(context)!;
+              final String message = state.message.trim().isEmpty
+                  ? l10n.error_cargar_mapa
+                  : state.message;
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text(state.message),
+                  content: Text(message),
                   backgroundColor: Colors.redAccent,
                   duration: const Duration(seconds: 4),
                 ),
               );
+              if (mounted) {
+                setState(() {
+                  _showMapErrorOverlay = true;
+                  _mapErrorMessage = message;
+                });
+              }
+            } else if (state is MapLoaded || state is MapNavigating) {
+              if (_showMapErrorOverlay && mounted) {
+                setState(() {
+                  _showMapErrorOverlay = false;
+                  _mapErrorMessage = null;
+                });
+              }
             }
           },
           child: BlocBuilder<MapBloc, MapState>(
@@ -399,7 +451,10 @@ class _MapPageState extends State<MapPage> {
                                   child: GestureDetector(
                                     onTap: () {
                                       // Analytics: abrir POI desde marcador del mapa
-                                      AnalyticsService.logAbrirPOI(poi.id, poi.nombre);
+                                      AnalyticsService.logAbrirPOI(
+                                        poi.id,
+                                        poi.nombre,
+                                      );
                                       Navigator.push(
                                         context,
                                         MaterialPageRoute(
@@ -425,9 +480,9 @@ class _MapPageState extends State<MapPage> {
                                             overflow: TextOverflow.fade,
                                             style: TextStyle(
                                               fontSize: 11,
-                                              color: Theme.of(context)
-                                                  .colorScheme
-                                                  .onSurface,
+                                              color: Theme.of(
+                                                context,
+                                              ).colorScheme.onSurface,
                                             ),
                                           ),
                                       ],
@@ -575,16 +630,71 @@ class _MapPageState extends State<MapPage> {
                               const Icon(Icons.wifi_off, color: Colors.white),
                               const SizedBox(width: 8),
                               Text(
-                                AppLocalizations.of(context)!.modo_sin_conexion,
+                                _isReconnecting
+                                    ? AppLocalizations.of(
+                                        context,
+                                      )!.intentando_reconectar
+                                    : AppLocalizations.of(
+                                        context,
+                                      )!.modo_sin_conexion,
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const Spacer(),
+                              TextButton.icon(
+                                onPressed: _isReconnecting
+                                    ? null
+                                    : () {
+                                        setState(() {
+                                          _isReconnecting = true;
+                                          _showConnectionRecovered = false;
+                                        });
+                                        _checkConnectivity();
+                                      },
+                                style: TextButton.styleFrom(
+                                  foregroundColor: Colors.white,
+                                ),
+                                icon: const Icon(Icons.refresh, size: 18),
+                                label: Text(
+                                  AppLocalizations.of(context)!.reintentar,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
                               ),
                             ],
                           ),
                         ),
                       ),
+                  if (_showConnectionRecovered)
+                    Positioned(
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      child: Container(
+                        height: 36,
+                        color: Colors.green,
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        alignment: Alignment.centerLeft,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.max,
+                          children: [
+                            const Icon(Icons.wifi, color: Colors.white),
+                            const SizedBox(width: 8),
+                            Text(
+                              AppLocalizations.of(context)!.conexion_recuperada,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   if (state is MapLoaded)
                     NotificationListener<DraggableScrollableNotification>(
                       onNotification: (notification) {
@@ -883,7 +993,7 @@ class _MapPageState extends State<MapPage> {
 
                   if (state is MapLoaded)
                     Positioned(
-                      top: _isOffline ? 60 : 16,
+                      top: (_isOffline || _showConnectionRecovered) ? 60 : 16,
                       left: 16,
                       right: 16,
                       child: AnimatedSwitcher(
@@ -946,9 +1056,14 @@ class _MapPageState extends State<MapPage> {
                                     final s = context.read<MapBloc>().state;
                                     int total = 0;
                                     if (s is MapLoaded) {
-                                      total = (s.filteredRoutes.length) + (s.filteredPois.length);
+                                      total =
+                                          (s.filteredRoutes.length) +
+                                          (s.filteredPois.length);
                                     }
-                                    await AnalyticsService.logRealizarBusqueda(term, total);
+                                    await AnalyticsService.logRealizarBusqueda(
+                                      term,
+                                      total,
+                                    );
                                   },
                                   textInputAction: TextInputAction.search,
                                   decoration: InputDecoration(
@@ -1031,6 +1146,59 @@ class _MapPageState extends State<MapPage> {
                       ),
                     ),
                   ],
+                  if (_showMapErrorOverlay)
+                    Positioned.fill(
+                      child: Container(
+                        color: Colors.black.withValues(alpha: 0.4),
+                        child: Center(
+                          child: Card(
+                            elevation: 4,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(24.0),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.map,
+                                    size: 48,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.primary,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    _mapErrorMessage ??
+                                        AppLocalizations.of(
+                                          context,
+                                        )!.error_cargar_mapa,
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurface,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  ElevatedButton(
+                                    onPressed: () {
+                                      context.read<MapBloc>().add(LoadRoute());
+                                    },
+                                    child: Text(
+                                      AppLocalizations.of(context)!.reintentar,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                 ],
               );
             },

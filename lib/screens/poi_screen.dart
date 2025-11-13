@@ -145,6 +145,7 @@ class _PoiScreenState extends State<PoiScreen> {
                               context: context,
                               builder: (context) {
                                 final String url = widget.poi.imagen;
+                                final l10n = AppLocalizations.of(context)!;
                                 final bool hasUrl = url.trim().isNotEmpty;
                                 Widget dialogChild;
                                 if (hasUrl) {
@@ -199,7 +200,7 @@ class _PoiScreenState extends State<PoiScreen> {
                                             ),
                                             const SizedBox(height: 12),
                                             Text(
-                                              'Image unavailable',
+                                              l10n.error_cargar_imagen,
                                               textAlign: TextAlign.center,
                                               style: TextStyle(
                                                 color: Theme.of(
@@ -228,6 +229,16 @@ class _PoiScreenState extends State<PoiScreen> {
                                             context,
                                           ).colorScheme.onSurfaceVariant,
                                         ),
+                                        const SizedBox(height: 12),
+                                        Text(
+                                          l10n.error_cargar_imagen,
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.onSurfaceVariant,
+                                          ),
+                                        ),
                                       ],
                                     ),
                                   );
@@ -241,6 +252,7 @@ class _PoiScreenState extends State<PoiScreen> {
                             child: Builder(
                               builder: (context) {
                                 final String url = widget.poi.imagen;
+                                final l10n = AppLocalizations.of(context)!;
                                 final bool hasUrl = url.trim().isNotEmpty;
                                 if (!hasUrl) {
                                   return Container(
@@ -249,12 +261,28 @@ class _PoiScreenState extends State<PoiScreen> {
                                     color: Theme.of(
                                       context,
                                     ).colorScheme.surfaceContainerLow,
-                                    child: Icon(
-                                      Icons.broken_image_outlined,
-                                      size: 48,
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.onSurfaceVariant,
+                                    child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          Icons.broken_image_outlined,
+                                          size: 48,
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.onSurfaceVariant,
+                                        ),
+                                        const SizedBox(height: 12),
+                                        Text(
+                                          l10n.error_cargar_imagen,
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.onSurfaceVariant,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   );
                                 }
@@ -299,12 +327,28 @@ class _PoiScreenState extends State<PoiScreen> {
                                       color: Theme.of(
                                         context,
                                       ).colorScheme.surfaceContainerLow,
-                                      child: Icon(
-                                        Icons.broken_image_outlined,
-                                        size: 48,
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.onSurfaceVariant,
+                                      child: Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Icon(
+                                            Icons.broken_image_outlined,
+                                            size: 48,
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.onSurfaceVariant,
+                                          ),
+                                          const SizedBox(height: 12),
+                                          Text(
+                                            l10n.error_cargar_imagen,
+                                            textAlign: TextAlign.center,
+                                            style: TextStyle(
+                                              color: Theme.of(
+                                                context,
+                                              ).colorScheme.onSurfaceVariant,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     );
                                   },

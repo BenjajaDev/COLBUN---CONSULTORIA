@@ -133,7 +133,7 @@ abstract class AppLocalizations {
   /// Texto para el botón de vista 360
   ///
   /// In es, this message translates to:
-  /// **'Vista 360°'**
+  /// **'Vista 360'**
   String get vista360;
 
   /// Título para la sección de descripción
@@ -357,6 +357,36 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'{count, plural, one {# POI} other {# POI}}'**
   String poi_count_chip(int count);
+
+  /// Mensaje mostrado cuando falla la carga de una imagen
+  ///
+  /// In es, this message translates to:
+  /// **'Error al cargar la imagen'**
+  String get error_cargar_imagen;
+
+  /// Mensaje mostrado cuando falla la carga del mapa
+  ///
+  /// In es, this message translates to:
+  /// **'Error al cargar el mapa'**
+  String get error_cargar_mapa;
+
+  /// Texto genérico para botones de reintento
+  ///
+  /// In es, this message translates to:
+  /// **'Reintentar'**
+  String get reintentar;
+
+  /// Mensaje mostrado mientras se está intentando reconectar
+  ///
+  /// In es, this message translates to:
+  /// **'Intentando reconectar...'**
+  String get intentando_reconectar;
+
+  /// Mensaje mostrado cuando la conexión se ha recuperado
+  ///
+  /// In es, this message translates to:
+  /// **'Has recuperado la conexión'**
+  String get conexion_recuperada;
 }
 
 class _AppLocalizationsDelegate

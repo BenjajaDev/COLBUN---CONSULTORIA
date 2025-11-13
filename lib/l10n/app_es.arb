@@ -1,4 +1,4 @@
-{
+﻿{
   "@@locale": "es",
   "search": "Buscar",
   "@search": {
@@ -20,7 +20,7 @@
   "@verano": {
     "description": "version de Verano para vista 360"
   },
-  "vista360": "Vista 360°",
+  "vista360": "Vista 360",
   "@vista360": {
     "description": "Texto para el botón de vista 360"
   },
@@ -32,27 +32,26 @@
   "@recomendados": {
     "description": "Título para la sección de puntos de interés recomendados"
   },
-  "cercanos":"Cerca de ti",
+  "cercanos": "Cerca de ti",
   "@cercanos": {
     "description": "Título para la sección de puntos de interés cercanos"
   },
   "ruta": "Ruta",
-  "@ruta":{
+  "@ruta": {
     "description": "prefijo para la ruta en mapa"
   },
   "rutas_disponibles": "Rutas disponibles",
-  "@rutas_disponibles":{
+  "@rutas_disponibles": {
     "description": "Título para la sección de rutas disponibles"
   },
   "resultado_busqueda": "Resultado de búsqueda",
-  "@resultado_busqueda":{
+  "@resultado_busqueda": {
     "description": "Título para la sección de rutas cuando se escribe"
   },
   "sin_resultado": "No se encontraron resultados",
-  "@sin_resultado":{
+  "@sin_resultado": {
     "description": "Texto que aparece cuando no hay resultados"
-  }
-  ,
+  },
   "vistas_modificadas_ia": "Incluye vistas modificadas con IA",
   "@vistas_modificadas_ia": {
     "description": "Tooltip text indicating 360 views were modified with AI"
@@ -94,8 +93,7 @@
   "cancelar": "Cancelar",
   "@cancelar": {
     "description": "Texto para el botón de cancelar navegación"
-  }
-  ,
+  },
   "filtros_title": "Filtros",
   "@filtros_title": {"description": "Título de la hoja de filtros"},
   "categoria_label": "Categoría",
@@ -107,8 +105,7 @@
   "aplicar_filtros": "Aplicar filtros",
   "@aplicar_filtros": {"description": "Texto del botón para aplicar filtros"},
   "todas": "Todas",
-  "@todas": {"description": "Opción genérica 'todas' en filtros"}
-  ,
+  "@todas": {"description": "Opción genérica 'todas' en filtros"},
   "modo_sin_conexion": "Modo sin conexión",
   "@modo_sin_conexion": {"description": "Banner text shown when the app is offline"},
   "temporada_actual_fmt": "Temporada actual: {season}",
@@ -130,8 +127,7 @@
   "emergency_firefighters_chile": "Bomberos",
   "@emergency_firefighters_chile": {"description": "Nombre para Bomberos de Chile"},
   "emergency_ambulance_chile": "Ambulancia (SAMU)",
-  "@emergency_ambulance_chile": {"description": "Nombre para Servicio de Ambulancias SAMU"}
-  ,
+  "@emergency_ambulance_chile": {"description": "Nombre para Servicio de Ambulancias SAMU"},
   "iniciar_ruta": "Iniciar ruta",
   "@iniciar_ruta": {
     "description": "Botón principal para iniciar la navegación de un POI"
@@ -157,5 +153,25 @@
         "type": "int"
       }
     }
+  },
+  "error_cargar_imagen": "Error al cargar la imagen",
+  "@error_cargar_imagen": {
+    "description": "Mensaje mostrado cuando falla la carga de una imagen"
+  },
+  "error_cargar_mapa": "Error al cargar el mapa",
+  "@error_cargar_mapa": {
+    "description": "Mensaje mostrado cuando falla la carga del mapa"
+  },
+  "reintentar": "Reintentar",
+  "@reintentar": {
+    "description": "Texto genérico para botones de reintento"
+  },
+  "intentando_reconectar": "Intentando reconectar...",
+  "@intentando_reconectar": {
+    "description": "Mensaje mostrado mientras se está intentando reconectar"
+  },
+  "conexion_recuperada": "Has recuperado la conexión",
+  "@conexion_recuperada": {
+    "description": "Mensaje mostrado cuando la conexión se ha recuperado"
   }
 }

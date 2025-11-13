@@ -14,16 +14,13 @@ import 'package:consultoria_chat_bot/theme.dart';
 import 'firebase_options.dart';
 import 'package:flutter_map_tile_caching/flutter_map_tile_caching.dart';
 
-
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await FMTCObjectBoxBackend().initialise();
-  await FMTCStore('mapStore').manage.create();// crea el almacenamiento local
+  await FMTCStore('mapStore').manage.create(); // crea el almacenamiento local
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   // Lock app to portrait by default; specific screens may override temporarily.
-  await SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-  ]);
+  await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   try {
     final contacts = await FireStoreService().fetchEmergencyContacts();
     if (contacts.isNotEmpty) {
@@ -32,8 +29,6 @@ Future<void> main() async {
   } catch (_) {}
   // Debug helper: print whether compile-time defines are present.
   // We avoid printing the full keys to not leak secrets in logs.
- 
- 
 
   runApp(const MyApp());
 }

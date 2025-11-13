@@ -92,5 +92,25 @@
                             "type": "int"
                         }
                     }
+                },
+                "error_cargar_imagen": "Failed to load image",
+                "@error_cargar_imagen": {
+                    "description": "Message shown when an image fails to load"
+                },
+                "error_cargar_mapa": "Failed to load map",
+                "@error_cargar_mapa": {
+                    "description": "Message shown when the map fails to load"
+                },
+                "reintentar": "Retry",
+                "@reintentar": {
+                    "description": "Generic text for retry buttons"
+                },
+                "intentando_reconectar": "Trying to reconnect...",
+                "@intentando_reconectar": {
+                    "description": "Message shown while attempting to reconnect"
+                },
+                "conexion_recuperada": "Connection restored",
+                "@conexion_recuperada": {
+                    "description": "Message shown when the connection has been restored"
                 }
 }

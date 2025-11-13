@@ -167,4 +167,19 @@ class AppLocalizationsEn extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get error_cargar_imagen => 'Failed to load image';
+
+  @override
+  String get error_cargar_mapa => 'Failed to load map';
+
+  @override
+  String get reintentar => 'Retry';
+
+  @override
+  String get intentando_reconectar => 'Trying to reconnect...';
+
+  @override
+  String get conexion_recuperada => 'Connection restored';
 }
