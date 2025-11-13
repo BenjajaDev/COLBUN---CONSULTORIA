@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 
@@ -9,6 +9,7 @@ import 'package:consultoria_chat_bot/screens/poi_screen.dart';
 import 'package:consultoria_chat_bot/screens/favorites_screen.dart';
 import 'package:consultoria_chat_bot/states/map_state.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_map_tile_caching/flutter_map_tile_caching.dart';
 import '../widget/filter_modal.dart';
 import 'available_pois_routes.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -16,6 +17,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:consultoria_chat_bot/theme.dart';
 import 'package:consultoria_chat_bot/l10n/app_localizations.dart';
+import 'package:consultoria_chat_bot/services/analytics_service.dart';
 
 const String kMapTilerApiKey = 'HiDxah3SS2m47uoakaIA';
 
@@ -27,6 +29,9 @@ class MapPage extends StatefulWidget {
 }
 
 class _MapPageState extends State<MapPage> {
+  final _tileProvider = FMTCTileProvider(
+    stores: const {'mapStore': BrowseStoreStrategy.readUpdateCreate},
+  );
   final MapController mapController = MapController();
   final TextEditingController searchController = TextEditingController();
   final DraggableScrollableController _draggableSheetController =
@@ -49,6 +54,7 @@ class _MapPageState extends State<MapPage> {
   bool _showPoiLabels = true; // toggle POI name visibility based on zoom
 
   final double _fabPositionPadding = 10;
+
   @override
   void initState() {
     BlocProvider.of<MapBloc>(context).add(LoadRoute());
@@ -70,6 +76,38 @@ class _MapPageState extends State<MapPage> {
       }
     });
   }
+
+  // === Helper reutilizable: MISMO estilo que el toast/snackbar de "Añadido a favoritos" ===
+  void _showStyledSnackBar(
+    BuildContext context, {
+    required String message,
+    SnackBarAction? action,
+  }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          message,
+          style: TextStyle(
+            color: theme.colorScheme.onSurface,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: isDark
+            ? theme.colorScheme.surface
+            : Colors.white, // igual que favs
+        elevation: 6,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        duration: const Duration(seconds: 3),
+        action: action,
+      ),
+    );
+  }
+  // === Fin helper ===
 
   Widget _buildQuickActionButton({
     required IconData icon,
@@ -163,11 +201,20 @@ class _MapPageState extends State<MapPage> {
           primaryColor: Theme.of(context).colorScheme.primary,
           searchController: searchController,
           onFiltersApplied: () {
+            // Mantengo tu lógica: limpiar selección de ruta si existe
             if (selectedRouteIndex != null && mounted) {
               setState(() {
                 selectedRouteIndex = null;
               });
             }
+            // === Mostrar el "toast" con EL MISMO ESTILO/UBICACIÓN que Favoritos ===
+            _showStyledSnackBar(
+              // uso el context del sheet: el ScaffoldMessenger resuelve al de la página
+              context,
+              message: 'Filtros aplicados',
+              // sin acción, como pediste (solo el mensaje)
+              // si luego quieres una acción tipo "Quitar filtros", se agrega aquí.
+            );
           },
         );
       },
@@ -306,10 +353,8 @@ class _MapPageState extends State<MapPage> {
                       ..rotateX(state is MapNavigating ? 0.6 : 0.0),
                     child: FlutterMap(
                       mapController: mapController,
-
                       options: MapOptions(
-                        initialCenter: LatLng(-35.6960057, -71.4060907),
-
+                        initialCenter: const LatLng(-35.6960057, -71.4060907),
                         initialZoom: 15,
                         onMapEvent: (event) {
                           final z = event.camera.zoom;
@@ -341,6 +386,7 @@ class _MapPageState extends State<MapPage> {
                       children: [
                         TileLayer(
                           key: ValueKey(tilesUrl),
+                          tileProvider: _tileProvider,
                           urlTemplate: tilesUrl,
                           userAgentPackageName: 'com.example.app',
                         ),
@@ -354,6 +400,8 @@ class _MapPageState extends State<MapPage> {
                                   height: 84,
                                   child: GestureDetector(
                                     onTap: () {
+                                      // Analytics: abrir POI desde marcador del mapa
+                                      AnalyticsService.logAbrirPOI(poi.id, poi.nombre);
                                       Navigator.push(
                                         context,
                                         MaterialPageRoute(
@@ -361,7 +409,6 @@ class _MapPageState extends State<MapPage> {
                                         ),
                                       );
                                     },
-
                                     child: Column(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
@@ -390,17 +437,12 @@ class _MapPageState extends State<MapPage> {
                                   ),
                                 ),
                               ),
-
                             if (state is MapLoaded)
                               if (state.userLocation != null)
                                 Marker(
                                   point: state.userLocation!,
                                   child: Transform.rotate(
-                                    angle:
-                                        state.heading *
-                                        (3.1415926535 /
-                                            180), //  Convertir a radianes
-
+                                    angle: state.heading * (3.1415926535 / 180),
                                     child: Container(
                                       decoration: const BoxDecoration(
                                         color: Color(0xFF4D67AE),
@@ -408,7 +450,6 @@ class _MapPageState extends State<MapPage> {
                                       ),
                                       child: const Icon(
                                         Icons.navigation, // Flecha tipo brujula
-
                                         color: Colors.white,
                                         size: 24,
                                       ),
@@ -434,8 +475,7 @@ class _MapPageState extends State<MapPage> {
                                             shape: BoxShape.circle,
                                           ),
                                           child: const Icon(
-                                            Icons
-                                                .navigation, // Flecha tipo brujula
+                                            Icons.navigation,
                                             color: Colors.white,
                                             size: 24,
                                           ),
@@ -494,9 +534,9 @@ class _MapPageState extends State<MapPage> {
                         mapController.move(
                           state is MapLoaded && state.userLocation != null
                               ? state.userLocation!
-                              : LatLng(-35.6960057, -71.4060907),
+                              : const LatLng(-35.6960057, -71.4060907),
                           15,
-                        ); // ðŸ‘ˆ Centrar
+                        ); // Centrar
                       },
                       child: const Icon(Icons.my_location, color: Colors.white),
                     ),
@@ -538,7 +578,7 @@ class _MapPageState extends State<MapPage> {
                               const SizedBox(width: 8),
                               Text(
                                 AppLocalizations.of(context)!.modo_sin_conexion,
-                                style: TextStyle(
+                                style: const TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -651,16 +691,18 @@ class _MapPageState extends State<MapPage> {
 
                           return AnimatedPadding(
                             // Padding animado que reserva el espacio del teclado para evitar "BOTTOM OVERFLOWED".
-                            padding: EdgeInsets.only(bottom: keyboardInset),
+                            padding: EdgeInsets.only(
+                              bottom: mediaQuery.viewInsets.bottom,
+                            ),
                             duration: const Duration(milliseconds: 220),
                             curve: Curves.easeOutCubic,
                             child: Container(
                               decoration: BoxDecoration(
                                 color: Theme.of(context).colorScheme.surface,
-                                borderRadius: BorderRadius.vertical(
+                                borderRadius: const BorderRadius.vertical(
                                   top: Radius.circular(20),
                                 ),
-                                boxShadow: [
+                                boxShadow: const [
                                   BoxShadow(
                                     color: Colors.black26,
                                     blurRadius: 8,
@@ -757,7 +799,6 @@ class _MapPageState extends State<MapPage> {
                                                             : Icons.light_mode,
                                                       ),
                                                     ),
-
                                                     Text(
                                                       AppLocalizations.of(
                                                         context,
@@ -842,176 +883,6 @@ class _MapPageState extends State<MapPage> {
                       ),
                     ),
 
-                  // if (state is MapLoaded)
-                  //   Positioned(
-                  //     top: _isOffline ? 36 : 0,
-                  //     right: 0,
-                  //     left: 0,
-                  //     child: Padding(
-                  //       padding: const EdgeInsets.all(8.0),
-                  //       child: Row(
-                  //         children: [
-                  //           IconButton(
-                  //             style: IconButton.styleFrom(
-                  //               backgroundColor: Theme.of(
-                  //                 context,
-                  //               ).colorScheme.surface,
-                  //               foregroundColor: Theme.of(
-                  //                 context,
-                  //               ).colorScheme.primary,
-                  //               shape: const CircleBorder(),
-                  //             ),
-                  //             onPressed: () {},
-                  //             icon: const Icon(Icons.arrow_back_rounded),
-                  //           ),
-
-                  //           const SizedBox(width: 4.0),
-                  //           Expanded(
-                  //             child: TextField(
-                  //               controller: searchController,
-                  //               onChanged: (value) {
-                  //                 // Detect common mobile keyboard behavior where
-                  //                 // typing two spaces converts to a period+space (". ").
-                  //                 // If the previous text ended with a space and the
-                  //                 // new text ends with ". ", we assume the user
-                  //                 // wanted two spaces and revert the auto-period.
-                  //                 String toSend = value;
-                  //                 if (value.endsWith('. ') &&
-                  //                     _lastSearchText.endsWith(' ')) {
-                  //                   toSend =
-                  //                       '${value.substring(0, value.length - 2)}  ';
-                  //                   // Update controller to reflect corrected text and
-                  //                   // keep the cursor at the end.
-                  //                   searchController.value = TextEditingValue(
-                  //                     text: toSend,
-                  //                     selection: TextSelection.collapsed(
-                  //                       offset: toSend.length,
-                  //                     ),
-                  //                   );
-                  //                 }
-                  //                 _lastSearchText = toSend;
-                  //                 context.read<MapBloc>().add(
-                  //                   SearchQueryUpdated(toSend),
-                  //                 );
-                  //               },
-                  //               decoration: InputDecoration(
-                  //                 hintText:
-                  //                     Localizations.of<MaterialLocalizations>(
-                  //                       context,
-                  //                       MaterialLocalizations,
-                  //                     )!.searchFieldLabel,
-                  //                 border: OutlineInputBorder(
-                  //                   borderRadius: const BorderRadius.all(
-                  //                     Radius.circular(32.0),
-                  //                   ),
-                  //                   borderSide: BorderSide(
-                  //                     color: Theme.of(
-                  //                       context,
-                  //                     ).colorScheme.outlineVariant,
-                  //                   ),
-                  //                 ),
-                  //                 enabledBorder: OutlineInputBorder(
-                  //                   borderRadius: const BorderRadius.all(
-                  //                     Radius.circular(32.0),
-                  //                   ),
-                  //                   borderSide: BorderSide(
-                  //                     color: Theme.of(
-                  //                       context,
-                  //                     ).colorScheme.outlineVariant,
-                  //                   ),
-                  //                 ),
-                  //                 focusedBorder: OutlineInputBorder(
-                  //                   borderRadius: BorderRadius.all(
-                  //                     Radius.circular(32.0),
-                  //                   ),
-                  //                   borderSide: BorderSide(
-                  //                     color: Theme.of(
-                  //                       context,
-                  //                     ).colorScheme.primary,
-                  //                   ),
-                  //                 ),
-                  //                 filled: true,
-                  //                 fillColor: Theme.of(
-                  //                   context,
-                  //                 ).colorScheme.surface,
-                  //                 contentPadding: const EdgeInsets.symmetric(
-                  //                   horizontal: 12.0,
-                  //                   vertical: 10.0,
-                  //                 ),
-                  //               ),
-                  //             ),
-                  //           ),
-
-                  //           const SizedBox(width: 4.0),
-                  //           IconButton(
-                  //             style: IconButton.styleFrom(
-                  //               backgroundColor: Theme.of(
-                  //                 context,
-                  //               ).colorScheme.surface,
-                  //               foregroundColor: Theme.of(
-                  //                 context,
-                  //               ).colorScheme.primary,
-                  //               shape: const CircleBorder(),
-                  //             ),
-                  //             onPressed: () => _openFilterSheet(state),
-                  //             icon: const Icon(Icons.filter_list),
-                  //           ),
-
-                  //           const SizedBox(width: 4.0),
-                  //           IconButton(
-                  //             style: IconButton.styleFrom(
-                  //               backgroundColor: Theme.of(
-                  //                 context,
-                  //               ).colorScheme.surface,
-                  //               foregroundColor: Theme.of(
-                  //                 context,
-                  //               ).colorScheme.primary,
-                  //               shape: const CircleBorder(),
-                  //             ),
-                  //             onPressed: () {
-                  //               context.read<ThemeProvider>().toggleTheme();
-                  //             },
-                  //             icon: Icon(
-                  //               context.watch<ThemeProvider>().themeMode ==
-                  //                       ThemeMode.dark
-                  //                   ? Icons.dark_mode
-                  //                   : Icons.light_mode,
-                  //             ),
-                  //           ),
-
-                  //           /* const SizedBox(width: 4.0),
-                  //           IconButton(
-                  //             style: buttonStyle,
-                  //             onPressed: () {
-                  //               FocusScope.of(context).unfocus();
-                  //               _sendQueryUpdate(state, searchController.text);
-                  //             },
-                  //             icon: const Icon(Icons.search),
-                  //           ),*/
-                  //           const SizedBox(width: 4.0),
-                  //           IconButton(
-                  //             style: IconButton.styleFrom(
-                  //               backgroundColor: Theme.of(
-                  //                 context,
-                  //               ).colorScheme.surface,
-                  //               foregroundColor: Colors.pink,
-                  //               shape: const CircleBorder(),
-                  //             ),
-                  //             onPressed: () {
-                  //               Navigator.push(
-                  //                 context,
-                  //                 MaterialPageRoute(
-                  //                   builder: (context) =>
-                  //                       const FavoritesScreen(),
-                  //                 ),
-                  //               );
-                  //             },
-                  //             icon: const Icon(Icons.favorite),
-                  //           ),
-                  //         ],
-                  //       ),
-                  //     ),
-                  //   ),
                   if (state is MapLoaded)
                     Positioned(
                       top: _isOffline ? 60 : 16,
@@ -1072,6 +943,14 @@ class _MapPageState extends State<MapPage> {
                                     context.read<MapBloc>().add(
                                       SearchQueryUpdated(toSend),
                                     );
+                                  },
+                                  onSubmitted: (term) async {
+                                    final s = context.read<MapBloc>().state;
+                                    int total = 0;
+                                    if (s is MapLoaded) {
+                                      total = (s.filteredRoutes.length) + (s.filteredPois.length);
+                                    }
+                                    await AnalyticsService.logRealizarBusqueda(term, total);
                                   },
                                   textInputAction: TextInputAction.search,
                                   decoration: InputDecoration(
@@ -1148,7 +1027,10 @@ class _MapPageState extends State<MapPage> {
                       top: 20,
                       left: 16,
                       right: 16,
-                      child: _buildCurrentInstructionBanner(state.instructions),
+                      child: _buildCurrentInstructionBanner(
+                        // ignore: unnecessary_cast
+                        (state as MapNavigating).instructions,
+                      ),
                     ),
                   ],
                 ],

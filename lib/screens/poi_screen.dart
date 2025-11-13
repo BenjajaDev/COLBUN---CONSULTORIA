@@ -11,6 +11,8 @@ import 'package:latlong2/latlong.dart';
 import 'package:consultoria_chat_bot/states/map_state.dart';
 import 'package:consultoria_chat_bot/blocs/map_bloc.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+// NUEVO: para poder navegar a la lista de favoritos desde el SnackBar
+import 'package:consultoria_chat_bot/screens/favorites_screen.dart';
 
 import 'package:cached_network_image/cached_network_image.dart';
 
@@ -374,26 +376,76 @@ class _PoiScreenState extends State<PoiScreen> {
                                 ),
                               ),
 
-                              // Icono de favorito
+                              // ======= FAVORITO: AnimatedSwitcher + SnackBar con "Ver favoritos" =======
                               BlocBuilder<FavoritesCubit, FavoritesState>(
                                 builder: (context, favoritesState) {
                                   final isFavorite = favoritesState.contains(
                                     widget.poi.id,
                                   );
-                                  return IconButton(
-                                    icon: Icon(
-                                      isFavorite
-                                          ? Icons.favorite
-                                          : Icons.favorite_border,
-                                      color: isFavorite
-                                          ? Colors.pink
-                                          : Colors.grey,
+
+                                  return AnimatedSwitcher(
+                                    duration: const Duration(milliseconds: 300),
+                                    transitionBuilder: (child, anim) =>
+                                        ScaleTransition(
+                                          scale: anim,
+                                          child: child,
+                                        ),
+                                    child: IconButton(
+                                      key: ValueKey<bool>(isFavorite),
+                                      icon: Icon(
+                                        isFavorite
+                                            ? Icons.favorite
+                                            : Icons.favorite_border,
+                                        color: isFavorite
+                                            ? Colors.pink
+                                            : Colors.grey,
+                                      ),
+                                      onPressed: () {
+                                        // estado previo, para decidir mensaje/acción
+                                        final wasFavorite = isFavorite;
+
+                                        // lógica intacta
+                                        context
+                                            .read<FavoritesCubit>()
+                                            .toggleFavorite(widget.poi);
+
+                                        // mensaje + acción opcional
+                                        final msg = wasFavorite
+                                            ? 'Eliminado de favoritos'
+                                            : 'Añadido a favoritos';
+
+                                        ScaffoldMessenger.of(context)
+                                          ..hideCurrentSnackBar()
+                                          ..showSnackBar(
+                                            SnackBar(
+                                              content: Text(msg),
+                                              duration: const Duration(
+                                                seconds: 2,
+                                              ),
+                                              behavior:
+                                                  SnackBarBehavior.floating,
+                                              // acción solo cuando se agrega
+                                              action: wasFavorite
+                                                  ? null
+                                                  : SnackBarAction(
+                                                      label: 'Ver favoritos',
+                                                      textColor: const Color(
+                                                        0xFF4D67AE,
+                                                      ),
+                                                      onPressed: () {
+                                                        Navigator.push(
+                                                          context,
+                                                          MaterialPageRoute(
+                                                            builder: (_) =>
+                                                                const FavoritesScreen(),
+                                                          ),
+                                                        );
+                                                      },
+                                                    ),
+                                            ),
+                                          );
+                                      },
                                     ),
-                                    onPressed: () {
-                                      context
-                                          .read<FavoritesCubit>()
-                                          .toggleFavorite(widget.poi);
-                                    },
                                   );
                                 },
                               ),
@@ -423,7 +475,7 @@ class _PoiScreenState extends State<PoiScreen> {
                                 ),
                                 child: DropdownButton<String>(
                                   value: valorSeleccionado,
-                                  underline: SizedBox(),
+                                  underline: const SizedBox(),
                                   borderRadius: BorderRadius.circular(18),
                                   style: TextStyle(
                                     color: Theme.of(
@@ -663,7 +715,7 @@ class _PoiScreenState extends State<PoiScreen> {
                                   },
                                 ),
                               ),
-                              Spacer(),
+                              const Spacer(),
                               ElevatedButton.icon(
                                 onPressed: () {
                                   Navigator.push(
@@ -908,12 +960,10 @@ class _PoiScreenState extends State<PoiScreen> {
                                         height: 140,
                                         child: PageView.builder(
                                           controller: _recomendadosController,
-                                          itemCount: state
-                                              .recommended
-                                              .length, //vinculado al estado
+                                          itemCount: state.recommended.length,
                                           itemBuilder: (context, index) {
-                                            final rec = state
-                                                .recommended[index]; //usa datos del estado
+                                            final rec =
+                                                state.recommended[index];
                                             return Padding(
                                               padding:
                                                   const EdgeInsets.symmetric(
@@ -1040,9 +1090,7 @@ class _PoiScreenState extends State<PoiScreen> {
                                       mainAxisAlignment:
                                           MainAxisAlignment.center,
                                       children: List.generate(
-                                        state
-                                            .recommended
-                                            .length, //  indicadores ligados al estado
+                                        state.recommended.length,
                                         (i) => Container(
                                           width: 8,
                                           height: 8,
@@ -1077,19 +1125,14 @@ class _PoiScreenState extends State<PoiScreen> {
                                         height: 140,
                                         child: PageView.builder(
                                           controller: _cercanosController,
-                                          itemCount: state
-                                              .nearby
-                                              .length, //vinculado al estado
+                                          itemCount: state.nearby.length,
                                           itemBuilder: (context, index) {
-                                            final p = state
-                                                .nearby[index]; //usa datos del estado
-                                            final double? km =
-                                                dkm[p
-                                                    .id]; //  distancia para subtitulo
+                                            final p = state.nearby[index];
+                                            final double? km = dkm[p.id];
                                             final String? subtitleText =
                                                 km == null
                                                 ? null
-                                                : "${km.toStringAsFixed(1)} km"; // formato texto km
+                                                : "${km.toStringAsFixed(1)} km";
                                             return Padding(
                                               padding:
                                                   const EdgeInsets.symmetric(
@@ -1162,9 +1205,7 @@ class _PoiScreenState extends State<PoiScreen> {
                                       mainAxisAlignment:
                                           MainAxisAlignment.center,
                                       children: List.generate(
-                                        state
-                                            .nearby
-                                            .length, // indicadores ligados al estado
+                                        state.nearby.length,
                                         (i) => Container(
                                           width: 8,
                                           height: 8,

@@ -12,6 +12,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:provider/provider.dart';
 import 'package:consultoria_chat_bot/theme.dart';
 import 'firebase_options.dart';
+import 'package:flutter_map_tile_caching/flutter_map_tile_caching.dart';
+
 
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:consultoria_chat_bot/model/route_model.dart';
@@ -24,6 +26,8 @@ import 'dart:io';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await FMTCObjectBoxBackend().initialise();
+  await FMTCStore('mapStore').manage.create();// crea el almacenamiento local
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   //  --- CONFIGURACIÓN DE HIVE ---
