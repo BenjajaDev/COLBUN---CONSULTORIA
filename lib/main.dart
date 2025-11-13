@@ -15,11 +15,32 @@ import 'firebase_options.dart';
 import 'package:flutter_map_tile_caching/flutter_map_tile_caching.dart';
 
 
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:consultoria_chat_bot/model/route_model.dart';
+import 'package:consultoria_chat_bot/model/poi_model.dart';
+import 'package:consultoria_chat_bot/model/hive_adapters.dart';
+import 'package:consultoria_chat_bot/services/network_service.dart';
+import 'package:consultoria_chat_bot/services/local_storage_service.dart';
+
+import 'dart:io';
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await FMTCObjectBoxBackend().initialise();
   await FMTCStore('mapStore').manage.create();// crea el almacenamiento local
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  //  --- CONFIGURACIÓN DE HIVE ---
+  // 1. Inicializa Hive en el directorio de la app
+  await Hive.initFlutter();
+  
+  // 2. Registra los "traductores" (Adaptadores) que creamos
+  Hive.registerAdapter(MapRouteAdapter()); // El generado para MapRoute (typeId: 0)
+  Hive.registerAdapter(POIAdapter());      // El generado para POI (typeId: 1)
+  Hive.registerAdapter(LatLngAdapter());    // El que hicimos a mano (typeId: 100)
+  // --- FIN CONFIGURACIÓN HIVE ---
+
+
   // Lock app to portrait by default; specific screens may override temporarily.
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
@@ -32,7 +53,26 @@ Future<void> main() async {
   } catch (_) {}
   // Debug helper: print whether compile-time defines are present.
   // We avoid printing the full keys to not leak secrets in logs.
- 
+
+  //Solo llama la base de datos si hay conexión
+  bool online = false;
+  try {
+    final result = await InternetAddress.lookup('one.one.one.one')
+        .timeout(const Duration(seconds: 3));
+    online = result.isNotEmpty && result. first.rawAddress.isNotEmpty;
+  } catch(_) {
+    online = false;
+  }
+
+  if (online) {
+    try {
+      final contacts = await FireStoreService().fetchEmergencyContacts();
+      if (contacts.isNotEmpty) {
+        await LocalStorage.setEmergencyContacts(contacts);
+      }
+    } catch (_) {}
+  }
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  
 
   runApp(const MyApp());
@@ -42,11 +82,26 @@ class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   // This widget is the root of your application.
-  @override
+  @override 
   Widget build(BuildContext context) {
+
+    final firestoreService = FireStoreService();
+    final networkService = NetworkService();
+    final localStorageService = LocalStorageService();
+
     return MultiBlocProvider(
       providers: [
-        BlocProvider(create: (context) => MapBloc(FireStoreService())),
+        BlocProvider(
+          create: (context) => MapBloc(
+            firestoreService,
+            networkService,
+            localStorageService,
+          ),
+        ),
+        
+        // (El código antiguo que daba error era este:)
+        // BlocProvider(create: (context) => MapBloc(FireStoreService())),
+
         BlocProvider(create: (context) => PoiBloc()),
         BlocProvider(create: (context) => FavoritesCubit()),
       ],

@@ -266,8 +266,10 @@ class AvailablePoisRoutesSheet extends StatelessWidget {
             await AnalyticsService.logAbrirRuta(route.id, route.name);
             setSelectedRouteIndex(index);
 
-            await LocalStorage.setLastRouteName(route.name);
-            await LocalStorage.setLastRouteWithPois(route);
+            if (selectedRouteIndex != index){
+              await LocalStorage.setLastRouteName(route.name);
+              await LocalStorage.setLastRouteWithPois(route);
+            }
           },
           child: Padding(
             padding: const EdgeInsets.all(16),

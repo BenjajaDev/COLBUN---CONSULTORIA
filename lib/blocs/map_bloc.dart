@@ -4,7 +4,11 @@ import 'dart:math' as math;
 import 'package:consultoria_chat_bot/events/map_event.dart';
 import 'package:consultoria_chat_bot/model/poi_model.dart';
 import 'package:consultoria_chat_bot/model/route_model.dart';
+// 🔽 --- SERVICIOS AÑADIDOS --- 🔽
 import 'package:consultoria_chat_bot/services/firestore_service.dart';
+import 'package:consultoria_chat_bot/services/local_storage_service.dart';
+import 'package:consultoria_chat_bot/services/network_service.dart';
+// 🔼 --- FIN SERVICIOS --- 🔼
 import 'package:consultoria_chat_bot/states/map_state.dart';
 import 'package:flutter_compass/flutter_compass.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -22,6 +26,8 @@ const String kOpenRouteServiceApiKey = 'eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYy
 class MapBloc extends Bloc<MapEvent, MapState> {
   final FireStoreService _firebaseService;
   final Distance _distanceCalculator = const Distance();
+  final NetworkService _networkService;
+  final LocalStorageService _localStorageService;
 
   // Variables internas para navegación
   List<LatLng>? _currentRoutePoints; // Puntos de la polilínea restante
@@ -32,7 +38,11 @@ class MapBloc extends Bloc<MapEvent, MapState> {
   double? _instructionsTotalDurationSeconds; // Duración total original (s)
   String? _currentLanguageCode; // Código de idioma actual para navegación
 
-  MapBloc(this._firebaseService) : super(MapInitial()) {
+  //Control del stream de ubicación
+  StreamSubscription<Position>? _positionSub;
+  bool _isNavigationTracking = false;
+
+  MapBloc(this._firebaseService, this._networkService, this._localStorageService) : super(MapInitial()) {
     on<AddMarker>(_onAddMarker);
     on<UpdateUserLocation>(_onUpdateUserLocation);
     on<UpdateHeading>(_onUpdateHeading);
@@ -42,18 +52,63 @@ class MapBloc extends Bloc<MapEvent, MapState> {
     on<RequestNavigation>(_onRequestNavigation);
     on<CancelNavigation>(_onCancelNavigation);
 
-    _startTrackingLocation();
+    _startTrackingLocation(navigation: false);
     _startTrackingHeading();
   }
 
   // =============================
   // 🔹 CARGA INICIAL DE DATOS
   // =============================
-  /// Carga inicial de rutas y POIs desde Firestore y emite el estado base.
+  /// Carga inicial de rutas y POIs.
+  /// ONLINE: Carga desde Firestore y guarda en caché local (Hive).
+  /// OFFLINE: Carga desde caché local (Hive).
   Future<void> _onLoadRoute(LoadRoute event, Emitter<MapState> emit) async {
+    // 🔽 PRINT 1 🔽
+    print("[MapBloc] --- Evento _onLoadRoute RECIBIDO. Iniciando carga... ---");
+    
     emit(MapLoading());
     try {
-      final routes = await _firebaseService.fetchRoutes();
+      // 🔽 PRINT 2 🔽
+      print("[MapBloc] Entrando al bloque TRY...");
+      
+      final bool isOnline = await _networkService.isConnected();
+      
+      // 🔽 PRINT 3 🔽
+      print("--- [MapBloc] ¿Hay conexión?: $isOnline ---");
+
+      List<MapRoute> routes;
+      List<Map<String, dynamic>> categories;
+      List<Map<String, dynamic>> activities;
+
+      if (isOnline) {
+        print("[MapBloc] Modo ONLINE: Cargando desde Firebase...");
+        routes = await _firebaseService.fetchRoutes();
+        categories = await _firebaseService.fetchAllCategories();
+        activities = await _firebaseService.fetchAllActivities();
+
+        await _localStorageService.saveAllRoutes(routes);
+        await _localStorageService.saveCategories(categories);
+        await _localStorageService.saveActivities(activities);
+        
+        print("[MapBloc] Modo ONLINE: ${routes.length} rutas guardadas en Hive.");
+
+      } else {
+        print("[MapBloc] Modo OFFLINE: Cargando desde Hive...");
+        routes = await _localStorageService.getAllRoutes();
+        categories = await _localStorageService.getCategories();
+        activities = await _localStorageService.getActivities();
+
+        print("[MapBloc] Modo OFFLINE: ${routes.length} rutas encontradas en Hive.");
+
+        if (routes.isEmpty) {
+          print("[MapBloc] ¡ERROR! No se encontró nada en Hive.");
+          emit(MapError("Estás sin conexión y no hay datos guardados."));
+          return; 
+        }
+      }
+      
+      // --- 🔽 LÓGICA COMÚN (LA PARTE QUE FALTABA) 🔽 ---
+      // 4. Aplicar filtros iniciales (con los datos ya cargados)
       final filteredRoutes = _filterRoutes(
         routes,
         query: '',
@@ -69,22 +124,29 @@ class MapBloc extends Bloc<MapEvent, MapState> {
         category: null,
         activity: null,
       );
+      // --- 🔼 FIN DE LA PARTE QUE FALTABA 🔼 ---
 
+      print("[MapBloc] Emitiendo estado MapLoaded...");
       emit(
         MapLoaded(
           center: const LatLng(-35.6960057, -71.4060907),
-          markers: _buildMarkers(filteredPois),
+          markers: _buildMarkers(filteredPois), // <- Ahora 'filteredPois' existe
           userLocation: null,
           heading: 0.0,
           allRoutes: routes,
-          filteredRoutes: filteredRoutes,
-          filteredPois: filteredPois,
-          categories: await _firebaseService.fetchAllCategories(),
-          activities: await _firebaseService.fetchAllActivities(),
+          filteredRoutes: filteredRoutes, // <- Ahora 'filteredRoutes' existe
+          filteredPois: filteredPois,     // <- Ahora 'filteredPois' existe
+          categories: categories, 
+          activities: activities, 
         ),
       );
-    } catch (e) {
-      emit(MapError("Error al cargar la ruta: $e"));
+    
+    } catch (e, stackTrace) { 
+      print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+      print("[MapBloc] ¡ERROR FATAL CAPTURADO! $e");
+      print("[MapBloc] StackTrace: $stackTrace");
+      print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+      emit(MapError("Error al cargar datos: $e"));
     }
   }
 
@@ -679,6 +741,7 @@ class MapBloc extends Bloc<MapEvent, MapState> {
             },
           ),
         );
+        _startTrackingLocation(navigation: true);
       } else {
         emit(
           MapError(
@@ -773,24 +836,36 @@ class MapBloc extends Bloc<MapEvent, MapState> {
   // =============================
   /// Inicia el seguimiento de ubicación con alta precisión y sin filtro de distancia
   /// para navegación fluida.
-  Future<void> _startTrackingLocation() async {
-    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+  Future<void> _startTrackingLocation({required bool navigation}) async {
+    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) return;
 
-    LocationPermission permission = await Geolocator.checkPermission();
+    var permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) return;
     }
     if (permission == LocationPermission.deniedForever) return;
 
-    Geolocator.getPositionStream(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.bestForNavigation,
-        distanceFilter: 0,
-      ),
-    ).listen((Position position) {
-      add(UpdateUserLocation(LatLng(position.latitude, position.longitude)));
+    // cancelar la anterior si existía
+    await _positionSub?.cancel();
+
+    final LocationSettings settings = navigation
+        ? const LocationSettings(
+      accuracy: LocationAccuracy.bestForNavigation,
+      distanceFilter: 0,
+    )
+        : const LocationSettings(
+      accuracy: LocationAccuracy.high,
+      distanceFilter: 8, // ahorro en modo exploración
+    );
+
+    _isNavigationTracking = navigation;
+
+    _positionSub = Geolocator.getPositionStream(
+      locationSettings: settings,
+    ).listen((pos) {
+      add(UpdateUserLocation(LatLng(pos.latitude, pos.longitude)));
     });
   }
 
@@ -843,7 +918,13 @@ class MapBloc extends Bloc<MapEvent, MapState> {
         categories: [],
         activities: [],
       ));
+      _startTrackingLocation(navigation: false);
     }
+  }
+  @override
+  Future<void> close() async{
+    await _positionSub?.cancel();
+    return super.close();
   }
   
 }
