@@ -154,8 +154,9 @@ class _PoiScreenState extends State<PoiScreen> {
                                     fit: BoxFit.contain,
                                     loadingBuilder:
                                         (context, child, loadingProgress) {
-                                          if (loadingProgress == null)
+                                          if (loadingProgress == null) {
                                             return child;
+                                          }
                                           final theme = Theme.of(context);
                                           final expected = loadingProgress
                                               .expectedTotalBytes;
@@ -293,8 +294,9 @@ class _PoiScreenState extends State<PoiScreen> {
                                   height: 250,
                                   loadingBuilder:
                                       (context, child, loadingProgress) {
-                                        if (loadingProgress == null)
+                                        if (loadingProgress == null) {
                                           return child;
+                                        }
                                         final expected =
                                             loadingProgress.expectedTotalBytes;
                                         final loaded = loadingProgress
