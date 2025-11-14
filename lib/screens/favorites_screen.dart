@@ -77,7 +77,8 @@ class FavoritesScreen extends StatelessWidget {
                               children: [
                                 Text(
                                   poi.nombre,
-                                  maxLines: 1,
+                                  // Accesibilidad: permite que los títulos crezcan hasta dos líneas.
+                                  maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
                                     fontSize: 16,
@@ -90,7 +91,8 @@ class FavoritesScreen extends StatelessWidget {
                                   (poi.categorias.isNotEmpty)
                                       ? poi.categorias.join(', ')
                                       : 'POI',
-                                  maxLines: 1,
+                                  // Accesibilidad: habilita dos líneas para categorías largas.
+                                  maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
                                     fontSize: 13,

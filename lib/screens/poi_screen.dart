@@ -123,7 +123,8 @@ class _PoiScreenState extends State<PoiScreen> {
                                       context,
                                     ).colorScheme.onSurface,
                                   ),
-                                  maxLines: 1,
+                                  // Accesibilidad: permite hasta dos líneas para nombres extensos.
+                                  maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
@@ -339,7 +340,10 @@ class _PoiScreenState extends State<PoiScreen> {
                               // Lista de chips horizontal
                               Expanded(
                                 child: SizedBox(
-                                  height: 40,
+                                  // Accesibilidad: altura escala con el factor de texto para evitar overflow.
+                                  height: 40 *
+                                      MediaQuery.textScaleFactorOf(context)
+                                          .clamp(1.0, 2.0),
                                   child: ListView.separated(
                                     scrollDirection: Axis.horizontal,
                                     itemCount: items.length,
@@ -481,8 +485,14 @@ class _PoiScreenState extends State<PoiScreen> {
                             horizontal: 8,
                             vertical: 8,
                           ),
-                          child: Row(
-                            children: [
+                          child: LayoutBuilder(
+                            builder: (context, constraints) {
+                              // Accesibilidad: Wrap permite que los controles se reacomoden cuando el texto escala.
+                              return Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
                               // Dropdown with rounded black border
                               Container(
                                 decoration: BoxDecoration(
@@ -737,7 +747,6 @@ class _PoiScreenState extends State<PoiScreen> {
                                   },
                                 ),
                               ),
-                              Spacer(),
                               Tooltip(
                                 message: 'Llamar a contactos de emergencia',
                                 child: Semantics(
@@ -768,7 +777,9 @@ class _PoiScreenState extends State<PoiScreen> {
                                 ),
                               ),
                             ],
-                          ),
+                          );
+                        },
+                      ),
                         ),
 
                         Expanded(

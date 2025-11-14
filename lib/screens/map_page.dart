@@ -417,51 +417,56 @@ class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
                           markers: [
                             if (state is MapLoaded)
                               ...state.filteredPois.map(
-                                (poi) => Marker(
-                                  point: LatLng(poi.latitud, poi.longitud),
-                                  width: 120,
-                                  height: 84,
-                                  child: Semantics(
-                                    // Accesibilidad: expone cada pin como botón descriptivo.
-                                    button: true,
-                                    label: 'Abrir detalle de ${poi.nombre}',
-                                    child: GestureDetector(
-                                      onTap: () {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (context) => PoiScreen(poi),
-                                          ),
-                                        );
-                                      },
-                                      child: Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          const Icon(
-                                            Icons.location_pin,
-                                            color: Colors.red,
-                                            size: 40,
-                                          ),
-                                          const SizedBox(height: 2),
-                                          if (_showPoiLabels)
-                                            Text(
-                                              poi.nombre,
-                                              textAlign: TextAlign.center,
-                                              softWrap: true,
-                                              maxLines: 2,
-                                              overflow: TextOverflow.fade,
-                                              style: TextStyle(
-                                                fontSize: 11,
-                                                color: Theme.of(
-                                                  context,
-                                                ).colorScheme.onSurface,
-                                              ),
+                                (poi) {
+                                  final textScale = MediaQuery.textScaleFactorOf(context).clamp(1.0, 2.0);
+                                  final double markerHeight = 84 + ((textScale - 1.0) * 44);
+                                  return Marker(
+                                    point: LatLng(poi.latitud, poi.longitud),
+                                    width: 120,
+                                    // Accesibilidad: altura del marcador escala con el texto para evitar recortes.
+                                    height: markerHeight,
+                                    child: Semantics(
+                                      // Accesibilidad: expone cada pin como botón descriptivo.
+                                      button: true,
+                                      label: 'Abrir detalle de ${poi.nombre}',
+                                      child: GestureDetector(
+                                        onTap: () {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (context) => PoiScreen(poi),
                                             ),
-                                        ],
+                                          );
+                                        },
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            const Icon(
+                                              Icons.location_pin,
+                                              color: Colors.red,
+                                              size: 40,
+                                            ),
+                                            const SizedBox(height: 2),
+                                            if (_showPoiLabels)
+                                              Text(
+                                                poi.nombre,
+                                                textAlign: TextAlign.center,
+                                                softWrap: true,
+                                                maxLines: 2,
+                                                overflow: TextOverflow.fade,
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  color: Theme.of(
+                                                    context,
+                                                  ).colorScheme.onSurface,
+                                                ),
+                                              ),
+                                          ],
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                ),
+                                  );
+                                },
                               ),
 
                             if (state is MapLoaded)
@@ -617,9 +622,9 @@ class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
                         left: 0,
                         right: 0,
                         child: Container(
-                          height: 36,
                           color: Colors.red,
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          // Accesibilidad: padding flexible evita que el texto se corte al escalarse.
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                           alignment: Alignment.centerLeft,
                           child: Row(
                             mainAxisSize: MainAxisSize.max,
