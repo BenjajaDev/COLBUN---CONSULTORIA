@@ -14,6 +14,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 // NUEVO: para poder navegar a la lista de favoritos desde el SnackBar
 import 'package:consultoria_chat_bot/screens/favorites_screen.dart';
 
+import 'package:cached_network_image/cached_network_image.dart';
+
 class PoiScreen extends StatefulWidget {
   final POI poi;
   const PoiScreen(this.poi, {super.key});
@@ -149,8 +151,9 @@ class _PoiScreenState extends State<PoiScreen> {
                                 final bool hasUrl = url.trim().isNotEmpty;
                                 Widget dialogChild;
                                 if (hasUrl) {
-                                  dialogChild = Image.network(
-                                    url,
+                                  dialogChild = CachedNetworkImage(
+                                    imageUrl:
+                                        url, // 'url' ahora se llama 'imageUrl'
                                     fit: BoxFit.contain,
                                     loadingBuilder:
                                         (context, child, loadingProgress) {
@@ -158,13 +161,9 @@ class _PoiScreenState extends State<PoiScreen> {
                                             return child;
                                           }
                                           final theme = Theme.of(context);
-                                          final expected = loadingProgress
-                                              .expectedTotalBytes;
-                                          final loaded = loadingProgress
-                                              .cumulativeBytesLoaded;
-                                          final value = expected != null
-                                              ? loaded / expected
-                                              : null;
+                                          // 'downloadProgress.progress' ya te da el valor (ej: 0.5)
+                                          final value =
+                                              downloadProgress.progress;
                                           return Container(
                                             padding: const EdgeInsets.all(24),
                                             color: theme
@@ -183,7 +182,7 @@ class _PoiScreenState extends State<PoiScreen> {
                                             ),
                                           );
                                         },
-                                    errorBuilder: (context, error, stack) {
+                                    errorWidget: (context, url, error) {
                                       return Container(
                                         padding: const EdgeInsets.all(24),
                                         color: Theme.of(
@@ -287,8 +286,9 @@ class _PoiScreenState extends State<PoiScreen> {
                                     ),
                                   );
                                 }
-                                return Image.network(
-                                  url,
+                                return CachedNetworkImage(
+                                  imageUrl:
+                                      url, // <- Parámetro se llama 'imageUrl'
                                   fit: BoxFit.cover,
                                   width: double.infinity,
                                   height: 250,
@@ -322,7 +322,9 @@ class _PoiScreenState extends State<PoiScreen> {
                                           ),
                                         );
                                       },
-                                  errorBuilder: (context, error, stack) {
+
+                                  // 'errorBuilder' se convierte en 'errorWidget'
+                                  errorWidget: (context, url, error) {
                                     return Container(
                                       width: double.infinity,
                                       height: 250,

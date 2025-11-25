@@ -1,9 +1,9 @@
 import 'package:firebase_analytics/firebase_analytics.dart';
-
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 class AnalyticsService {
   // Instancia única de FirebaseAnalytics
   static final FirebaseAnalytics _analytics = FirebaseAnalytics.instance;
-
+  static final FirebaseCrashlytics _crashlytics = FirebaseCrashlytics.instance;
   /// Método genérico
   static Future<void> logEvent(
     String name,
@@ -69,5 +69,31 @@ class AnalyticsService {
       'termino': termino,
       'resultados': resultados,
     });
+  }
+  // --- ERRORES ---
+  /// Registra un error con contexto (ruta, POI, etc.)
+  static Future<void> logError(
+    dynamic error,
+    StackTrace stack, {
+    String? contexto, // ej: "Ruta Lago Colbún" o "POI Mirador X"
+    Map<String, dynamic>? detalles,
+  }) async {
+    final contextInfo = {
+      if (contexto != null) 'contexto': contexto,
+      if (detalles != null) ...detalles,
+    };
+
+    // Log para depuración local
+    // ignore: avoid_print
+    print('🚨 Error capturado: $error\nContexto: $contextInfo');
+
+    // Enviar a Crashlytics con contexto adicional
+    await _crashlytics.log('Error en contexto: $contexto');
+    await _crashlytics.setCustomKey('contexto', contexto ?? 'sin_contexto');
+    detalles?.forEach((key, value) {
+      _crashlytics.setCustomKey(key, value.toString());
+    });
+
+    await _crashlytics.recordError(error, stack, fatal: false);
   }
 }

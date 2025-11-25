@@ -7,6 +7,13 @@ import 'package:latlong2/latlong.dart';
 import 'package:flutter/foundation.dart';
 
 class PoiBloc extends Bloc<PoiEvent, PoiState> {
+  final FireStoreService _firestore = FireStoreService();
+
+  // Se cachea en memoria para no volvera cargar los poi
+  final Map<String, Map<String, dynamic>> _categoryCache = {};
+  final Map<String, Map<String, dynamic>> _activityCache = {};
+
+
   PoiBloc() : super(PoiInitial()) {
     on<LoadPoi>(_onLoadPoi);
   }
@@ -39,9 +46,52 @@ class PoiBloc extends Bloc<PoiEvent, PoiState> {
       final Distance distance = const Distance();
       final LatLng selectedCoords = LatLng(selected.latitud, selected.longitud);
 
-      // 3) Consultar metadatos (categorías y actividades) desde Firestore
-      final List<Map<String, dynamic>> categorias = await FireStoreService().fetchCategory(selected.categorias);
-      final List<Map<String, dynamic>> actividades = await FireStoreService().fetchActivity(selected.actividades);
+      //Solo pide a firestore los datos que no están en caché
+      final List<String> selectedCatIds =
+          List<String>.from(selected.categorias);
+      final List<String> missingCatIds = selectedCatIds
+        .where((id) => !_categoryCache.containsKey(id))
+        .toList();
+
+      if (missingCatIds.isNotEmpty) {
+        final fetchedCats =
+            await _firestore.fetchCategory(missingCatIds);
+        for (final cat in fetchedCats) {
+          final String? id = cat['id'] as String?;
+          if (id != null) {
+            _categoryCache[id] = cat;
+          }
+        }
+      }
+
+      final List<String> selectedActIds =
+      List<String>.from(selected.actividades);
+      final List<String> missingActIds = selectedActIds
+          .where((id) => !_activityCache.containsKey(id))
+          .toList();
+
+      if (missingActIds.isNotEmpty) {
+        final fetchedActs =
+        await _firestore.fetchActivity(missingActIds);
+        for (final act in fetchedActs) {
+          final String? id = act['id'] as String?;
+          if (id != null) {
+            _activityCache[id] = act;
+          }
+        }
+      }
+
+      // 3) Consultar metadatos (categorías y actividades) desde el caché
+      final List<Map<String, dynamic>> categorias = selectedCatIds
+          .map((id) => _categoryCache[id])
+          .whereType<Map<String, dynamic>>()
+          .toList();
+
+      final List<Map<String, dynamic>> actividades = selectedActIds
+          .map((id) => _activityCache[id])
+          .whereType<Map<String, dynamic>>()
+          .toList();
+
       debugPrint('PoiBloc: fetched ${categorias.length} categories and ${actividades.length} activities for POI ${selected.id}');
 
       // 4) Construir lista de recomendados: priorizar coincidencia de categoría y luego distancia
