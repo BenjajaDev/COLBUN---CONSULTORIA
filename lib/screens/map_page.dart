@@ -70,10 +70,8 @@ class _MapPageState extends State<MapPage> {
 
   void _startNetworkMonitoring() {
     _checkConnectivity();
-    _netTimer = Timer.periodic(const Duration(seconds: 30), (_) {
-      if (_isOffline) {
-        _checkConnectivity();
-      }
+    _netTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      _checkConnectivity();
     });
   }
 
@@ -145,13 +143,19 @@ class _MapPageState extends State<MapPage> {
         'one.one.one.one',
       ).timeout(const Duration(seconds: 3));
       final online = result.isNotEmpty && result.first.rawAddress.isNotEmpty;
-      if (mounted && _isOffline == online) {
-        setState(() => _isOffline = !online);
-      } else if (mounted && _isOffline != !online) {
-        setState(() => _isOffline = !online);
+      if (mounted) {
+        setState(() {
+          _isOffline = !online;
+          print('Connectivity check: online=$online, _isOffline=$_isOffline');
+        });
       }
-    } catch (_) {
-      if (mounted && !_isOffline) setState(() => _isOffline = true);
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isOffline = true;
+          print('Connectivity check failed: $_isOffline (error: $e)');
+        });
+      }
     }
   }
 
