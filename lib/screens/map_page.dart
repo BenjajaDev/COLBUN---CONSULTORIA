@@ -346,9 +346,9 @@ class _MapPageState extends State<MapPage> {
               // Choose tile style depending on current theme
               final bool isDark =
                   Theme.of(context).brightness == Brightness.dark;
-              final String tilesUrl = isDark
+                final String tilesUrl = isDark
                   ? 'https://api.maptiler.com/maps/streets-v2-dark/{z}/{x}/{y}.png?key=$kMapTilerApiKey'
-                  : 'https://api.maptiler.com/maps/streets/{z}/{x}/{y}.png?key=$kMapTilerApiKey';
+                  : 'https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png?key=$kMapTilerApiKey';
               return Stack(
                 children: [
                   Transform(
@@ -390,9 +390,11 @@ class _MapPageState extends State<MapPage> {
                       children: [
                         TileLayer(
                           key: ValueKey(tilesUrl),
-                          tileProvider: _tileProvider,
+                          // Workaround: FMTC may serve cached tiles across style switches.
+                          // Force network provider in dark mode to ensure a visible change.
+                          tileProvider: isDark ? NetworkTileProvider() : _tileProvider,
                           urlTemplate: tilesUrl,
-                          userAgentPackageName: 'com.example.app',
+                          userAgentPackageName: 'com.example.consultoria_chat_bot',
                         ),
                         MarkerLayer(
                           markers: [
